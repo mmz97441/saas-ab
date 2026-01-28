@@ -179,8 +179,21 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
       }
   };
 
+  // Fonction de sanitisation pour éviter les injections XSS
+  const sanitizeText = (text: string): string => {
+    return text
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;')
+      .replace(/\//g, '&#x2F;');
+  };
+
   const renderMessageContent = (text: string) => {
-    return text.split('\n').map((line, index) => {
+    // Sanitiser le texte avant traitement
+    const sanitizedText = sanitizeText(text);
+
+    return sanitizedText.split('\n').map((line, index) => {
         const isBullet = line.trim().startsWith('* ') || line.trim().startsWith('- ');
         const cleanLine = isBullet ? line.trim().substring(2) : line;
         const parts = cleanLine.split(/(\*\*.*?\*\*)/g).map((part, i) => {

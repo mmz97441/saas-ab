@@ -19,13 +19,64 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
 
-  // Email de l'expert (Admin Suprême) - Backdoor de sécurité ultime
-  const EXPERT_EMAIL = "admin@ab-consultants.fr";
+  // Rate limiting côté client : protection contre brute force
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
+  const [lockoutMessage, setLockoutMessage] = useState('');
+
+  // Email de l'expert (Admin Suprême) - Utilise variable d'env avec fallback
+  const EXPERT_EMAIL = import.meta.env.VITE_SUPER_ADMIN_EMAIL || "admin@ab-consultants.fr";
+
+  // Vérifier si le compte est temporairement bloqué
+  const isLockedOut = (): boolean => {
+    if (!lockoutUntil) return false;
+    if (Date.now() < lockoutUntil) return true;
+    // Le délai est passé, on réinitialise
+    setLockoutUntil(null);
+    setLockoutMessage('');
+    return false;
+  };
+
+  // Calculer le délai de blocage (exponentiel : 2s, 4s, 8s, 16s, 30s max)
+  const calculateLockoutDelay = (attempts: number): number => {
+    const baseDelay = 2000; // 2 secondes
+    const maxDelay = 30000; // 30 secondes max
+    const delay = Math.min(baseDelay * Math.pow(2, attempts - 1), maxDelay);
+    return delay;
+  };
+
+  // Enregistrer une tentative échouée
+  const recordFailedAttempt = () => {
+    const newAttempts = failedAttempts + 1;
+    setFailedAttempts(newAttempts);
+
+    if (newAttempts >= 3) { // Après 3 échecs, on active le rate limiting
+      const delay = calculateLockoutDelay(newAttempts - 2);
+      const unlockTime = Date.now() + delay;
+      setLockoutUntil(unlockTime);
+      setLockoutMessage(`Trop de tentatives. Réessayez dans ${Math.ceil(delay / 1000)} secondes.`);
+    }
+  };
+
+  // Réinitialiser après succès
+  const resetFailedAttempts = () => {
+    setFailedAttempts(0);
+    setLockoutUntil(null);
+    setLockoutMessage('');
+  };
 
   const handleAuthAction = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setInfoMessage('');
+
+    // Vérifier le rate limiting avant toute action
+    if (isLockedOut()) {
+      const remainingTime = Math.ceil((lockoutUntil! - Date.now()) / 1000);
+      setError(`Compte temporairement bloqué. Réessayez dans ${remainingTime} secondes.`);
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -99,10 +150,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
       }
 
       // Si on arrive ici, tout est OK : Auth valide + Whitelist validée.
+      // Réinitialiser le compteur d'échecs
+      resetFailedAttempts();
       // App.tsx prendra le relais via le listener onAuthStateChanged.
 
     } catch (err: any) {
         console.error(err);
+        // Enregistrer la tentative échouée pour le rate limiting
+        recordFailedAttempt();
         
         // Affichage des erreurs à l'utilisateur
         if (err.message === 'CONSULTANT_NOT_AUTHORIZED') {
@@ -259,10 +314,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                     </div>
                 </div>
 
-                {error && (
+                {(error || lockoutMessage) && (
                     <div className="p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-lg flex items-start gap-2 animate-in slide-in-from-top-1">
-                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /> 
-                        <span className="leading-tight">{error}</span>
+                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                        <span className="leading-tight">{lockoutMessage || error}</span>
                     </div>
                 )}
 
@@ -272,10 +327,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                     </div>
                 )}
 
-                <button 
-                    type="submit" 
-                    disabled={isLoading}
-                    className={`w-full py-3 px-4 rounded-lg font-bold text-white shadow-lg shadow-brand-900/10 hover:shadow-xl transition-all flex items-center justify-center gap-2 ${activeTab === 'expert' ? 'bg-brand-900 hover:bg-brand-800' : 'bg-brand-600 hover:bg-brand-700'}`}
+                <button
+                    type="submit"
+                    disabled={isLoading || isLockedOut()}
+                    className={`w-full py-3 px-4 rounded-lg font-bold text-white shadow-lg shadow-brand-900/10 hover:shadow-xl transition-all flex items-center justify-center gap-2 ${activeTab === 'expert' ? 'bg-brand-900 hover:bg-brand-800' : 'bg-brand-600 hover:bg-brand-700'} ${isLockedOut() ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                     {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                         isSignUp ? <>Créer mon mot de passe <UserPlus className="w-5 h-5" /></> : <>Se connecter <ArrowRight className="w-5 h-5" /></>

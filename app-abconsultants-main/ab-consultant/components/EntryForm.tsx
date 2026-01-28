@@ -24,22 +24,60 @@ const formatForDisplay = (val: number | undefined | null) => {
     }).format(val);
 };
 
+// --- CONSTANTES DE VALIDATION ---
+const MAX_FINANCIAL_VALUE = 1_000_000_000; // 1 milliard max
+const MAX_DECIMAL_PLACES = 2;
+
 // --- SMART INPUT COMPONENTS ---
-// (Les composants SmartNumberInput, SmartBigInput, etc. restent inchangés ici, je les inclus pour le contexte mais ils sont identiques)
-const SmartNumberInput = ({ 
-    label, 
-    value, 
-    onChange, 
-    className = "", 
-    disabled = false, 
+const SmartNumberInput = ({
+    label,
+    value,
+    onChange,
+    className = "",
+    disabled = false,
     definition,
     prefix,
     suffix = "€",
     placeholder = "0",
     n1Value,
-    icon: Icon
+    icon: Icon,
+    min, // Valeur minimale optionnelle
+    max = MAX_FINANCIAL_VALUE, // Valeur maximale (défaut: 1 milliard)
+    allowNegative = true // Autoriser les valeurs négatives
 }: any) => {
     const [isFocused, setIsFocused] = useState(false);
+    const [validationError, setValidationError] = useState<string | null>(null);
+
+    // Fonction de validation des valeurs
+    const validateAndSanitize = (rawValue: string): { valid: boolean; value: number; error?: string } => {
+        if (rawValue === '' || rawValue === '-') {
+            return { valid: true, value: 0 };
+        }
+
+        const val = parseFloat(rawValue);
+
+        if (isNaN(val)) {
+            return { valid: false, value: 0, error: 'Valeur invalide' };
+        }
+
+        // Vérifier les bornes
+        if (!allowNegative && val < 0) {
+            return { valid: false, value: 0, error: 'Les valeurs négatives ne sont pas autorisées' };
+        }
+
+        if (min !== undefined && val < min) {
+            return { valid: false, value: min, error: `Minimum: ${formatForDisplay(min)}` };
+        }
+
+        if (Math.abs(val) > max) {
+            return { valid: false, value: Math.sign(val) * max, error: `Maximum: ${formatForDisplay(max)}` };
+        }
+
+        // Arrondir à MAX_DECIMAL_PLACES décimales
+        const rounded = Math.round(val * Math.pow(10, MAX_DECIMAL_PLACES)) / Math.pow(10, MAX_DECIMAL_PLACES);
+
+        return { valid: true, value: rounded };
+    };
 
     // Calculate variation
     let variation = null;
@@ -66,8 +104,8 @@ const SmartNumberInput = ({
                     )}
                 </label>
             </div>
-            
-            <div className="flex items-stretch gap-0 border border-slate-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-brand-500 focus-within:border-brand-500 transition-all bg-white shadow-sm hover:border-brand-300">
+
+            <div className={`flex items-stretch gap-0 border rounded-lg overflow-hidden focus-within:ring-2 transition-all bg-white shadow-sm ${validationError ? 'border-red-400 focus-within:ring-red-500 focus-within:border-red-500' : 'border-slate-300 focus-within:ring-brand-500 focus-within:border-brand-500 hover:border-brand-300'}`}>
                 {/* Main Input */}
                 <div className="relative flex-1 group">
                     {prefix && <div className="absolute left-3 top-2.5 pointer-events-none font-bold text-slate-600">{prefix}</div>}
@@ -75,13 +113,24 @@ const SmartNumberInput = ({
                         type={isFocused ? "number" : "text"}
                         value={isFocused ? (value === 0 ? '' : value) : formatForDisplay(value)}
                         onChange={(e) => {
-                            // Only parse if focused (raw input), otherwise ignore (it's display)
                             const rawValue = e.target.value.replace(',', '.'); // Allow comma as decimal separator
-                            const val = rawValue === '' ? 0 : parseFloat(rawValue);
-                            if (!isNaN(val)) onChange(val);
+                            const result = validateAndSanitize(rawValue);
+
+                            if (result.error) {
+                                setValidationError(result.error);
+                            } else {
+                                setValidationError(null);
+                            }
+
+                            if (result.valid || rawValue === '' || rawValue === '-') {
+                                onChange(result.value);
+                            }
                         }}
                         onFocus={() => setIsFocused(true)}
-                        onBlur={() => setIsFocused(false)}
+                        onBlur={() => {
+                            setIsFocused(false);
+                            setValidationError(null); // Effacer l'erreur au blur
+                        }}
                         disabled={disabled}
                         placeholder={placeholder}
                         className={`w-full h-full bg-white text-sm font-bold text-slate-900 py-2.5 px-3 outline-none disabled:bg-slate-50 disabled:text-slate-600 ${className} ${prefix ? 'pl-8' : ''} ${suffix ? 'pr-8' : ''}`}
@@ -104,6 +153,10 @@ const SmartNumberInput = ({
                     </div>
                 )}
             </div>
+            {/* Message d'erreur de validation */}
+            {validationError && (
+                <span className="text-[10px] text-red-500 font-medium">{validationError}</span>
+            )}
         </div>
     );
 };
@@ -327,15 +380,71 @@ const EntryForm: React.FC<EntryFormProps> = ({
         };
     }, [formData.revenue.breakdown, formData.margin?.breakdown, profitCenters]);
 
+    // --- VALIDATION CSV : Protection contre injections de formules ---
+    const isCSVFormulaInjection = (value: string): boolean => {
+        // Détecter les préfixes de formule Excel/Sheets
+        const dangerousPrefixes = ['=', '+', '-', '@', '\t', '\r'];
+        const trimmed = value.trim();
+        return dangerousPrefixes.some(prefix => trimmed.startsWith(prefix));
+    };
+
+    const validateCSVValue = (value: string, fieldName: string): { valid: boolean; sanitized: number } => {
+        // Vérifier injection de formule
+        if (isCSVFormulaInjection(value)) {
+            console.warn(`Potentielle injection de formule détectée dans ${fieldName}: ${value}`);
+            return { valid: false, sanitized: 0 };
+        }
+
+        const num = parseFloat(value.replace(',', '.'));
+
+        // Vérifier que c'est un nombre valide
+        if (isNaN(num)) {
+            return { valid: false, sanitized: 0 };
+        }
+
+        // Limiter les valeurs à des bornes raisonnables (max 1 milliard)
+        const MAX_VALUE = 1_000_000_000;
+        if (Math.abs(num) > MAX_VALUE) {
+            console.warn(`Valeur ${fieldName} trop grande: ${num}`);
+            return { valid: false, sanitized: 0 };
+        }
+
+        return { valid: true, sanitized: num };
+    };
+
     // --- IMPORT CSV HANDLER ---
     const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
+        // Vérifier la taille du fichier (max 1 Mo)
+        const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1 Mo
+        if (file.size > MAX_FILE_SIZE) {
+            alert('Fichier trop volumineux (max 1 Mo).');
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            return;
+        }
+
+        // Vérifier l'extension
+        if (!file.name.toLowerCase().endsWith('.csv')) {
+            alert('Format de fichier invalide. Veuillez utiliser un fichier .csv');
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            return;
+        }
+
         const reader = new FileReader();
         reader.onload = async (event) => {
             const text = event.target?.result as string;
             const lines = text.split('\n');
+
+            // Limiter le nombre de lignes traitées
+            const MAX_LINES = 1000;
+            if (lines.length > MAX_LINES) {
+                alert(`Fichier trop long (max ${MAX_LINES} lignes).`);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+                return;
+            }
+
             let matched = false;
             for (let i = 1; i < lines.length; i++) {
                 const line = lines[i].trim();
@@ -347,6 +456,12 @@ const EntryForm: React.FC<EntryFormProps> = ({
                 const rawMonth = cols[1];
                 let csvMonth: Month | undefined;
 
+                // Vérifier injection dans le mois
+                if (isCSVFormulaInjection(rawMonth)) {
+                    console.warn('Potentielle injection détectée dans le champ mois');
+                    continue;
+                }
+
                 if (!isNaN(parseInt(rawMonth))) {
                     const monthIndex = parseInt(rawMonth) - 1;
                     csvMonth = Object.values(Month)[monthIndex];
@@ -355,10 +470,26 @@ const EntryForm: React.FC<EntryFormProps> = ({
                 }
 
                 if (csvYear === formData.year && csvMonth === formData.month) {
-                    const caTotal = parseFloat(cols[2]) || 0;
-                    const salaires = parseFloat(cols[3]) || 0;
-                    const bfrTotal = parseFloat(cols[4]) || 0;
-                    const tresorerie = parseFloat(cols[5]) || 0;
+                    // Valider toutes les valeurs numériques
+                    const caResult = validateCSVValue(cols[2] || '0', 'CA');
+                    const salairesResult = validateCSVValue(cols[3] || '0', 'Salaires');
+                    const bfrResult = validateCSVValue(cols[4] || '0', 'BFR');
+                    const tresoResult = validateCSVValue(cols[5] || '0', 'Trésorerie');
+
+                    // Si une valeur est invalide, afficher un avertissement
+                    if (!caResult.valid || !salairesResult.valid || !bfrResult.valid || !tresoResult.valid) {
+                        const invalidFields = [];
+                        if (!caResult.valid) invalidFields.push('CA');
+                        if (!salairesResult.valid) invalidFields.push('Salaires');
+                        if (!bfrResult.valid) invalidFields.push('BFR');
+                        if (!tresoResult.valid) invalidFields.push('Trésorerie');
+                        alert(`Attention : Valeurs invalides détectées pour : ${invalidFields.join(', ')}. Les valeurs invalides ont été ignorées.`);
+                    }
+
+                    const caTotal = caResult.sanitized;
+                    const salaires = salairesResult.sanitized;
+                    const bfrTotal = bfrResult.sanitized;
+                    const tresorerie = tresoResult.sanitized;
 
                     setFormData(prev => {
                         const newData = { ...prev };
@@ -367,7 +498,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                         newData.revenue.goods = 0;
                         newData.expenses.salaries = salaires;
                         newData.bfr.receivables.clients = bfrTotal;
-                        newData.bfr.total = bfrTotal; 
+                        newData.bfr.total = bfrTotal;
                         if (tresorerie >= 0) {
                             newData.cashFlow.active = tresorerie;
                             newData.cashFlow.passive = 0;
@@ -379,7 +510,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
 
                         return newData;
                     });
-                    
+
                     matched = true;
                     alert(`Données importées pour ${csvMonth} ${csvYear} !`);
                     break;
@@ -565,7 +696,8 @@ const EntryForm: React.FC<EntryFormProps> = ({
                         <div>
                             <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Année</label>
                             <select value={formData.year} onChange={(e) => setFormData({...formData, year: parseInt(e.target.value)})} disabled={isLocked} className="w-full px-4 py-2 rounded-lg border border-slate-300 bg-white font-bold text-slate-700 focus:ring-2 focus:ring-brand-500 disabled:bg-slate-100 disabled:text-slate-500">
-                                {[2023, 2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
+                                {/* Générer les années dynamiquement : année actuelle ± 3 ans */}
+                                {Array.from({ length: 7 }, (_, i) => new Date().getFullYear() - 3 + i).map(y => <option key={y} value={y}>{y}</option>)}
                             </select>
                         </div>
                     </div>

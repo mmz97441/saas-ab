@@ -45,12 +45,35 @@ const App: React.FC = () => {
   
   const [editingRecord, setEditingRecord] = useState<FinancialRecord | null>(null);
   const [notification, setNotification] = useState<{message: string, type: 'success' | 'error' | 'info'} | null>(null);
+  const [isSaving, setIsSaving] = useState(false); // État pour éviter les race conditions
 
-  const SUPER_ADMIN_EMAIL = 'admin@ab-consultants.fr';
+  // Utiliser variable d'environnement avec fallback pour l'email admin
+  const SUPER_ADMIN_EMAIL = import.meta.env.VITE_SUPER_ADMIN_EMAIL || 'admin@ab-consultants.fr';
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
       setNotification({ message, type });
       setTimeout(() => setNotification(null), 4000);
+  };
+
+  // Gestionnaire d'erreurs global pour les opérations async
+  const handleAsyncError = (error: any, operation: string) => {
+      console.error(`Erreur lors de ${operation}:`, error);
+
+      // Mapper les erreurs Firebase vers des messages utilisateur
+      let userMessage = "Une erreur est survenue. Veuillez réessayer.";
+
+      if (error?.code === 'permission-denied') {
+          userMessage = "Accès refusé. Vérifiez vos droits d'accès.";
+      } else if (error?.code === 'unavailable' || error?.code === 'network-request-failed') {
+          userMessage = "Connexion impossible. Vérifiez votre connexion internet.";
+      } else if (error?.code === 'unauthenticated') {
+          userMessage = "Session expirée. Veuillez vous reconnecter.";
+      } else if (error?.message) {
+          // Ne pas exposer les messages d'erreur techniques aux utilisateurs
+          userMessage = "Une erreur technique est survenue. Veuillez réessayer.";
+      }
+
+      showNotification(userMessage, 'error');
   };
 
   useEffect(() => {
@@ -59,9 +82,18 @@ const App: React.FC = () => {
         if (user) {
             const email = user.email?.toLowerCase() || '';
             setCurrentUserEmail(email);
-            
+
             let isAuthorizedConsultant = false;
-            try { isAuthorizedConsultant = await checkConsultantEmailExists(email); } catch (e) { console.error(e); }
+            try {
+                isAuthorizedConsultant = await checkConsultantEmailExists(email);
+            } catch (e: any) {
+                handleAsyncError(e, "vérification consultant");
+                // En cas d'erreur, on déconnecte par sécurité
+                await auth.signOut();
+                setIsAuthenticated(false);
+                setIsAuthCheckLoading(false);
+                return;
+            }
 
             const isAdmin = (email === SUPER_ADMIN_EMAIL) || isAuthorizedConsultant;
 
@@ -70,18 +102,35 @@ const App: React.FC = () => {
                 setIsSuperAdmin(email === SUPER_ADMIN_EMAIL);
                 setIsAuthenticated(true);
                 // Au login consultant, on charge les clients MAIS on ne sélectionne personne par défaut pour afficher le Dashboard Global
-                try { await refreshClients('ab_consultant', email); setSelectedClient(null); } catch (error) { console.error(error); }
+                try {
+                    await refreshClients('ab_consultant', email);
+                    setSelectedClient(null);
+                } catch (error: any) {
+                    handleAsyncError(error, "chargement clients");
+                }
 
             } else {
                 let isValidClient = false;
-                try { isValidClient = await checkClientEmailExists(email); } catch (e) { console.error(e); }
+                try {
+                    isValidClient = await checkClientEmailExists(email);
+                } catch (e: any) {
+                    handleAsyncError(e, "vérification client");
+                    await auth.signOut();
+                    setIsAuthenticated(false);
+                    setIsAuthCheckLoading(false);
+                    return;
+                }
 
                 if (isValidClient) {
                      setUserRole('client');
                      setIsSuperAdmin(false);
                      setSimulatedUserEmail(email);
                      setIsAuthenticated(true);
-                     try { await refreshClients('client', email); } catch (error) { console.error(error); }
+                     try {
+                         await refreshClients('client', email);
+                     } catch (error: any) {
+                         handleAsyncError(error, "chargement données client");
+                     }
                 } else {
                     await auth.signOut();
                     setIsAuthenticated(false);
@@ -158,21 +207,33 @@ const App: React.FC = () => {
 
   const handleSaveRecord = async (record: FinancialRecord) => {
     if (!selectedClient) return;
-    const recordWithClient = { 
-        ...record, 
-        clientId: selectedClient.id,
-        isSubmitted: userRole === 'client' ? true : record.isSubmitted 
-    };
-    await saveRecord(recordWithClient);
-    await refreshRecords();
-    
-    if (userRole === 'client') {
-        showNotification("Saisie enregistrée.", 'success');
-        setEditingRecord(recordWithClient); 
-    } else {
-        showNotification("Données enregistrées.", 'success');
-        setEditingRecord(null);
-        if (currentView !== View.Dashboard && currentView !== View.History) setCurrentView(View.Dashboard);
+
+    // Éviter les clics multiples / race conditions
+    if (isSaving) return;
+    setIsSaving(true);
+
+    try {
+      const recordWithClient = {
+          ...record,
+          clientId: selectedClient.id,
+          isSubmitted: userRole === 'client' ? true : record.isSubmitted
+      };
+      await saveRecord(recordWithClient);
+      await refreshRecords();
+
+      if (userRole === 'client') {
+          showNotification("Saisie enregistrée.", 'success');
+          setEditingRecord(recordWithClient);
+      } else {
+          showNotification("Données enregistrées.", 'success');
+          setEditingRecord(null);
+          if (currentView !== View.Dashboard && currentView !== View.History) setCurrentView(View.Dashboard);
+      }
+    } catch (error) {
+      console.error("Erreur lors de la sauvegarde:", error);
+      showNotification("Erreur lors de l'enregistrement. Veuillez réessayer.", 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -318,7 +379,13 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen flex bg-brand-50 relative">
       {notification && (
-          <div className="fixed top-4 right-4 z-50 px-6 py-4 bg-white rounded-lg shadow-xl border border-brand-200 animate-in slide-in-from-right-10">
+          <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-xl animate-in slide-in-from-right-10 ${
+              notification.type === 'error'
+                ? 'bg-red-50 border border-red-200 text-red-700'
+                : notification.type === 'success'
+                  ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+                  : 'bg-white border border-brand-200 text-brand-900'
+          }`}>
               <p className="font-medium text-sm">{notification.message}</p>
           </div>
       )}

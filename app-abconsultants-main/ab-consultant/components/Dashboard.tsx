@@ -30,31 +30,45 @@ const standardMonthOrder = Object.values(Month);
 // Component to animate numbers (CountUp) with Dynamic Formatting
 const AnimatedNumber = ({ value, format = true }: { value: number, format?: boolean }) => {
     const [displayValue, setDisplayValue] = useState(0);
+    // Utiliser useRef pour éviter le problème de stale closure
+    const previousValueRef = useRef(0);
 
     useEffect(() => {
         let startTime: number | null = null;
         const duration = 1000; // 1 second animation
-        const startValue = displayValue;
+        const startValue = previousValueRef.current;
         const endValue = value;
 
         if (startValue === endValue) return;
 
+        let animationId: number;
+
         const step = (timestamp: number) => {
             if (startTime === null) startTime = timestamp;
             const progress = Math.min((timestamp - startTime) / duration, 1);
-            
+
             // EaseOutQuart easing function for smooth finish
             const ease = 1 - Math.pow(1 - progress, 4);
-            
+
             const current = startValue + (endValue - startValue) * ease;
             setDisplayValue(current);
 
             if (progress < 1) {
-                window.requestAnimationFrame(step);
+                animationId = window.requestAnimationFrame(step);
+            } else {
+                // Animation terminée, mettre à jour la référence
+                previousValueRef.current = endValue;
             }
         };
 
-        window.requestAnimationFrame(step);
+        animationId = window.requestAnimationFrame(step);
+
+        // Cleanup pour annuler l'animation si le composant est démonté
+        return () => {
+            if (animationId) {
+                window.cancelAnimationFrame(animationId);
+            }
+        };
     }, [value]);
 
     if (format) {

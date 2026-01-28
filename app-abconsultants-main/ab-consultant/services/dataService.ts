@@ -153,15 +153,23 @@ export const subscribeToChat = (clientId: string, callback: (messages: ChatMessa
 };
 
 // --- SECURITY SERVICES ---
+
+// Helper pour normaliser les emails (cohérence des comparaisons)
+const normalizeEmail = (email: string): string => {
+    return email.toLowerCase().trim();
+};
+
 export const checkClientEmailExists = async (email: string): Promise<boolean> => {
     try {
-        const q = query(collection(db, COLL_CLIENTS), where("owner.email", "==", email));
+        // Normaliser l'email avant la requête pour éviter les bypass
+        const normalizedEmail = normalizeEmail(email);
+        const q = query(collection(db, COLL_CLIENTS), where("owner.email", "==", normalizedEmail));
         const snapshot = await getDocs(q);
         return !snapshot.empty;
-    } catch (error: any) { 
+    } catch (error: any) {
         // Si permission denied, on renvoie l'erreur pour que l'UI sache que c'est un problème de config
         if (error.code === 'permission-denied') throw error;
-        return false; 
+        return false;
     }
 };
 
@@ -235,7 +243,9 @@ export const getClients = async (filterByEmail?: string | null): Promise<Client[
     try {
         let q;
         if (filterByEmail) {
-            q = query(collection(db, COLL_CLIENTS), where("owner.email", "==", filterByEmail));
+            // Normaliser l'email pour cohérence des comparaisons
+            const normalizedEmail = normalizeEmail(filterByEmail);
+            q = query(collection(db, COLL_CLIENTS), where("owner.email", "==", normalizedEmail));
         } else {
             q = query(collection(db, COLL_CLIENTS));
         }

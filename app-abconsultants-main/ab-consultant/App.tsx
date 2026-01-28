@@ -1,0 +1,506 @@
+
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Menu, X, UserCircle, CheckCircle, Eye, EyeOff, Users, Plus, Edit2, Trash2, Search, Briefcase, Phone, Mail, MapPin, Archive, Send, Power, Loader2, UserPlus, Crown, ShieldCheck } from 'lucide-react';
+import Dashboard from './components/Dashboard';
+import EntryForm from './components/EntryForm';
+import LoginScreen from './components/LoginScreen'; 
+import AIChatWidget from './components/AIChatWidget';
+import Sidebar from './components/Sidebar';
+import HistoryView from './components/HistoryView';
+import SettingsView from './components/SettingsView';
+import ConsultantMessaging from './components/ConsultantMessaging'; 
+import ConsultantDashboard from './components/ConsultantDashboard'; // Import Nouveau
+import ClientModal from './components/ClientModal';
+import TeamManagement from './components/TeamManagement';
+
+import { FinancialRecord, Client, Month, ProfitCenter, Consultant, View } from './types';
+import { getClients, saveClient, updateClientStatus, getRecordsByClient, resetDatabase, MONTH_ORDER, toShortMonth, getConsultants, addConsultant, deleteConsultant, deleteRecord, checkConsultantEmailExists, checkClientEmailExists, saveRecord } from './services/dataService';
+import { auth } from './firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+
+type UserRole = 'ab_consultant' | 'client';
+
+const App: React.FC = () => {
+  const [isAuthCheckLoading, setIsAuthCheckLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentView, setCurrentView] = useState<View>(View.Dashboard);
+  const [data, setData] = useState<FinancialRecord[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [userRole, setUserRole] = useState<UserRole>('client');
+  const [simulatedUserEmail, setSimulatedUserEmail] = useState<string | null>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null); 
+
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [clientSearchTerm, setClientSearchTerm] = useState("");
+  const [clientViewMode, setClientViewMode] = useState<'active' | 'inactive'>('active');
+  const [tempProfitCenters, setTempProfitCenters] = useState<ProfitCenter[]>([]); 
+  
+  const [statusModal, setStatusModal] = useState<{isOpen: boolean, client: Client | null}>({ isOpen: false, client: null });
+  const [inviteClientModal, setInviteClientModal] = useState<{isOpen: boolean, client: Client | null}>({ isOpen: false, client: null });
+  
+  const [editingRecord, setEditingRecord] = useState<FinancialRecord | null>(null);
+  const [notification, setNotification] = useState<{message: string, type: 'success' | 'error' | 'info'} | null>(null);
+
+  const SUPER_ADMIN_EMAIL = 'admin@ab-consultants.fr';
+
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+      setNotification({ message, type });
+      setTimeout(() => setNotification(null), 4000);
+  };
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        setIsAuthCheckLoading(true);
+        if (user) {
+            const email = user.email?.toLowerCase() || '';
+            setCurrentUserEmail(email);
+            
+            let isAuthorizedConsultant = false;
+            try { isAuthorizedConsultant = await checkConsultantEmailExists(email); } catch (e) { console.error(e); }
+
+            const isAdmin = (email === SUPER_ADMIN_EMAIL) || isAuthorizedConsultant;
+
+            if (isAdmin) {
+                setUserRole('ab_consultant');
+                setIsSuperAdmin(email === SUPER_ADMIN_EMAIL);
+                setIsAuthenticated(true);
+                // Au login consultant, on charge les clients MAIS on ne sélectionne personne par défaut pour afficher le Dashboard Global
+                try { await refreshClients('ab_consultant', email); setSelectedClient(null); } catch (error) { console.error(error); }
+
+            } else {
+                let isValidClient = false;
+                try { isValidClient = await checkClientEmailExists(email); } catch (e) { console.error(e); }
+
+                if (isValidClient) {
+                     setUserRole('client');
+                     setIsSuperAdmin(false);
+                     setSimulatedUserEmail(email);
+                     setIsAuthenticated(true);
+                     try { await refreshClients('client', email); } catch (error) { console.error(error); }
+                } else {
+                    await auth.signOut();
+                    setIsAuthenticated(false);
+                }
+            }
+        } else {
+            setIsAuthenticated(false);
+            setClients([]);
+            setData([]);
+            setSelectedClient(null);
+        }
+        setIsAuthCheckLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    refreshRecords();
+  }, [selectedClient]);
+
+  useEffect(() => {
+    if (clients.length === 0) return;
+    if (userRole === 'client') {
+        if (!simulatedUserEmail) return;
+        // La liste clients est déjà filtrée par getClients(), donc on prend le premier
+        // Sécurité supplémentaire : on vérifie quand même côté client
+        const userCompanies = clients.filter(c => c.owner.email.toLowerCase() === simulatedUserEmail.toLowerCase());
+        if (userCompanies.length > 0) {
+            const isCurrentValid = selectedClient && userCompanies.find(c => c.id === selectedClient.id);
+            if (!isCurrentValid) setSelectedClient(userCompanies[0]);
+        }
+        if ([View.Settings, View.Clients, View.Team, View.Messages].includes(currentView)) {
+            setCurrentView(View.Dashboard);
+        }
+    } else {
+        // En mode consultant, on ne force plus la sélection du premier client.
+        // Si aucun client n'est sélectionné, App affichera le ConsultantDashboard.
+        if (!selectedClient && currentView !== View.Dashboard && currentView !== View.Messages && currentView !== View.Clients && currentView !== View.Team) {
+            // Pas d'auto-select
+        }
+    }
+  }, [userRole, simulatedUserEmail, clients, selectedClient, currentView]);
+
+  const refreshClients = async (roleOverride?: UserRole, emailOverride?: string) => {
+      setIsLoadingData(true);
+      const role = roleOverride || userRole;
+      const email = emailOverride || currentUserEmail || simulatedUserEmail;
+      
+      // SÉCURITÉ : Si c'est un client, on passe son email pour filtrer CÔTÉ SERVEUR
+      // Si c'est un consultant, on passe null pour tout récupérer
+      const filterEmail = role === 'client' ? email : null;
+      
+      const list = await getClients(filterEmail);
+      setClients(list);
+      setIsLoadingData(false);
+  };
+
+  const handleLoginSuccess = () => refreshClients();
+  const handleLogout = () => auth.signOut();
+  
+  const handleNewRecord = () => {
+      if (userRole === 'client' && selectedClient?.status === 'inactive') {
+          showNotification("Dossier en veille.", 'error');
+          return;
+      }
+      setEditingRecord(null);
+      setCurrentView(View.Entry);
+  };
+
+  const handleEditRecord = (record: FinancialRecord) => {
+      setEditingRecord(record);
+      setCurrentView(View.Entry);
+  };
+
+  const handleSaveRecord = async (record: FinancialRecord) => {
+    if (!selectedClient) return;
+    const recordWithClient = { 
+        ...record, 
+        clientId: selectedClient.id,
+        isSubmitted: userRole === 'client' ? true : record.isSubmitted 
+    };
+    await saveRecord(recordWithClient);
+    await refreshRecords();
+    
+    if (userRole === 'client') {
+        showNotification("Saisie enregistrée.", 'success');
+        setEditingRecord(recordWithClient); 
+    } else {
+        showNotification("Données enregistrées.", 'success');
+        setEditingRecord(null);
+        if (currentView !== View.Dashboard && currentView !== View.History) setCurrentView(View.Dashboard);
+    }
+  };
+
+  const refreshRecords = async () => {
+    if (selectedClient) {
+        setIsLoadingData(true);
+        const records = await getRecordsByClient(selectedClient.id);
+        setData(records);
+        setIsLoadingData(false);
+    } else { setData([]); }
+  };
+
+  const handleDeleteRecord = async (record: FinancialRecord) => {
+      if (userRole !== 'ab_consultant') return;
+      if (!confirm("Supprimer ce rapport ?")) return;
+      await deleteRecord(record.id);
+      await refreshRecords();
+      showNotification("Rapport supprimé.", 'success');
+  };
+
+  const toggleValidation = async (record: FinancialRecord) => {
+      if (userRole !== 'ab_consultant') return;
+      await saveRecord({ ...record, isValidated: !record.isValidated });
+      await refreshRecords();
+  };
+
+  const togglePublication = async (record: FinancialRecord) => {
+      if (userRole !== 'ab_consultant') return;
+      await saveRecord({ ...record, isPublished: !record.isPublished });
+      await refreshRecords();
+  };
+
+  const toggleClientLock = async (record: FinancialRecord) => {
+      if (userRole !== 'ab_consultant') return;
+      await saveRecord({ ...record, isSubmitted: !record.isSubmitted });
+      await refreshRecords();
+  };
+
+  // --- GESTION CLIENTS ---
+  const handleSaveClient = async (clientData: Partial<Client>) => {
+      if (!clientData.companyName) return;
+      
+      const newClient: Client = {
+          ...clientData,
+          id: clientData.id || `client_${Date.now()}`,
+          companyName: clientData.companyName!,
+          owner: {
+              name: clientData.owner?.name || 'Gérant',
+              email: clientData.owner?.email || ''
+          },
+          status: clientData.status || 'active',
+          joinedDate: clientData.joinedDate || new Date().toISOString(),
+          settings: clientData.settings || { showCommercialMargin: true, showFuelTracking: false }
+      } as Client;
+
+      await saveClient(newClient);
+      await refreshClients();
+      // On garde la modale ouverte si c'était une création pour l'étape d'invitation (gérée dans ClientModal)
+      if (clientData.id) setIsClientModalOpen(false); 
+      showNotification(clientData.id ? "Dossier modifié." : "Dossier créé avec succès.", 'success');
+  };
+
+  const handleUpdateClientSettings = async (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      if (userRole !== 'ab_consultant' || !selectedClient) return;
+      const formData = new FormData(e.currentTarget);
+      const updatedClient: Client = {
+          ...selectedClient,
+          companyName: formData.get('companyName') as string,
+          siret: formData.get('siret') as string,
+          legalForm: formData.get('legalForm') as string,
+          fiscalYearEnd: formData.get('fiscalYearEnd') as string,
+          city: formData.get('city') as string,
+          managerName: formData.get('managerName') as string,
+      };
+      await saveClient(updatedClient);
+      await refreshClients();
+      showNotification("Dossier mis à jour.", 'success');
+  };
+
+  const handleUpdateProfitCenters = async (pcs: ProfitCenter[]) => {
+      if (userRole !== 'ab_consultant' || !selectedClient) return;
+      await saveClient({ ...selectedClient, profitCenters: pcs });
+      await refreshClients();
+      showNotification("Activités mises à jour.", 'success');
+  };
+
+  const handleUpdateFuelObjectives = async (objs: any) => {
+      if (userRole !== 'ab_consultant' || !selectedClient) return;
+      await saveClient({ ...selectedClient, settings: { ...selectedClient.settings!, fuelObjectives: objs }});
+      await refreshClients();
+  };
+
+  const handleUpdateClientStatus = async (client: Client, newStatus: 'active' | 'inactive') => {
+      if (userRole !== 'ab_consultant') return;
+      if (statusModal.isOpen) setStatusModal({ isOpen: false, client: null }); 
+      await updateClientStatus(client.id, newStatus);
+      await refreshClients();
+      showNotification(`Dossier ${newStatus}.`, 'success');
+  };
+
+  const handleResetDatabase = async () => {
+      if (!isSuperAdmin) return;
+      if (confirm("Reset complet ?")) {
+          await resetDatabase();
+          await refreshClients();
+          setSelectedClient(null);
+      }
+  };
+
+  const handleToggleFuelModule = async () => {
+    if (userRole !== 'ab_consultant' || !selectedClient) return;
+    await saveClient({ ...selectedClient, settings: { ...selectedClient.settings!, showFuelTracking: !selectedClient.settings?.showFuelTracking }});
+    await refreshClients();
+  };
+
+  const handleToggleCommercialMargin = async () => {
+    if (userRole !== 'ab_consultant' || !selectedClient) return;
+    await saveClient({ ...selectedClient, settings: { ...selectedClient.settings!, showCommercialMargin: !selectedClient.settings?.showCommercialMargin }});
+    await refreshClients();
+    showNotification(selectedClient.settings?.showCommercialMargin ? "Module Marge désactivé." : "Module Marge activé.", 'info');
+  };
+
+  // --- UI UPDATES (LOCAL) ---
+  const handleClientRead = (clientId: string) => {
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, hasUnreadMessages: false } : c));
+  };
+
+  const dashboardData = useMemo(() => userRole === 'client' ? data.filter(r => r.isPublished) : data, [data, userRole]);
+  const accessibleCompanies = useMemo(() => {
+    if (userRole !== 'client' || !simulatedUserEmail) return [];
+    return clients.filter(c => c.owner.email.toLowerCase() === simulatedUserEmail.toLowerCase());
+  }, [clients, simulatedUserEmail, userRole]);
+
+  // FILTRE POUR LA VUE LISTE CLIENTS
+  const displayedClientsList = useMemo(() => {
+      return clients.filter(c => clientViewMode === 'active' ? (c.status || 'active') === 'active' : c.status === 'inactive');
+  }, [clients, clientViewMode]);
+
+  if (isAuthCheckLoading) return <div className="min-h-screen flex items-center justify-center bg-brand-50"><Loader2 className="w-8 h-8 animate-spin text-brand-600"/></div>;
+  if (!isAuthenticated) return <LoginScreen onLogin={handleLoginSuccess} />;
+
+  return (
+    <div className="min-h-screen flex bg-brand-50 relative">
+      {notification && (
+          <div className="fixed top-4 right-4 z-50 px-6 py-4 bg-white rounded-lg shadow-xl border border-brand-200 animate-in slide-in-from-right-10">
+              <p className="font-medium text-sm">{notification.message}</p>
+          </div>
+      )}
+
+      {/* CHAT WIDGET */}
+      {selectedClient && (userRole === 'client' || (userRole === 'ab_consultant' && simulatedUserEmail)) && (
+          <AIChatWidget client={selectedClient} data={dashboardData} />
+      )}
+
+      {/* MODAL CREATION CLIENT */}
+      <ClientModal 
+          isOpen={isClientModalOpen}
+          onClose={() => setIsClientModalOpen(false)}
+          onSave={handleSaveClient}
+          initialData={editingClient}
+      />
+
+      <button className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-brand-900 text-white rounded-md" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+        {isSidebarOpen ? <X /> : <Menu />}
+      </button>
+
+      <Sidebar 
+          isOpen={isSidebarOpen}
+          userRole={userRole}
+          currentView={currentView}
+          selectedClient={selectedClient}
+          clients={clients}
+          simulatedUserEmail={simulatedUserEmail}
+          accessibleCompanies={accessibleCompanies}
+          isSuperAdmin={isSuperAdmin}
+          onNavigate={(view) => {
+              if (view !== View.Entry) setEditingRecord(null);
+              setCurrentView(view);
+              if (window.innerWidth < 1024) setIsSidebarOpen(false);
+          }}
+          onClientSelect={setSelectedClient}
+          onToggleSimulation={() => {
+              if (userRole === 'ab_consultant') {
+                  if (selectedClient) {
+                      setSimulatedUserEmail(selectedClient.owner.email);
+                      setUserRole('client');
+                      refreshClients();
+                  } else showNotification("Sélectionnez un client", 'error');
+              } else {
+                  setUserRole('ab_consultant');
+                  setSimulatedUserEmail(null);
+                  refreshClients();
+              }
+          }}
+          onLogout={handleLogout}
+      />
+
+      <main className="flex-1 overflow-x-hidden overflow-y-auto h-screen relative">
+         <div className="lg:hidden h-16 bg-white shadow-sm mb-4 flex items-center justify-end px-4">
+            <span className="font-bold text-brand-900">{selectedClient?.companyName || 'AB Consultants'}</span>
+         </div>
+         
+         <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24 lg:pb-8">
+            
+            {/* VUE 1 : DASHBOARD CLIENT INDIVIDUEL */}
+            {currentView === View.Dashboard && selectedClient && (
+                <Dashboard data={dashboardData} client={selectedClient} userRole={userRole} onSaveComment={handleSaveRecord}/>
+            )}
+
+            {/* VUE 2 : DASHBOARD GLOBAL CONSULTANT */}
+            {currentView === View.Dashboard && !selectedClient && userRole === 'ab_consultant' && (
+                <ConsultantDashboard 
+                    clients={clients} 
+                    onSelectClient={(client) => setSelectedClient(client)}
+                    onNavigateToMessages={() => setCurrentView(View.Messages)}
+                />
+            )}
+
+            {currentView === View.Entry && selectedClient && (
+                <EntryForm clientId={selectedClient.id} initialData={editingRecord} existingRecords={data} profitCenters={selectedClient.profitCenters || []} showCommercialMargin={selectedClient.settings?.showCommercialMargin ?? true} showFuelTracking={selectedClient.settings?.showFuelTracking ?? false} onSave={handleSaveRecord} onCancel={() => { setEditingRecord(null); setCurrentView(View.History); }} userRole={userRole} defaultFuelObjectives={selectedClient.settings?.fuelObjectives} clientStatus={selectedClient.status}/>
+            )}
+
+            {currentView === View.History && selectedClient && (
+                <HistoryView data={data} userRole={userRole} onNewRecord={handleNewRecord} onExportCSV={() => {}} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onValidate={toggleValidation} onPublish={togglePublication} onLockToggle={toggleClientLock}/>
+            )}
+
+            {currentView === View.Settings && userRole === 'ab_consultant' && selectedClient && (
+                <SettingsView client={selectedClient} onUpdateClientSettings={handleUpdateClientSettings} onUpdateProfitCenters={handleUpdateProfitCenters} onUpdateFuelObjectives={handleUpdateFuelObjectives} onUpdateClientStatus={(c, s) => { setStatusModal({isOpen: true, client: c}); }} onResetDatabase={handleResetDatabase} onToggleFuelModule={handleToggleFuelModule} onToggleCommercialMargin={handleToggleCommercialMargin} />
+            )}
+            
+            {/* VUE MESSAGERIE CONSULTANT */}
+            {currentView === View.Messages && userRole === 'ab_consultant' && (
+                <ConsultantMessaging clients={clients} onMarkAsRead={handleClientRead} />
+            )}
+
+            {/* VUE EQUIPE (TEAM) */}
+            {currentView === View.Team && userRole === 'ab_consultant' && (
+                <TeamManagement currentUserEmail={currentUserEmail} />
+            )}
+
+            {/* VUE LISTE CLIENTS */}
+            {currentView === View.Clients && userRole === 'ab_consultant' && (
+                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    
+                    {/* Header avec Onglets */}
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+                            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                                <Users className="w-6 h-6 text-brand-500" /> Portefeuille Clients
+                            </h2>
+                            <button onClick={() => { setEditingClient(null); setIsClientModalOpen(true); }} className="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700 font-bold shadow-sm transition">
+                                <Plus className="w-4 h-4" /> Nouveau Dossier
+                            </button>
+                        </div>
+                        
+                        {/* Onglets Actifs / Archives */}
+                        <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
+                            <button 
+                                onClick={() => setClientViewMode('active')}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${clientViewMode === 'active' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                <Briefcase className="w-4 h-4" /> Dossiers Actifs
+                            </button>
+                            <button 
+                                onClick={() => setClientViewMode('inactive')}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${clientViewMode === 'inactive' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                <Archive className="w-4 h-4" /> Archives / Veille
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Grid Clients */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {displayedClientsList.length > 0 ? (
+                            displayedClientsList.map(client => (
+                                <div key={client.id} className={`bg-white rounded-xl shadow-sm border border-slate-200 p-5 hover:shadow-md transition cursor-pointer group relative ${client.status === 'inactive' ? 'opacity-75 grayscale-[0.3]' : ''}`} onClick={() => { setSelectedClient(client); setCurrentView(View.Dashboard); }}>
+                                    <div className="flex items-center gap-4 mb-4">
+                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl ${client.status === 'inactive' ? 'bg-amber-50 text-amber-600' : 'bg-brand-50 text-brand-700'}`}>
+                                            {client.companyName.substring(0, 2).toUpperCase()}
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-lg">{client.companyName}</h3>
+                                            <p className="text-sm text-slate-400">{client.managerName}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    {client.status === 'inactive' && (
+                                        <div className="absolute top-4 right-12 px-2 py-1 bg-amber-100 text-amber-700 text-[10px] font-bold uppercase rounded-full">Archivé</div>
+                                    )}
+
+                                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition">
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); setEditingClient(client); setIsClientModalOpen(true); }} 
+                                            className="p-2 text-slate-400 hover:text-brand-600 bg-white rounded-full shadow-sm border border-slate-100"
+                                            title="Modifier / Restaurer"
+                                        >
+                                            <Edit2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="col-span-full p-12 text-center text-slate-400 bg-white rounded-xl border border-slate-200 border-dashed">
+                                <Archive className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                                <p className="font-medium">Aucun dossier dans cette catégorie.</p>
+                            </div>
+                        )}
+                    </div>
+                 </div>
+            )}
+         </div>
+      </main>
+      
+      {statusModal.isOpen && statusModal.client && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-900/50 backdrop-blur-sm">
+                <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 text-center">
+                    <h3 className="text-xl font-bold mb-2">Changer statut ?</h3>
+                    <div className="flex gap-3 mt-6">
+                        <button onClick={() => setStatusModal({isOpen: false, client: null})} className="flex-1 py-2 border rounded-lg">Annuler</button>
+                        <button onClick={() => handleUpdateClientStatus(statusModal.client!, statusModal.client!.status === 'inactive' ? 'active' : 'inactive')} className="flex-1 py-2 bg-brand-600 text-white rounded-lg">Confirmer</button>
+                    </div>
+                </div>
+          </div>
+      )}
+    </div>
+  );
+};
+
+export default App;

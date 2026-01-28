@@ -1,0 +1,224 @@
+
+import React, { useMemo, useState } from 'react';
+import { Database, Plus, Download, CheckCircle, Clock, Edit2, ShieldCheck, Unlock, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { FinancialRecord, Month } from '../types';
+import { toShortMonth, MONTH_ORDER } from '../services/dataService';
+
+interface HistoryViewProps {
+    data: FinancialRecord[];
+    userRole: 'ab_consultant' | 'client';
+    onNewRecord: () => void;
+    onExportCSV: () => void;
+    onEdit: (record: FinancialRecord) => void;
+    onDelete: (record: FinancialRecord) => void;
+    onValidate: (record: FinancialRecord) => void;
+    onPublish: (record: FinancialRecord) => void;
+    onLockToggle: (record: FinancialRecord) => void;
+}
+
+const HistoryView: React.FC<HistoryViewProps> = ({
+    data,
+    userRole,
+    onNewRecord,
+    onExportCSV,
+    onEdit,
+    onDelete,
+    onValidate,
+    onPublish,
+    onLockToggle
+}) => {
+    const [historyYearFilter, setHistoryYearFilter] = useState<number | 'ALL'>('ALL');
+
+    // 1. Get Available Years
+    const historyAvailableYears = useMemo(() => {
+        const years = new Set(data.map(r => r.year));
+        return Array.from(years).sort((a: number, b: number) => b - a);
+    }, [data]);
+
+    // 2. Filter & Sort Data
+    const filteredHistoryData = useMemo(() => {
+        let filtered = data;
+        if (historyYearFilter !== 'ALL') {
+            filtered = filtered.filter(r => r.year === historyYearFilter);
+        }
+        return [...filtered].sort((a, b) => {
+            if (b.year !== a.year) return b.year - a.year;
+            return MONTH_ORDER.indexOf(b.month) - MONTH_ORDER.indexOf(a.month);
+        });
+    }, [data, historyYearFilter]);
+
+    return (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                        <Database className="w-6 h-6 text-brand-500" />
+                        Historique & Rapports
+                    </h2>
+                    <p className="text-slate-500 text-sm mt-1">Consultez, modifiez ou exportez les données passées.</p>
+                </div>
+                <div className="flex gap-2 w-full md:w-auto">
+                    {userRole === 'ab_consultant' && (
+                        <button onClick={onNewRecord} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition shadow-sm font-medium">
+                            <Plus className="w-4 h-4" /> Saisie Manuelle
+                        </button>
+                    )}
+                    <button onClick={onExportCSV} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition shadow-sm font-medium">
+                        <Download className="w-4 h-4" /> Export CSV
+                    </button>
+                </div>
+            </div>
+
+            {/* HISTORY FILTERS */}
+            <div className="flex items-center gap-4 bg-slate-100 p-2 rounded-lg w-fit">
+                <span className="text-xs font-bold text-slate-500 px-2 uppercase">Filtrer par année :</span>
+                <button
+                    onClick={() => setHistoryYearFilter('ALL')}
+                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${historyYearFilter === 'ALL' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    TOUT
+                </button>
+                {historyAvailableYears.map(year => (
+                    <button
+                        key={year}
+                        onClick={() => setHistoryYearFilter(year)}
+                        className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${historyYearFilter === year ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        {year}
+                    </button>
+                ))}
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-bold">
+                                <th className="p-4">Période</th>
+                                <th className="p-4 text-right">Chiffre d'Affaires</th>
+                                <th className="p-4 text-right">Résultat / Trésorerie</th>
+                                <th className="p-4 text-center">Statut</th>
+                                <th className="p-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="text-sm">
+                            {filteredHistoryData.length > 0 ? (
+                                filteredHistoryData.map((record) => (
+                                    <tr key={record.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors group">
+                                        <td className="p-4 font-medium text-slate-900 flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-lg bg-brand-50 text-brand-600 flex flex-col items-center justify-center border border-brand-100">
+                                                <span className="text-xs font-bold leading-none">{toShortMonth(record.month)}</span>
+                                                <span className="text-[10px] leading-none">{record.year}</span>
+                                            </div>
+                                        </td>
+                                        <td className="p-4 text-right font-mono font-medium text-slate-700">
+                                            {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(record.revenue.total)}
+                                        </td>
+                                        <td className="p-4 text-right">
+                                            <div className={`font-mono font-bold ${record.cashFlow.treasury >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(record.cashFlow.treasury)}
+                                            </div>
+                                            <div className="text-[10px] text-slate-400">Trésorerie Nette</div>
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            <div className="flex flex-col items-center gap-1">
+                                                {record.isValidated ? (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">
+                                                        <CheckCircle className="w-3 h-3" /> Validé
+                                                    </span>
+                                                ) : (
+                                                    record.isSubmitted ? (
+                                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700">
+                                                            <Clock className="w-3 h-3" /> Soumis
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600">
+                                                            <Edit2 className="w-3 h-3" /> Brouillon
+                                                        </span>
+                                                    )
+                                                )}
+                                                {/* PUBLICATION STATUS BADGE */}
+                                                {record.isPublished && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-100">
+                                                        <Eye className="w-3 h-3" /> Visible Client
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="p-4 text-right">
+                                            <div className="flex justify-end gap-2 opacity-100 transition-opacity">
+                                                {/* ACTION BUTTONS */}
+                                                {userRole === 'ab_consultant' ? (
+                                                    <>
+                                                        <button 
+                                                            onClick={() => {
+                                                                if(window.confirm(record.isValidated ? "Invalider le rapport ? Il redeviendra modifiable." : "Valider définitivement ce rapport ?\nIl sera verrouillé pour le client.")) {
+                                                                    onValidate(record);
+                                                                }
+                                                            }} 
+                                                            className={`p-2 rounded-lg transition ${record.isValidated ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600'}`} 
+                                                            title={record.isValidated ? "Invalider" : "Valider"}
+                                                        >
+                                                            <ShieldCheck className="w-4 h-4" />
+                                                        </button>
+
+                                                        {/* CLIENT UNLOCK BUTTON */}
+                                                        {record.isSubmitted && !record.isValidated && (
+                                                            <button 
+                                                                onClick={() => {
+                                                                    if(window.confirm("Déverrouiller le rapport pour le client ?\nIl pourra modifier sa saisie.")) {
+                                                                        onLockToggle(record);
+                                                                    }
+                                                                }} 
+                                                                className="p-2 rounded-lg bg-amber-100 text-amber-600 hover:bg-amber-200 transition" 
+                                                                title="Déverrouiller pour le client"
+                                                            >
+                                                                <Unlock className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+
+                                                        <button 
+                                                            onClick={() => {
+                                                                if(window.confirm(record.isPublished ? "Masquer ce rapport au client ?" : "Publier ce rapport ? Le client pourra le consulter.")) {
+                                                                    onPublish(record);
+                                                                }
+                                                            }} 
+                                                            className={`p-2 rounded-lg transition ${record.isPublished ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-400 hover:bg-blue-50 hover:text-blue-600'}`} 
+                                                            title={record.isPublished ? "Masquer au client" : "Publier au client"}
+                                                        >
+                                                            {record.isPublished ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                                                        </button>
+
+                                                        <button onClick={() => onEdit(record)} className="p-2 bg-brand-50 text-brand-600 rounded-lg hover:bg-brand-100 transition" title="Modifier">
+                                                            <Edit2 className="w-4 h-4" />
+                                                        </button>
+
+                                                        <button onClick={() => onDelete(record)} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition" title="Supprimer">
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <button onClick={() => onEdit(record)} className="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition text-xs font-bold shadow-sm">
+                                                        Consulter
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={5} className="p-8 text-center text-slate-400 italic">
+                                        Aucune donnée disponible pour les filtres sélectionnés.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default HistoryView;

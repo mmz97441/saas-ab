@@ -807,9 +807,9 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                  </div>
              )}
 
-             {/* BFR BREAKDOWN (If BFR Selected) */}
-             {selectedMetric === 'bfr' && (
-                 <div className="bg-white p-6 rounded-xl shadow-sm border border-brand-100 h-full">
+             {/* BFR BREAKDOWN (Toujours visible) */}
+             {snapshotRecord && (receivablesData.length > 0 || debtsData.length > 0) && (
+                 <div className="bg-white p-6 rounded-xl shadow-sm border border-brand-100">
                       <h3 className="text-sm font-bold text-brand-900 mb-4 flex items-center gap-2 uppercase tracking-wide">
                         <Briefcase className="w-4 h-4 text-cyan-500" /> Structure du BFR
                      </h3>
@@ -822,13 +822,35 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                                 <Pie data={debtsData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={70} outerRadius={85} fill="#e11d48">
                                     {debtsData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS_DEBTS[Number(index) % COLORS_DEBTS.length]} />)}
                                 </Pie>
-                                <Tooltip />
+                                <Tooltip formatter={(value: number) => formatCurrency(value)} />
                             </PieChart>
                         </ResponsiveContainer>
                      </div>
                      <div className="flex justify-between text-xs text-center mt-2 font-bold">
                          <span className="text-cyan-600">Actif (Int.)</span>
                          <span className="text-red-600">Passif (Ext.)</span>
+                     </div>
+
+                     {/* Détails numériques */}
+                     <div className="mt-4 grid grid-cols-2 gap-4 text-xs">
+                         <div className="space-y-1">
+                             <p className="font-bold text-cyan-700 uppercase text-[10px]">Créances</p>
+                             {receivablesData.map((item, idx) => (
+                                 <div key={idx} className="flex justify-between">
+                                     <span className="text-slate-500">{item.name}</span>
+                                     <span className="font-bold text-slate-700">{formatCurrency(item.value)}</span>
+                                 </div>
+                             ))}
+                         </div>
+                         <div className="space-y-1">
+                             <p className="font-bold text-red-600 uppercase text-[10px]">Dettes</p>
+                             {debtsData.map((item, idx) => (
+                                 <div key={idx} className="flex justify-between">
+                                     <span className="text-slate-500">{item.name}</span>
+                                     <span className="font-bold text-slate-700">{formatCurrency(item.value)}</span>
+                                 </div>
+                             ))}
+                         </div>
                      </div>
                  </div>
              )}

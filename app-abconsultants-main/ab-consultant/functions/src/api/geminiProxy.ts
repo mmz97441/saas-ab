@@ -45,9 +45,9 @@ export const askFinancialAdvisor = functions.https.onCall(async (data, context) 
   }
 
   // --- GEMINI API CALL ---
-  const apiKey = functions.config().gemini?.api_key;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    functions.logger.error('GEMINI_API_KEY not configured. Run: firebase functions:config:set gemini.api_key="YOUR_KEY"');
+    functions.logger.error('GEMINI_API_KEY not configured. Add GEMINI_API_KEY to functions/.env');
     throw new functions.https.HttpsError('internal', 'Service IA non configuré.');
   }
 

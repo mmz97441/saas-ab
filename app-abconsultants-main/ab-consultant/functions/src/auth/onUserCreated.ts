@@ -9,7 +9,7 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 const auth = admin.auth();
 
-const SUPER_ADMIN_EMAIL = functions.config().app?.super_admin_email || 'nice.guillaume@gmail.com';
+const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || 'nice.guillaume@gmail.com';
 
 /**
  * Trigger: Quand un utilisateur Firebase Auth est créé.

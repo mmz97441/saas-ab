@@ -231,7 +231,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
         const totalFuelObj = (fuelObjs.gasoil || 0) + (fuelObjs.sansPlomb || 0) + (fuelObjs.gnr || 0);
 
         return {
-            id: `${clientId}-${year}-${defaultMonth}-${Date.now()}`,
+            id: `${clientId}-${year}-${defaultMonth}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
             clientId,
             year,
             month: defaultMonth,
@@ -360,25 +360,32 @@ const EntryForm: React.FC<EntryFormProps> = ({
                     const bfrTotal = parseFloat(cols[4]) || 0;
                     const tresorerie = parseFloat(cols[5]) || 0;
 
-                    setFormData(prev => {
-                        const newData = { ...prev };
-                        newData.revenue.total = caTotal;
-                        newData.revenue.services = caTotal;
-                        newData.revenue.goods = 0;
-                        newData.expenses.salaries = salaires;
-                        newData.bfr.receivables.clients = bfrTotal;
-                        newData.bfr.total = bfrTotal; 
-                        if (tresorerie >= 0) {
-                            newData.cashFlow.active = tresorerie;
-                            newData.cashFlow.passive = 0;
-                        } else {
-                            newData.cashFlow.active = 0;
-                            newData.cashFlow.passive = Math.abs(tresorerie);
-                        }
-                        newData.cashFlow.treasury = tresorerie;
-
-                        return newData;
-                    });
+                    setFormData(prev => ({
+                        ...prev,
+                        revenue: {
+                            ...prev.revenue,
+                            total: caTotal,
+                            services: caTotal,
+                            goods: 0,
+                        },
+                        expenses: {
+                            ...prev.expenses,
+                            salaries: salaires,
+                        },
+                        bfr: {
+                            ...prev.bfr,
+                            receivables: {
+                                ...prev.bfr.receivables,
+                                clients: bfrTotal,
+                            },
+                            total: bfrTotal,
+                        },
+                        cashFlow: {
+                            active: tresorerie >= 0 ? tresorerie : 0,
+                            passive: tresorerie < 0 ? Math.abs(tresorerie) : 0,
+                            treasury: tresorerie,
+                        },
+                    }));
                     
                     matched = true;
                     alert(`Données importées pour ${csvMonth} ${csvYear} !`);
@@ -565,7 +572,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                         <div>
                             <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Année</label>
                             <select value={formData.year} onChange={(e) => setFormData({...formData, year: parseInt(e.target.value)})} disabled={isLocked} className="w-full px-4 py-2 rounded-lg border border-slate-300 bg-white font-bold text-slate-700 focus:ring-2 focus:ring-brand-500 disabled:bg-slate-100 disabled:text-slate-500">
-                                {[2023, 2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
+                                {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(y => <option key={y} value={y}>{y}</option>)}
                             </select>
                         </div>
                     </div>
@@ -729,7 +736,8 @@ const EntryForm: React.FC<EntryFormProps> = ({
                              <div className="space-y-4 lg:border-l lg:border-r border-slate-100 lg:px-6">
                                 <div className="flex items-center gap-2 text-red-700 border-b border-red-100 pb-2"><div className="p-1.5 bg-red-100 rounded-lg"><ArrowDownCircle className="w-4 h-4" /></div><span className="font-bold text-sm uppercase tracking-wide">Dettes Exploitation</span></div>
                                 <SmartNumberInput label="Fournisseurs" value={formData.bfr.debts.suppliers} onChange={(v: number) => handleChange('bfr', 'debts', v, 'suppliers')} disabled={isLocked} className="border-red-200 focus:ring-red-500 bg-red-50" />
-                                <SmartNumberInput label="État + Social" value={formData.bfr.debts.state + formData.bfr.debts.social} onChange={(v: number) => { handleChange('bfr', 'debts', v, 'state'); }} disabled={isLocked} className="border-red-200 focus:ring-red-500 bg-red-50" subLabel="TVA, IS, URSSAF..." />
+                                <SmartNumberInput label="Dettes Fiscales (État)" value={formData.bfr.debts.state} onChange={(v: number) => { handleChange('bfr', 'debts', v, 'state'); }} disabled={isLocked} className="border-red-200 focus:ring-red-500 bg-red-50" />
+                                <SmartNumberInput label="Dettes Sociales (URSSAF...)" value={formData.bfr.debts.social} onChange={(v: number) => { handleChange('bfr', 'debts', v, 'social'); }} disabled={isLocked} className="border-red-200 focus:ring-red-500 bg-red-50" />
                                 <SmartNumberInput label="Autres Dettes" value={formData.bfr.debts.other} onChange={(v: number) => handleChange('bfr', 'debts', v, 'other')} disabled={isLocked} className="border-red-200 focus:ring-red-500 bg-red-50" />
                              </div>
                              <div className="flex flex-col h-full justify-center">

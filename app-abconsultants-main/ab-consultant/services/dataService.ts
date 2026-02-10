@@ -302,8 +302,6 @@ export const deleteClient = async (clientId: string): Promise<void> => {
 };
 
 // --- RECORD SERVICES ---
-export const getRecords = async (): Promise<FinancialRecord[]> => { return []; };
-
 export const getRecordsByClient = async (clientId: string): Promise<FinancialRecord[]> => {
     try {
         if (!clientId) return [];
@@ -415,10 +413,20 @@ export const deleteRecord = async (id: string): Promise<void> => {
 };
 
 export const resetDatabase = async (): Promise<void> => {
-    const batch = writeBatch(db);
-    const clientsSnap = await getDocs(collection(db, COLL_CLIENTS));
-    clientsSnap.docs.forEach(d => batch.delete(d.ref));
-    const recordsSnap = await getDocs(collection(db, COLL_RECORDS));
-    recordsSnap.docs.forEach(d => batch.delete(d.ref));
-    await batch.commit();
+    // Firestore batch limit is 500 operations. Process in chunks.
+    const MAX_BATCH_SIZE = 450;
+
+    const deleteInBatches = async (collectionName: string) => {
+        const snap = await getDocs(collection(db, collectionName));
+        const docs = snap.docs;
+        for (let i = 0; i < docs.length; i += MAX_BATCH_SIZE) {
+            const chunk = docs.slice(i, i + MAX_BATCH_SIZE);
+            const batch = writeBatch(db);
+            chunk.forEach(d => batch.delete(d.ref));
+            await batch.commit();
+        }
+    };
+
+    await deleteInBatches(COLL_CLIENTS);
+    await deleteInBatches(COLL_RECORDS);
 };

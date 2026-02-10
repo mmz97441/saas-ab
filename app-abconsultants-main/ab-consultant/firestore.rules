@@ -1,0 +1,120 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =============================================
+    // HELPER FUNCTIONS
+    // =============================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isConsultant() {
+      return isAuthenticated() && request.auth.token.role == 'consultant';
+    }
+
+    function isAdmin() {
+      return isConsultant() && request.auth.token.isAdmin == true;
+    }
+
+    function isOwnerClient(clientId) {
+      return isAuthenticated()
+        && request.auth.token.role == 'client'
+        && request.auth.token.clientId == clientId;
+    }
+
+    function isClient() {
+      return isAuthenticated() && request.auth.token.role == 'client';
+    }
+
+    // =============================================
+    // CLIENTS COLLECTION
+    // Consultants: full read/write
+    // Clients: read only their own doc
+    // =============================================
+    match /clients/{clientId} {
+      allow read: if isConsultant() || isOwnerClient(clientId);
+      allow create: if isConsultant();
+      allow update: if isConsultant();
+      allow delete: if isAdmin();
+    }
+
+    // =============================================
+    // RECORDS COLLECTION (Financial Data)
+    // Consultants: full CRUD
+    // Clients:
+    //   - read only published records for their client
+    //   - create/update only if record is not validated and not submitted
+    // =============================================
+    match /records/{recordId} {
+      // Consultant can read everything
+      // Client can only read their own records that are published
+      allow read: if isConsultant()
+        || (isClient()
+            && resource.data.clientId == request.auth.token.clientId
+            && resource.data.isPublished == true);
+
+      // Consultant can always create
+      // Client can create only for their own clientId, and only non-validated
+      allow create: if isConsultant()
+        || (isClient()
+            && request.resource.data.clientId == request.auth.token.clientId
+            && request.resource.data.isValidated == false);
+
+      // Consultant can always update
+      // Client can update only their own non-validated, non-submitted records
+      allow update: if isConsultant()
+        || (isClient()
+            && resource.data.clientId == request.auth.token.clientId
+            && resource.data.isValidated == false
+            && resource.data.isSubmitted == false);
+
+      // Only consultants can delete records
+      allow delete: if isConsultant();
+    }
+
+    // =============================================
+    // CONSULTANTS COLLECTION (Team Management)
+    // Only consultants can read
+    // Only admins can write
+    // =============================================
+    match /consultants/{consultantId} {
+      allow read: if isConsultant();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // =============================================
+    // CONVERSATIONS & MESSAGES (Chat)
+    // Consultants: full access to all conversations
+    // Clients: access only their own conversation
+    // Messages are append-only (no update/delete)
+    // =============================================
+    match /conversations/{clientId} {
+      allow read, write: if isConsultant() || isOwnerClient(clientId);
+
+      match /messages/{messageId} {
+        allow read: if isConsultant() || isOwnerClient(clientId);
+        allow create: if isConsultant() || isOwnerClient(clientId);
+        // Messages are immutable once created
+        allow update, delete: if false;
+      }
+    }
+
+    // =============================================
+    // MAIL COLLECTION (Firebase Extension Trigger)
+    // Only authenticated users can create mail triggers
+    // No direct read/update/delete from client
+    // =============================================
+    match /mail/{mailId} {
+      allow create: if isAuthenticated();
+      allow read, update, delete: if false;
+    }
+
+    // =============================================
+    // DEFAULT: Deny everything else
+    // =============================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

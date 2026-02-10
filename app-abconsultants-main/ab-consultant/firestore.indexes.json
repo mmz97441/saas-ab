@@ -10,20 +10,6 @@
       ]
     },
     {
-      "collectionGroup": "messages",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "timestamp", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "clients",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "owner.email", "order": "ASCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "clients",
       "queryScope": "COLLECTION",
       "fields": [

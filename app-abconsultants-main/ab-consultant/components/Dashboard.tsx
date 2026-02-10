@@ -16,8 +16,6 @@ interface DashboardProps {
   onSaveComment: (record: FinancialRecord) => void;
 }
 
-type MetricType = 'revenue' | 'bfr' | 'productivity' | 'treasury' | 'fuel';
-
 const COLORS_RECEIVABLES = ['#0891b2', '#06b6d4', '#22d3ee', '#67e8f9']; // Cyan/Teal shades for Assets
 const COLORS_DEBTS = ['#be123c', '#e11d48', '#f43f5e', '#fb7185', '#fda4af']; // Rose shades for Liabilities
 const COLORS_ACTIVITIES: string[] = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#6366f1', '#ec4899']; // Extended Colors
@@ -81,7 +79,6 @@ const formatCurrency = (value: number, fractionDigits?: number) =>
     }).format(value);
 
 const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveComment }) => {
-  const [selectedMetric, setSelectedMetric] = useState<MetricType>('revenue');
   
   // Year Selection
   const [selectedYear, setSelectedYear] = useState<number>(
@@ -507,63 +504,32 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
     );
   };
 
-  const currentMetricData = selectedMetric === 'revenue' 
-    ? { 
-        val: kpis.revenue, 
-        obj: kpis.objective, 
-        perf: kpis.revenuePerformance, 
-        label: "Chiffre d'Affaires", 
-        color: "text-brand-600",
-        icon: DollarSign 
-      }
-    : selectedMetric === 'bfr'
-    ? {
-        val: kpis.bfr,
-        obj: 0,
-        perf: null,
-        label: "BFR Moyen",
-        color: "text-cyan-600",
-        icon: Briefcase
-      }
-    : selectedMetric === 'treasury'
-    ? {
-        val: kpis.treasury,
-        obj: 0,
-        perf: null,
-        label: "Trésorerie Nette",
-        color: kpis.treasury >= 0 ? "text-emerald-600" : "text-red-600",
-        icon: Landmark
-      }
-    : selectedMetric === 'productivity'
-    ? {
-        val: kpis.productivity,
-        obj: 0,
-        perf: null,
-        label: "Heures Travaillées",
-        color: "text-orange-600",
-        icon: Users
-      }
-    : {
-        val: kpis.fuelVolume,
-        obj: 0, // Should be kpis.fuelObjective but simplified for now
-        perf: kpis.fuelPerformance,
-        label: "Litrage Carburant",
-        color: "text-blue-600",
-        icon: Droplets
-      };
+
+  // BFR stacked chart data (evolution créances / stocks / dettes)
+  const bfrStackedData = useMemo(() => {
+    return chartData.map(d => ({
+      name: d.name,
+      fullMonth: d.fullMonth,
+      Creances: d.BFR_Creances ?? 0,
+      Stocks: d.BFR_Stocks ?? 0,
+      Dettes: d.BFR_Dettes ?? 0,
+      BFR_Net: d.BFR ?? 0,
+    }));
+  }, [chartData]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      
-      {/* HEADER: Filters */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-brand-100">
-         <div className="flex items-center gap-4">
+
+      {/* HEADER: Year + Period Presets + Month Grid */}
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-brand-100 space-y-3">
+         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+           <div className="flex items-center gap-4">
              {/* Year Selector */}
              <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-brand-400 uppercase tracking-wider">Exercice</span>
                 <div className="relative">
-                    <select 
-                      value={selectedYear} 
+                    <select
+                      value={selectedYear}
                       onChange={(e) => setSelectedYear(Number(e.target.value))}
                       className="appearance-none bg-brand-50 border border-brand-200 text-brand-900 text-sm rounded-lg focus:ring-brand-500 focus:border-brand-500 block pl-3 pr-8 py-2 font-bold cursor-pointer hover:bg-brand-100 transition-colors"
                     >
@@ -584,51 +550,74 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                         key={p}
                         onClick={() => applyPreset(p as any)}
                         className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${
-                            (p === 'ALL' && selectedMonths.length === 0) 
-                            ? 'bg-white text-brand-700 shadow-sm' 
+                            (p === 'ALL' && selectedMonths.length === 0)
+                            ? 'bg-white text-brand-700 shadow-sm'
                             : 'text-brand-400 hover:text-brand-600 hover:bg-brand-100'
                         }`}
                     >
-                        {p === 'ALL' ? 'ANNÉE' : p}
+                        {p === 'ALL' ? 'ANNEE' : p}
                     </button>
                 ))}
              </div>
-         </div>
-         
-         {/* Active Filters Display */}
-         {selectedMonths.length > 0 && (
+           </div>
+
+           {/* Active Filters Display */}
+           {selectedMonths.length > 0 && (
              <div className="flex items-center gap-2 bg-brand-50 text-brand-600 px-3 py-1.5 rounded-full text-xs font-bold border border-brand-200">
                  <Filter className="w-3 h-3" />
-                 {selectedMonths.length} mois sélectionné{selectedMonths.length > 1 ? 's' : ''}
+                 {selectedMonths.length} mois selectionne{selectedMonths.length > 1 ? 's' : ''}
                  <button onClick={() => applyPreset('ALL')} className="ml-1 hover:text-red-500"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
              </div>
-         )}
+           )}
+         </div>
+
+         {/* MONTH GRID - Clickable months */}
+         <div className="grid grid-cols-6 md:grid-cols-12 gap-1">
+            {fiscalMonthOrder.map(m => {
+              const hasData = yearData.some(d => d.month === m);
+              const isSelected = selectedMonths.includes(m);
+              const shortName = toShortMonth(m);
+              return (
+                <button
+                  key={m}
+                  onClick={() => handleMonthToggle(m)}
+                  className={`px-1 py-2 text-[10px] font-bold rounded-lg transition-all border ${
+                    isSelected
+                      ? 'bg-brand-900 text-white border-brand-800 shadow-sm'
+                      : hasData
+                      ? 'bg-brand-50 text-brand-700 border-brand-200 hover:bg-brand-100 hover:border-brand-300'
+                      : 'bg-slate-50 text-slate-300 border-slate-100 cursor-default'
+                  }`}
+                  disabled={!hasData}
+                >
+                  {shortName}
+                </button>
+              );
+            })}
+         </div>
       </div>
 
       {/* KPIS GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-         
+
          {/* REVENUE CARD */}
-         <div 
-            onClick={() => setSelectedMetric('revenue')}
-            className={`cursor-pointer p-5 rounded-xl border transition-all duration-300 relative overflow-hidden group ${selectedMetric === 'revenue' ? 'bg-brand-900 border-brand-800 text-white ring-2 ring-brand-500 ring-offset-2' : 'bg-white border-brand-100 hover:border-brand-300 hover:shadow-md'}`}
-         >
+         <div className="p-5 rounded-xl border bg-white border-brand-100 shadow-sm relative overflow-hidden">
             <div className="flex justify-between items-start mb-2">
-                <div className={`p-2 rounded-lg ${selectedMetric === 'revenue' ? 'bg-white/10' : 'bg-brand-50 text-brand-600'}`}>
+                <div className="p-2 rounded-lg bg-brand-50 text-brand-600">
                     <DollarSign className="w-5 h-5" />
                 </div>
-                <div className={`text-xs font-bold px-2 py-1 rounded-full ${selectedMetric === 'revenue' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-emerald-100 text-emerald-700'}`}>
+                <div className="text-xs font-bold px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">
                     {kpis.revenuePerformance}% Obj
                 </div>
             </div>
-            <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${selectedMetric === 'revenue' ? 'text-brand-300' : 'text-slate-400'}`}>Chiffre d'Affaires</p>
-            <h3 className={`text-2xl font-bold ${selectedMetric === 'revenue' ? 'text-white' : 'text-slate-800'}`}>
+            <p className="text-xs font-bold uppercase tracking-wider mb-1 text-slate-400">Chiffre d'Affaires</p>
+            <h3 className="text-2xl font-bold text-slate-800">
                 <AnimatedNumber value={kpis.revenue} />
             </h3>
             {/* Progress Bar */}
             <div className="mt-3 h-1.5 w-full bg-slate-200/20 rounded-full overflow-hidden">
-                <div 
-                    className={`h-full rounded-full transition-all duration-1000 ${parseFloat(kpis.revenuePerformance) >= 100 ? 'bg-emerald-500' : 'bg-amber-500'}`} 
+                <div
+                    className={`h-full rounded-full transition-all duration-1000 ${parseFloat(kpis.revenuePerformance) >= 100 ? 'bg-emerald-500' : 'bg-amber-500'}`}
                     style={{ width: `${Math.min(parseFloat(kpis.revenuePerformance), 100)}%` }}
                 />
             </div>
@@ -638,7 +627,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
          <div className="bg-white p-5 rounded-xl border border-brand-100 shadow-sm relative overflow-hidden">
             <div className="flex justify-between items-start mb-2">
                 <div className="p-2 rounded-lg bg-purple-50 text-purple-600">
-                    <PieChart className="w-5 h-5" />
+                    <Percent className="w-5 h-5" />
                 </div>
                 <div className="text-xs font-bold px-2 py-1 rounded-full bg-purple-100 text-purple-700">
                     Marge
@@ -652,27 +641,21 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
          </div>
 
          {/* TREASURY CARD */}
-         <div 
-            onClick={() => setSelectedMetric('treasury')}
-            className={`cursor-pointer p-5 rounded-xl border transition-all duration-300 ${selectedMetric === 'treasury' ? 'bg-emerald-50 border-emerald-200 ring-2 ring-emerald-500 ring-offset-2' : 'bg-white border-brand-100 hover:border-brand-300 hover:shadow-md'}`}
-         >
+         <div className="p-5 rounded-xl border bg-white border-brand-100 shadow-sm">
              <div className="flex justify-between items-start mb-2">
                 <div className={`p-2 rounded-lg ${kpis.treasury >= 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
                     <Landmark className="w-5 h-5" />
                 </div>
              </div>
-             <p className="text-xs font-bold uppercase tracking-wider mb-1 text-slate-400">Trésorerie Nette</p>
+             <p className="text-xs font-bold uppercase tracking-wider mb-1 text-slate-400">Tresorerie Nette</p>
              <h3 className={`text-2xl font-bold ${kpis.treasury >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
                 <AnimatedNumber value={kpis.treasury} />
              </h3>
-             <p className="text-xs text-slate-500 mt-1">Situation fin de période</p>
+             <p className="text-xs text-slate-500 mt-1">Situation fin de periode</p>
          </div>
 
          {/* BFR CARD */}
-         <div 
-            onClick={() => setSelectedMetric('bfr')}
-            className={`cursor-pointer p-5 rounded-xl border transition-all duration-300 ${selectedMetric === 'bfr' ? 'bg-cyan-50 border-cyan-200 ring-2 ring-cyan-500 ring-offset-2' : 'bg-white border-brand-100 hover:border-brand-300 hover:shadow-md'}`}
-         >
+         <div className="p-5 rounded-xl border bg-white border-brand-100 shadow-sm">
              <div className="flex justify-between items-start mb-2">
                 <div className="p-2 rounded-lg bg-cyan-100 text-cyan-600">
                     <Briefcase className="w-5 h-5" />
@@ -684,13 +667,10 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
              </h3>
              <p className="text-xs text-slate-500 mt-1">Besoin en fonds de roulement</p>
          </div>
-         
+
          {/* OPTIONAL: FUEL CARD (IF ENABLED) */}
          {showFuelCard && (
-             <div 
-                onClick={() => setSelectedMetric('fuel')}
-                className={`md:col-span-2 lg:col-span-1 cursor-pointer p-5 rounded-xl border transition-all duration-300 ${selectedMetric === 'fuel' ? 'bg-blue-50 border-blue-200 ring-2 ring-blue-500 ring-offset-2' : 'bg-white border-brand-100 hover:border-brand-300 hover:shadow-md'}`}
-             >
+             <div className="md:col-span-2 lg:col-span-1 p-5 rounded-xl border bg-white border-brand-100 shadow-sm">
                  <div className="flex justify-between items-start mb-2">
                     <div className="p-2 rounded-lg bg-blue-100 text-blue-600">
                         <Fuel className="w-5 h-5" />
@@ -705,135 +685,261 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
          )}
       </div>
 
-      {/* CHARTS SECTION */}
+      {/* ============================================= */}
+      {/* CHART 1: CA - Chiffre d'Affaires              */}
+      {/* ============================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-         
-         {/* MAIN CHART (2 Cols) */}
          <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-brand-100">
             <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-bold text-brand-900 flex items-center gap-2">
-                    <currentMetricData.icon className={`w-5 h-5 ${currentMetricData.color}`} />
-                    Évolution : {currentMetricData.label}
+                    <DollarSign className="w-5 h-5 text-brand-600" />
+                    Evolution du Chiffre d'Affaires
                 </h3>
-                <div className="flex items-center gap-2 text-xs">
-                    <span className="flex items-center gap-1"><div className="w-3 h-3 bg-brand-500 rounded-sm"></div> Exercice N</span>
+                <div className="flex items-center gap-3 text-xs">
+                    <span className="flex items-center gap-1"><div className="w-3 h-3 bg-brand-900 rounded-sm"></div> N</span>
                     <span className="flex items-center gap-1"><div className="w-3 h-3 bg-slate-300 rounded-sm"></div> N-1</span>
+                    <span className="flex items-center gap-1"><div className="w-3 h-0.5 bg-amber-500"></div> Objectif</span>
                 </div>
             </div>
-            
-            <div className="h-[350px] w-full">
+            <div className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={chartData} onClick={handleChartClick} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} dy={10} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={(val: any) => { const v = Number(val); return !isNaN(v) && v >= 1000 ? `${((v as number) / 1000).toFixed(0)}k` : String(val); }} />
-                        <Tooltip content={<CustomTooltip type={selectedMetric} />} cursor={{ fill: '#f8fafc' }} />
-                        
-                        {/* CHART LOGIC SWITCHER */}
-                        {selectedMetric === 'revenue' && (
-                            <>
-                                <Bar dataKey="CA_N1" fill="#e2e8f0" radius={[4, 4, 0, 0]} barSize={20} />
-                                <Bar dataKey="CA" fill="#0f172a" radius={[4, 4, 0, 0]} barSize={20} />
-                                <Line type="monotone" dataKey="Objectif" stroke="#f59e0b" strokeWidth={2} dot={false} strokeDasharray="4 4" />
-                            </>
-                        )}
-                        {selectedMetric === 'bfr' && (
-                            <>
-                                <Line type="monotone" dataKey="BFR_N1" stroke="#94a3b8" strokeWidth={2} dot={false} />
-                                <Line type="monotone" dataKey="BFR" stroke="#06b6d4" strokeWidth={3} activeDot={{ r: 6 }} />
-                            </>
-                        )}
-                        {selectedMetric === 'treasury' && (
-                            <>
-                                <ReferenceLine y={0} stroke="#cbd5e1" />
-                                <Area type="monotone" dataKey="Tresorerie" fill="url(#colorTreasury)" stroke={kpis.treasury >= 0 ? "#10b981" : "#ef4444"} strokeWidth={2} />
-                                <defs>
-                                    <linearGradient id="colorTreasury" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={kpis.treasury >= 0 ? "#10b981" : "#ef4444"} stopOpacity={0.1}/>
-                                        <stop offset="95%" stopColor={kpis.treasury >= 0 ? "#10b981" : "#ef4444"} stopOpacity={0}/>
-                                    </linearGradient>
-                                </defs>
-                            </>
-                        )}
-                         {selectedMetric === 'fuel' && (
-                            <>
-                                <Bar dataKey="Fuel_Total_N1" fill="#e2e8f0" radius={[4, 4, 0, 0]} barSize={20} />
-                                <Bar dataKey="Fuel_Total" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20} />
-                            </>
-                        )}
+                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={(val: any) => { const v = Number(val); return !isNaN(v) && v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(val); }} />
+                        <Tooltip content={<CustomTooltip type="revenue" />} cursor={{ fill: '#f8fafc' }} />
+                        <Bar dataKey="CA_N1" fill="#e2e8f0" radius={[4, 4, 0, 0]} barSize={20} name="CA N-1" />
+                        <Bar dataKey="CA" fill="#0f172a" radius={[4, 4, 0, 0]} barSize={20} name="CA N" />
+                        <Line type="monotone" dataKey="Objectif" stroke="#f59e0b" strokeWidth={2} dot={false} strokeDasharray="4 4" />
+                        {averageObjectiveN !== null && <ReferenceLine y={averageObjectiveN} stroke="#f59e0b" strokeDasharray="8 4" strokeOpacity={0.4} />}
                     </ComposedChart>
                 </ResponsiveContainer>
             </div>
          </div>
 
-         {/* SIDE PANEL (1 Col) - Breakdown or Details */}
-         <div className="space-y-6">
-             
-             {/* ACTIVITY BREAKDOWN (If Available) */}
-             {kpis.topActivities.length > 0 && (
-                 <div className="bg-white p-6 rounded-xl shadow-sm border border-brand-100 h-full">
-                     <h3 className="text-sm font-bold text-brand-900 mb-4 flex items-center gap-2 uppercase tracking-wide">
-                        <ShoppingBag className="w-4 h-4 text-purple-500" /> Répartition Activité
-                     </h3>
-                     <div className="space-y-4">
-                         {kpis.topActivities.map((act, idx) => (
-                             <div key={act.id} className="relative">
-                                 <div className="flex justify-between items-end mb-1">
-                                     <span className="text-sm font-medium text-slate-700 truncate max-w-[150px]" title={act.name}>{act.name}</span>
-                                     <span className="text-sm font-bold text-brand-900">{act.percent.toFixed(0)}%</span>
-                                 </div>
-                                 <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                                     <div 
-                                        className="h-full rounded-full" 
-                                        style={{ 
-                                            width: `${act.percent}%`, 
-                                            backgroundColor: COLORS_ACTIVITIES[Number(idx) % COLORS_ACTIVITIES.length] 
-                                        }} 
-                                     />
-                                 </div>
-                                 <div className="flex justify-between mt-1 text-[10px] text-slate-400">
-                                     <span>{formatCurrency(act.val)}</span>
-                                     <span>Marge: {act.marginRate.toFixed(1)}%</span>
-                                 </div>
-                             </div>
-                         ))}
+         {/* ACTIVITY BREAKDOWN */}
+         <div className="bg-white p-6 rounded-xl shadow-sm border border-brand-100">
+             <h3 className="text-sm font-bold text-brand-900 mb-4 flex items-center gap-2 uppercase tracking-wide">
+                <ShoppingBag className="w-4 h-4 text-purple-500" /> Repartition Activite
+             </h3>
+             {kpis.topActivities.length > 0 ? (
+               <div className="space-y-4">
+                 {kpis.topActivities.map((act, idx) => (
+                   <div key={act.id} className="relative">
+                     <div className="flex justify-between items-end mb-1">
+                       <span className="text-sm font-medium text-slate-700 truncate max-w-[150px]" title={act.name}>{act.name}</span>
+                       <span className="text-sm font-bold text-brand-900">{act.percent.toFixed(0)}%</span>
                      </div>
-                 </div>
-             )}
-
-             {/* BFR BREAKDOWN (If BFR Selected) */}
-             {selectedMetric === 'bfr' && (
-                 <div className="bg-white p-6 rounded-xl shadow-sm border border-brand-100 h-full">
-                      <h3 className="text-sm font-bold text-brand-900 mb-4 flex items-center gap-2 uppercase tracking-wide">
-                        <Briefcase className="w-4 h-4 text-cyan-500" /> Structure du BFR
-                     </h3>
-                     <div className="h-[200px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie data={receivablesData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} fill="#06b6d4">
-                                    {receivablesData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS_RECEIVABLES[Number(index) % COLORS_RECEIVABLES.length]} />)}
-                                </Pie>
-                                <Pie data={debtsData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={70} outerRadius={85} fill="#e11d48">
-                                    {debtsData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS_DEBTS[Number(index) % COLORS_DEBTS.length]} />)}
-                                </Pie>
-                                <Tooltip />
-                            </PieChart>
-                        </ResponsiveContainer>
+                     <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                       <div className="h-full rounded-full" style={{ width: `${act.percent}%`, backgroundColor: COLORS_ACTIVITIES[Number(idx) % COLORS_ACTIVITIES.length] }} />
                      </div>
-                     <div className="flex justify-between text-xs text-center mt-2 font-bold">
-                         <span className="text-cyan-600">Actif (Int.)</span>
-                         <span className="text-red-600">Passif (Ext.)</span>
+                     <div className="flex justify-between mt-1 text-[10px] text-slate-400">
+                       <span>{formatCurrency(act.val)}</span>
+                       <span>Marge: {act.marginRate.toFixed(1)}%</span>
                      </div>
-                 </div>
+                   </div>
+                 ))}
+               </div>
+             ) : (
+               <p className="text-sm text-slate-400 italic">Aucun centre de profit configure</p>
              )}
          </div>
       </div>
+
+      {/* ============================================= */}
+      {/* CHART 2: Tresorerie                           */}
+      {/* ============================================= */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-brand-100">
+         <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-bold text-brand-900 flex items-center gap-2">
+                <Landmark className={`w-5 h-5 ${kpis.treasury >= 0 ? 'text-emerald-600' : 'text-red-600'}`} />
+                Evolution de la Tresorerie
+            </h3>
+            <div className="flex items-center gap-3 text-xs">
+                <span className="flex items-center gap-1"><div className={`w-3 h-3 rounded-sm ${kpis.treasury >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`}></div> Tresorerie N</span>
+            </div>
+         </div>
+         <div className="h-[280px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={chartData} onClick={handleChartClick} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={(val: any) => { const v = Number(val); return !isNaN(v) && Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(val); }} />
+                    <Tooltip content={<CustomTooltip type="treasury" />} cursor={{ fill: '#f8fafc' }} />
+                    <ReferenceLine y={0} stroke="#cbd5e1" />
+                    <defs>
+                        <linearGradient id="colorTreasury" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={kpis.treasury >= 0 ? "#10b981" : "#ef4444"} stopOpacity={0.2}/>
+                            <stop offset="95%" stopColor={kpis.treasury >= 0 ? "#10b981" : "#ef4444"} stopOpacity={0}/>
+                        </linearGradient>
+                    </defs>
+                    <Area type="monotone" dataKey="Tresorerie" fill="url(#colorTreasury)" stroke={kpis.treasury >= 0 ? "#10b981" : "#ef4444"} strokeWidth={2} name="Tresorerie" />
+                    <Line type="monotone" dataKey="Tresorerie_N1" stroke="#94a3b8" strokeWidth={1.5} dot={false} strokeDasharray="4 4" name="Tresorerie N-1" />
+                </ComposedChart>
+            </ResponsiveContainer>
+         </div>
+      </div>
+
+      {/* ============================================= */}
+      {/* CHART 3 & 4: BFR Evolution + Repartition BFR */}
+      {/* ============================================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+         {/* BFR Evolution (stacked: creances, stocks, dettes) */}
+         <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-brand-100">
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-bold text-brand-900 flex items-center gap-2">
+                    <Briefcase className="w-5 h-5 text-cyan-600" />
+                    Evolution du BFR
+                </h3>
+                <div className="flex items-center gap-3 text-xs">
+                    <span className="flex items-center gap-1"><div className="w-3 h-3 bg-cyan-500 rounded-sm"></div> Creances</span>
+                    <span className="flex items-center gap-1"><div className="w-3 h-3 bg-amber-500 rounded-sm"></div> Stocks</span>
+                    <span className="flex items-center gap-1"><div className="w-3 h-3 bg-rose-500 rounded-sm"></div> Dettes</span>
+                    <span className="flex items-center gap-1"><div className="w-3 h-0.5 bg-slate-800"></div> BFR Net</span>
+                </div>
+            </div>
+            <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={bfrStackedData} onClick={handleChartClick} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} dy={10} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={(val: any) => { const v = Number(val); return !isNaN(v) && Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(val); }} />
+                        <Tooltip formatter={(value: any, name: string) => [formatCurrency(Number(value)), name]} />
+                        <ReferenceLine y={0} stroke="#cbd5e1" />
+                        <Bar dataKey="Creances" stackId="bfr" fill="#06b6d4" radius={[0, 0, 0, 0]} barSize={24} name="Creances" />
+                        <Bar dataKey="Stocks" stackId="bfr" fill="#f59e0b" radius={[0, 0, 0, 0]} barSize={24} name="Stocks" />
+                        <Bar dataKey="Dettes" stackId="bfr" fill="#f43f5e" radius={[0, 0, 0, 0]} barSize={24} name="Dettes (-)" />
+                        <Line type="monotone" dataKey="BFR_Net" stroke="#0f172a" strokeWidth={2.5} dot={{ r: 3, fill: '#0f172a' }} name="BFR Net" />
+                    </ComposedChart>
+                </ResponsiveContainer>
+            </div>
+         </div>
+
+         {/* BFR Breakdown - Pie Charts (ALWAYS VISIBLE) */}
+         <div className="bg-white p-6 rounded-xl shadow-sm border border-brand-100">
+            <h3 className="text-sm font-bold text-brand-900 mb-4 flex items-center gap-2 uppercase tracking-wide">
+                <Briefcase className="w-4 h-4 text-cyan-500" /> Repartition du BFR
+            </h3>
+            {snapshotRecord ? (
+              <>
+                <p className="text-[10px] text-slate-400 text-center mb-2">{snapshotRecord.month} {snapshotRecord.year}</p>
+                <div className="h-[200px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                          <Pie data={receivablesData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={55} fill="#06b6d4" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                              {receivablesData.map((_entry, index) => <Cell key={`recv-${index}`} fill={COLORS_RECEIVABLES[Number(index) % COLORS_RECEIVABLES.length]} />)}
+                          </Pie>
+                          <Pie data={debtsData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={65} outerRadius={80} fill="#e11d48">
+                              {debtsData.map((_entry, index) => <Cell key={`debt-${index}`} fill={COLORS_DEBTS[Number(index) % COLORS_DEBTS.length]} />)}
+                          </Pie>
+                          <Tooltip formatter={(value: any) => formatCurrency(Number(value))} />
+                      </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex justify-between text-xs text-center mt-2 font-bold">
+                    <span className="text-cyan-600">Creances (int.)</span>
+                    <span className="text-red-600">Dettes (ext.)</span>
+                </div>
+
+                {/* BFR Detail Table */}
+                <div className="mt-4 space-y-1 text-xs">
+                  <div className="font-bold text-cyan-700 mb-1">Actif circulant</div>
+                  <div className="flex justify-between text-slate-600"><span>Clients</span><span>{formatCurrency(snapshotRecord.bfr.receivables.clients)}</span></div>
+                  <div className="flex justify-between text-slate-600"><span>Etat</span><span>{formatCurrency(snapshotRecord.bfr.receivables.state)}</span></div>
+                  <div className="flex justify-between text-slate-600"><span>Org. Sociaux</span><span>{formatCurrency(snapshotRecord.bfr.receivables.social)}</span></div>
+                  <div className="flex justify-between text-slate-600"><span>Autres</span><span>{formatCurrency(snapshotRecord.bfr.receivables.other)}</span></div>
+                  <div className="flex justify-between text-slate-600"><span>Stocks</span><span>{formatCurrency(snapshotRecord.bfr.stock.total)}</span></div>
+                  <div className="flex justify-between font-bold text-cyan-800 border-t border-slate-100 pt-1 mt-1"><span>Total Actif</span><span>{formatCurrency(snapshotRecord.bfr.receivables.total + snapshotRecord.bfr.stock.total)}</span></div>
+
+                  <div className="font-bold text-red-700 mt-3 mb-1">Passif circulant</div>
+                  <div className="flex justify-between text-slate-600"><span>Fournisseurs</span><span>{formatCurrency(snapshotRecord.bfr.debts.suppliers)}</span></div>
+                  <div className="flex justify-between text-slate-600"><span>Dettes Fiscales</span><span>{formatCurrency(snapshotRecord.bfr.debts.state)}</span></div>
+                  <div className="flex justify-between text-slate-600"><span>Dettes Sociales</span><span>{formatCurrency(snapshotRecord.bfr.debts.social)}</span></div>
+                  <div className="flex justify-between text-slate-600"><span>Salaires</span><span>{formatCurrency(snapshotRecord.bfr.debts.salaries)}</span></div>
+                  <div className="flex justify-between text-slate-600"><span>Autres</span><span>{formatCurrency(snapshotRecord.bfr.debts.other)}</span></div>
+                  <div className="flex justify-between font-bold text-red-800 border-t border-slate-100 pt-1 mt-1"><span>Total Passif</span><span>{formatCurrency(snapshotRecord.bfr.debts.total)}</span></div>
+
+                  <div className="flex justify-between font-bold text-lg text-brand-900 border-t-2 border-brand-200 pt-2 mt-2"><span>BFR Net</span><span>{formatCurrency(snapshotRecord.bfr.total)}</span></div>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-slate-400 italic text-center py-8">Aucune donnee pour cette periode</p>
+            )}
+         </div>
+      </div>
+
+      {/* ============================================= */}
+      {/* CHART 5: Productivite (if data exists)        */}
+      {/* ============================================= */}
+      {displayData.some(d => d.expenses.hoursWorked > 0) && (
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-brand-100">
+           <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold text-brand-900 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-orange-600" />
+                  Productivite (Heures travaillees)
+              </h3>
+              <div className="flex items-center gap-3 text-xs">
+                  <span className="flex items-center gap-1"><div className="w-3 h-3 bg-orange-500 rounded-sm"></div> N</span>
+                  <span className="flex items-center gap-1"><div className="w-3 h-3 bg-slate-300 rounded-sm"></div> N-1</span>
+                  <span className="flex items-center gap-1"><div className="w-3 h-0.5 bg-purple-500"></div> CA/Heure</span>
+              </div>
+           </div>
+           <div className="h-[280px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={chartData} onClick={handleChartClick} margin={{ top: 10, right: 40, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} dy={10} />
+                      <YAxis yAxisId="hours" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} />
+                      <YAxis yAxisId="rate" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#8b5cf6' }} tickFormatter={(val: any) => `${Number(val).toFixed(0)}E/h`} />
+                      <Tooltip formatter={(value: any, name: string) => {
+                        if (name === 'CA/Heure') return [`${Number(value).toFixed(1)} E/h`, name];
+                        return [Number(value).toLocaleString('fr-FR'), name];
+                      }} />
+                      <Bar yAxisId="hours" dataKey="Productivity_N1" fill="#e2e8f0" radius={[4, 4, 0, 0]} barSize={18} name="Heures N-1" />
+                      <Bar yAxisId="hours" dataKey="Productivity" fill="#f97316" radius={[4, 4, 0, 0]} barSize={18} name="Heures N" />
+                      <Line yAxisId="rate" type="monotone" dataKey="ProductivityRate" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3, fill: '#8b5cf6' }} name="CA/Heure" />
+                  </ComposedChart>
+              </ResponsiveContainer>
+           </div>
+        </div>
+      )}
+
+      {/* ============================================= */}
+      {/* CHART 6: Carburant (if enabled)               */}
+      {/* ============================================= */}
+      {showFuelCard && (
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-brand-100">
+           <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold text-brand-900 flex items-center gap-2">
+                  <Fuel className="w-5 h-5 text-blue-600" />
+                  Consommation Carburant
+              </h3>
+              <div className="flex items-center gap-3 text-xs">
+                  <span className="flex items-center gap-1"><div className="w-3 h-3 bg-blue-500 rounded-sm"></div> N</span>
+                  <span className="flex items-center gap-1"><div className="w-3 h-3 bg-slate-300 rounded-sm"></div> N-1</span>
+              </div>
+           </div>
+           <div className="h-[280px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={chartData} onClick={handleChartClick} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} />
+                      <Tooltip content={<CustomTooltip type="fuel" />} cursor={{ fill: '#f8fafc' }} />
+                      <Bar dataKey="Fuel_Total_N1" fill="#e2e8f0" radius={[4, 4, 0, 0]} barSize={20} name="Volume N-1" />
+                      <Bar dataKey="Fuel_Total" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20} name="Volume N" />
+                  </ComposedChart>
+              </ResponsiveContainer>
+           </div>
+        </div>
+      )}
 
       {/* EXPERT COMMENT SECTION */}
       <div className="bg-white rounded-xl shadow-lg border border-brand-100 overflow-hidden">
           <div className="bg-brand-900 p-4 flex justify-between items-center text-white">
               <h3 className="font-bold flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5 text-accent-500" /> 
+                  <MessageSquare className="w-5 h-5 text-accent-500" />
                   Le mot du Consultant
                   {snapshotRecord && (
                       <span className="text-xs font-normal opacity-70 ml-2 bg-brand-800 px-2 py-0.5 rounded-full">
@@ -842,7 +948,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                   )}
               </h3>
               {userRole === 'ab_consultant' && snapshotRecord && (
-                  <button 
+                  <button
                     onClick={handleSaveRestitution}
                     className="text-xs bg-accent-500 hover:bg-accent-600 text-brand-950 px-3 py-1.5 rounded-lg font-bold transition shadow-sm flex items-center gap-1"
                   >
@@ -852,10 +958,10 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
           </div>
           <div className="p-6">
               {userRole === 'ab_consultant' ? (
-                  <textarea 
+                  <textarea
                     value={commentText}
                     onChange={(e) => setCommentText(e.target.value)}
-                    placeholder={snapshotRecord ? "Rédigez votre analyse pour ce mois (Optionnel)..." : "Aucune donnée sélectionnée."}
+                    placeholder={snapshotRecord ? "Redigez votre analyse pour ce mois (Optionnel)..." : "Aucune donnee selectionnee."}
                     disabled={!snapshotRecord}
                     className="w-full h-32 p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none resize-none text-sm text-slate-700 bg-slate-50 font-medium leading-relaxed disabled:opacity-50"
                   />
@@ -865,7 +971,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                           <div className="whitespace-pre-line leading-relaxed">{commentText}</div>
                       ) : (
                           <p className="italic text-slate-400 flex items-center gap-2">
-                              <Clock className="w-4 h-4" /> Analyse en cours de rédaction...
+                              <Clock className="w-4 h-4" /> Analyse en cours de redaction...
                           </p>
                       )}
                   </div>

@@ -36,12 +36,9 @@ const App: React.FC = () => {
 
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
-  const [clientSearchTerm, setClientSearchTerm] = useState("");
   const [clientViewMode, setClientViewMode] = useState<'active' | 'inactive'>('active');
-  const [tempProfitCenters, setTempProfitCenters] = useState<ProfitCenter[]>([]); 
-  
+
   const [statusModal, setStatusModal] = useState<{isOpen: boolean, client: Client | null}>({ isOpen: false, client: null });
-  const [inviteClientModal, setInviteClientModal] = useState<{isOpen: boolean, client: Client | null}>({ isOpen: false, client: null });
   
   const [editingRecord, setEditingRecord] = useState<FinancialRecord | null>(null);
   const [notification, setNotification] = useState<{message: string, type: 'success' | 'error' | 'info'} | null>(null);
@@ -217,7 +214,7 @@ const App: React.FC = () => {
       
       const newClient: Client = {
           ...clientData,
-          id: clientData.id || `client_${Date.now()}`,
+          id: clientData.id || `client_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
           companyName: clientData.companyName!,
           owner: {
               name: clientData.owner?.name || 'Gérant',
@@ -355,17 +352,17 @@ const App: React.FC = () => {
               if (window.innerWidth < 1024) setIsSidebarOpen(false);
           }}
           onClientSelect={setSelectedClient}
-          onToggleSimulation={() => {
+          onToggleSimulation={async () => {
               if (userRole === 'ab_consultant') {
                   if (selectedClient) {
                       setSimulatedUserEmail(selectedClient.owner.email);
                       setUserRole('client');
-                      refreshClients();
+                      await refreshClients('client', selectedClient.owner.email);
                   } else showNotification("Sélectionnez un client", 'error');
               } else {
                   setUserRole('ab_consultant');
                   setSimulatedUserEmail(null);
-                  refreshClients();
+                  await refreshClients('ab_consultant', currentUserEmail || undefined);
               }
           }}
           onLogout={handleLogout}
@@ -397,7 +394,17 @@ const App: React.FC = () => {
             )}
 
             {currentView === View.History && selectedClient && (
-                <HistoryView data={data} userRole={userRole} onNewRecord={handleNewRecord} onExportCSV={() => {}} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onValidate={toggleValidation} onPublish={togglePublication} onLockToggle={toggleClientLock}/>
+                <HistoryView data={data} userRole={userRole} onNewRecord={handleNewRecord} onExportCSV={async () => {
+                    if (!selectedClient) return;
+                    try {
+                        const { exportClientCSV } = await import('./lib/cloudFunctions');
+                        await exportClientCSV({ clientId: selectedClient.id });
+                        showNotification('Export CSV téléchargé.', 'success');
+                    } catch (err: any) {
+                        console.error('Export CSV error:', err);
+                        showNotification(err?.message || 'Erreur lors de l\'export CSV.', 'error');
+                    }
+                }} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onValidate={toggleValidation} onPublish={togglePublication} onLockToggle={toggleClientLock}/>
             )}
 
             {currentView === View.Settings && userRole === 'ab_consultant' && selectedClient && (

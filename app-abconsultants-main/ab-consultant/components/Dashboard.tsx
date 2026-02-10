@@ -28,12 +28,14 @@ const standardMonthOrder = Object.values(Month);
 // --- ANIMATION COMPONENTS ---
 
 // Component to animate numbers (CountUp) with Dynamic Formatting
+// FIX: Added cancelAnimationFrame cleanup to prevent memory leak on unmount
 const AnimatedNumber = ({ value, format = true }: { value: number, format?: boolean }) => {
     const [displayValue, setDisplayValue] = useState(0);
+    const rafRef = useRef<number | null>(null);
 
     useEffect(() => {
         let startTime: number | null = null;
-        const duration = 1000; // 1 second animation
+        const duration = 1000;
         const startValue = displayValue;
         const endValue = value;
 
@@ -42,19 +44,25 @@ const AnimatedNumber = ({ value, format = true }: { value: number, format?: bool
         const step = (timestamp: number) => {
             if (startTime === null) startTime = timestamp;
             const progress = Math.min((timestamp - startTime) / duration, 1);
-            
-            // EaseOutQuart easing function for smooth finish
+
             const ease = 1 - Math.pow(1 - progress, 4);
-            
+
             const current = startValue + (endValue - startValue) * ease;
             setDisplayValue(current);
 
             if (progress < 1) {
-                window.requestAnimationFrame(step);
+                rafRef.current = window.requestAnimationFrame(step);
             }
         };
 
-        window.requestAnimationFrame(step);
+        rafRef.current = window.requestAnimationFrame(step);
+
+        // Cleanup: cancel animation on unmount or value change
+        return () => {
+            if (rafRef.current !== null) {
+                window.cancelAnimationFrame(rafRef.current);
+            }
+        };
     }, [value]);
 
     if (format) {

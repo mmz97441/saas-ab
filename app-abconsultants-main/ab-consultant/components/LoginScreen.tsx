@@ -187,7 +187,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
           </div>
 
           <div className="text-xs text-brand-300/60 pt-6 border-t border-white/10 flex justify-between items-center">
-             <span>© 2024 AB Consultants <span className="opacity-50 ml-1 font-mono">v{APP_VERSION}</span></span>
+             <span>© {new Date().getFullYear()} AB Consultants <span className="opacity-50 ml-1 font-mono">v{APP_VERSION}</span></span>
              <span className="text-accent-500 font-bold">SÉCURISÉ PAR FIREBASE</span>
           </div>
         </div>

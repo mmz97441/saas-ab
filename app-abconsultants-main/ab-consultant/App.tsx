@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Menu, X, UserCircle, CheckCircle, Eye, EyeOff, Users, Plus, Edit2, Trash2, Search, Briefcase, Phone, Mail, MapPin, Archive, Send, Power, Loader2, UserPlus, Crown, ShieldCheck, ChevronRight, Home } from 'lucide-react';
+import { Menu, X, UserCircle, CheckCircle, Eye, EyeOff, Users, Plus, Edit2, Trash2, Search, Briefcase, Phone, Mail, MapPin, Archive, Send, Power, Loader2, UserPlus, Crown, ShieldCheck, ChevronRight, Home, Bell } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import EntryForm from './components/EntryForm';
 import LoginScreen from './components/LoginScreen'; 
@@ -45,6 +45,7 @@ const App: React.FC = () => {
   const [editingRecord, setEditingRecord] = useState<FinancialRecord | null>(null);
   const [notification, setNotification] = useState<{message: string, type: 'success' | 'error' | 'info'} | null>(null);
   const [isPresentationMode, setIsPresentationMode] = useState(false);
+  const [newDataBanner, setNewDataBanner] = useState(false);
 
   const SUPER_ADMIN_EMAIL = 'nice.guillaume@gmail.com';
   const confirm = useConfirmDialog();
@@ -304,6 +305,18 @@ const App: React.FC = () => {
   };
 
   const dashboardData = useMemo(() => userRole === 'client' ? data.filter(r => r.isPublished) : data, [data, userRole]);
+
+  // Track new published data for client
+  const prevPublishedCountRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (userRole !== 'client') return;
+    const publishedCount = data.filter(r => r.isPublished).length;
+    if (prevPublishedCountRef.current !== null && publishedCount > prevPublishedCountRef.current) {
+      setNewDataBanner(true);
+      setTimeout(() => setNewDataBanner(false), 10000);
+    }
+    prevPublishedCountRef.current = publishedCount;
+  }, [data, userRole]);
   const accessibleCompanies = useMemo(() => {
     if (userRole !== 'client' || !simulatedUserEmail) return [];
     return clients.filter(c => c.owner.email.toLowerCase() === simulatedUserEmail.toLowerCase());
@@ -330,6 +343,23 @@ const App: React.FC = () => {
       {notification && (
           <div className="fixed top-4 right-4 z-50 px-6 py-4 bg-white rounded-lg shadow-xl border border-brand-200 animate-in slide-in-from-right-10">
               <p className="font-medium text-sm">{notification.message}</p>
+          </div>
+      )}
+
+      {/* NEW DATA PUBLISHED BANNER (client only) */}
+      {newDataBanner && userRole === 'client' && (
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 bg-emerald-600 text-white rounded-xl shadow-xl flex items-center gap-3 animate-in slide-in-from-top-4 duration-300">
+              <Bell className="w-5 h-5 shrink-0" />
+              <div>
+                  <p className="font-bold text-sm">Nouvelles données disponibles</p>
+                  <p className="text-xs text-emerald-100">Votre consultant a publié de nouvelles analyses.</p>
+              </div>
+              <button onClick={() => { setNewDataBanner(false); setCurrentView(View.Dashboard); }} className="ml-4 px-3 py-1 bg-white/20 rounded-lg text-xs font-bold hover:bg-white/30 transition">
+                  Voir
+              </button>
+              <button onClick={() => setNewDataBanner(false)} className="text-white/60 hover:text-white transition">
+                  <X className="w-4 h-4" />
+              </button>
           </div>
       )}
 
@@ -424,6 +454,21 @@ const App: React.FC = () => {
                   </>
                 )}
               </nav>
+            )}
+
+            {/* WELCOME MESSAGE FOR CLIENTS WITH NO DATA */}
+            {userRole === 'client' && selectedClient && dashboardData.length === 0 && currentView === View.Dashboard && (
+                <div className="mb-6 bg-gradient-to-r from-brand-50 to-blue-50 border border-brand-200 rounded-xl p-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                    <h2 className="text-xl font-bold text-brand-900 mb-2">Bienvenue sur votre espace, {selectedClient.managerName || 'cher client'} !</h2>
+                    <p className="text-sm text-brand-700 mb-4">
+                        Votre espace de pilotage financier est prêt. Commencez par saisir vos données du mois en cours.
+                    </p>
+                    <div className="flex flex-wrap gap-3">
+                        <button onClick={() => setCurrentView(View.Entry)} className="px-4 py-2 bg-brand-600 text-white rounded-lg font-bold text-sm hover:bg-brand-700 transition shadow-sm flex items-center gap-2">
+                            <Plus className="w-4 h-4" /> Saisir mes données
+                        </button>
+                    </div>
+                </div>
             )}
 
             {/* VUE 1 : DASHBOARD CLIENT INDIVIDUEL */}

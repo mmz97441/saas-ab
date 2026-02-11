@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { FinancialRecord, Month, ProfitCenter } from '../types';
-import { Save, Lock, Calendar, HelpCircle, ArrowUpCircle, ArrowDownCircle, Wallet, TrendingUp, TrendingDown, Landmark, ShoppingBag, Target, PieChart, Droplets, Users, Clock, Calculator, Scale, Briefcase, ArrowRight, Truck, Percent, Sigma, CheckCircle, History, AlertTriangle, ShieldAlert, Upload, FileText, RotateCcw } from 'lucide-react';
+import { Save, Lock, Calendar, HelpCircle, ArrowUpCircle, ArrowDownCircle, Wallet, TrendingUp, TrendingDown, Landmark, ShoppingBag, Target, PieChart, Droplets, Users, Clock, Calculator, Scale, Briefcase, ArrowRight, Truck, Percent, Sigma, CheckCircle, History, AlertTriangle, ShieldAlert, Upload, FileText, RotateCcw, Send } from 'lucide-react';
 import { MONTH_ORDER } from '../services/dataService';
 import { useConfirmDialog } from '../contexts/ConfirmContext';
 
@@ -625,12 +625,34 @@ const EntryForm: React.FC<EntryFormProps> = ({
                     <button onClick={onCancel} className="px-4 py-2 text-slate-600 hover:bg-white border border-transparent hover:border-slate-300 rounded-lg transition font-medium">
                         {isLocked ? 'Retour' : 'Annuler'}
                     </button>
-                    {!isLocked && (
+                    {!isLocked && userRole === 'client' && !isAdminOverride && (
+                        <>
+                            <button
+                                onClick={async () => {
+                                    const draft = { ...formData, isSubmitted: false };
+                                    wrappedOnSave(draft);
+                                }}
+                                className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition flex items-center gap-2 font-medium shadow-sm"
+                            >
+                                <Save className="w-4 h-4" /> Sauvegarder
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    const ok = await confirm({ title: 'Soumettre au cabinet ?', message: `Vos données de ${formData.month} ${formData.year} seront transmises au consultant.\n\nUne fois soumises, vous ne pourrez plus les modifier sans l'accord du cabinet.`, variant: 'info', confirmLabel: 'Soumettre' });
+                                    if (ok) wrappedOnSave(formData);
+                                }}
+                                className="px-4 py-2 bg-brand-600 text-white rounded-lg shadow-md hover:bg-brand-700 hover:shadow-lg transition flex items-center gap-2 font-medium"
+                            >
+                                <Send className="w-4 h-4" /> Soumettre
+                            </button>
+                        </>
+                    )}
+                    {!isLocked && (userRole !== 'client' || isAdminOverride) && (
                         <button
                             onClick={async () => {
                                 const ok = await confirm({ title: 'Enregistrer les données ?', message: `Les données de ${formData.month} ${formData.year} seront sauvegardées.`, variant: 'success', confirmLabel: 'Enregistrer' });
                                 if (ok) wrappedOnSave(formData);
-                            }} 
+                            }}
                             className={`px-4 py-2 text-white rounded-lg shadow-md hover:shadow-lg transition flex items-center gap-2 font-medium ${isAdminOverride ? 'bg-amber-600 hover:bg-amber-700' : 'bg-brand-600 hover:bg-brand-700'}`}
                         >
                             <Save className="w-4 h-4" /> {isAdminOverride ? 'Forcer l\'enregistrement' : 'Enregistrer'}
@@ -639,7 +661,29 @@ const EntryForm: React.FC<EntryFormProps> = ({
                 </div>
             </div>
 
-            {/* ... RESTE DU COMPOSANT (NON MODIFIÉ) ... */}
+            {/* PROGRESS BAR */}
+            {!isLocked && (
+                <div className="px-6 pt-3 pb-0 bg-slate-50/30 border-b border-slate-100 print:hidden">
+                    <div className="flex items-center gap-1 mb-2">
+                        {(() => {
+                            const totalSteps = 4 + (showFuelTracking ? 1 : 0);
+                            let filled = 0;
+                            if (formData.revenue.total > 0 || (formData.margin?.total || 0) > 0) filled++;
+                            if (showFuelTracking && (formData.fuel?.volume || 0) > 0) filled++;
+                            if (formData.expenses.salaries > 0 || formData.expenses.hoursWorked > 0) filled++;
+                            if (formData.bfr.receivables.total > 0 || formData.bfr.debts.total > 0 || formData.bfr.stock.total > 0) filled++;
+                            if (formData.cashFlow.active > 0 || formData.cashFlow.passive > 0) filled++;
+                            const labels = ['Activité', ...(showFuelTracking ? ['Carburant'] : []), 'Charges', 'BFR', 'Trésorerie'];
+                            return labels.map((label, i) => (
+                                <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+                                    <div className={`h-1.5 w-full rounded-full transition-colors ${i < filled ? 'bg-brand-500' : 'bg-slate-200'}`} />
+                                    <span className={`text-[9px] font-bold ${i < filled ? 'text-brand-600' : 'text-slate-300'}`}>{label}</span>
+                                </div>
+                            ));
+                        })()}
+                    </div>
+                </div>
+            )}
             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-slate-50/30">
                 {isClientInactive && userRole === 'client' && (
                      <div className="mb-6 bg-red-50 border border-red-200 text-red-800 px-4 py-4 rounded-lg flex items-center gap-4 shadow-sm">
@@ -652,11 +696,13 @@ const EntryForm: React.FC<EntryFormProps> = ({
                 )}
 
                 {isLocked && !isClientInactive && (
-                    <div className="mb-6 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-4 rounded-lg flex items-center gap-4 shadow-sm">
-                        <div className="p-2 bg-amber-100 rounded-full"><CheckCircle className="w-6 h-6 text-amber-600" /></div>
+                    <div className={`mb-6 px-4 py-4 rounded-lg flex items-center gap-4 shadow-sm ${formData.isValidated ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' : 'bg-amber-50 border border-amber-200 text-amber-800'}`}>
+                        <div className={`p-2 rounded-full ${formData.isValidated ? 'bg-emerald-100' : 'bg-amber-100'}`}><CheckCircle className={`w-6 h-6 ${formData.isValidated ? 'text-emerald-600' : 'text-amber-600'}`} /></div>
                         <div>
-                            <p className="font-bold text-lg">{formData.isValidated ? "Période Validée par le Cabinet" : "Saisie Transmise au Cabinet"}</p>
-                            <p className="text-sm opacity-90">{formData.isValidated ? "Ce rapport a été audité et validé. Il n'est plus modifiable." : "Vos chiffres ont été bien enregistrés. Ils sont figés en attente de validation par votre consultant."}</p>
+                            <p className="font-bold text-lg">{formData.isValidated ? "Rapport Validé" : "Saisie Transmise au Cabinet"}</p>
+                            <p className="text-sm opacity-90">{formData.isValidated
+                                ? "Ce rapport a été audité et validé par votre consultant. Les données sont définitives."
+                                : "Vos chiffres ont bien été transmis. Votre consultant les examinera sous 48h ouvrées. Vous serez notifié quand l'analyse sera publiée."}</p>
                         </div>
                     </div>
                 )}

@@ -169,7 +169,55 @@ const HistoryView: React.FC<HistoryViewProps> = ({
                 </div>
             )}
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            {/* MOBILE CARD VIEW */}
+            <div className="md:hidden space-y-3">
+                {filteredHistoryData.length > 0 ? (
+                    filteredHistoryData.map(record => (
+                        <div key={record.id} onClick={() => onEdit(record)} className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 active:bg-slate-50 transition cursor-pointer">
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-lg bg-brand-50 text-brand-600 flex flex-col items-center justify-center border border-brand-100">
+                                        <span className="text-xs font-bold leading-none">{toShortMonth(record.month)}</span>
+                                        <span className="text-[10px] leading-none">{record.year}</span>
+                                    </div>
+                                    <div>
+                                        <p className="font-bold text-slate-800">{record.month} {record.year}</p>
+                                        <p className="text-[10px] text-slate-400">
+                                            {record.isValidated ? 'Validé par le cabinet' : record.isSubmitted ? 'En attente de validation' : 'Brouillon'}
+                                        </p>
+                                    </div>
+                                </div>
+                                {record.isValidated ? (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">Validé</span>
+                                ) : record.isSubmitted ? (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">En attente</span>
+                                ) : (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">Brouillon</span>
+                                )}
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                                <div>
+                                    <p className="text-[10px] text-slate-400 uppercase font-bold">CA</p>
+                                    <p className="font-mono font-bold text-slate-700">{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(record.revenue.total)}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[10px] text-slate-400 uppercase font-bold">Trésorerie</p>
+                                    <p className={`font-mono font-bold ${record.cashFlow.treasury >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                        {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(record.cashFlow.treasury)}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400 italic">
+                        Aucune donnée disponible.
+                    </div>
+                )}
+            </div>
+
+            {/* DESKTOP TABLE VIEW */}
+            <div className="hidden md:block bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
@@ -223,22 +271,22 @@ const HistoryView: React.FC<HistoryViewProps> = ({
                                         <td className="p-4 text-center">
                                             <div className="flex flex-col items-center gap-1">
                                                 {record.isValidated ? (
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700" title="Rapport audité et validé par le cabinet">
                                                         <CheckCircle className="w-3 h-3" /> Validé
                                                     </span>
                                                 ) : (
                                                     record.isSubmitted ? (
-                                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700">
-                                                            <Clock className="w-3 h-3" /> Soumis
+                                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700" title="Données transmises, en attente de validation par le consultant">
+                                                            <Clock className="w-3 h-3" /> En attente
                                                         </span>
                                                     ) : (
-                                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600">
+                                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600" title="Brouillon modifiable, non encore transmis">
                                                             <Edit2 className="w-3 h-3" /> Brouillon
                                                         </span>
                                                     )
                                                 )}
                                                 {/* PUBLICATION STATUS BADGE */}
-                                                {record.isPublished && (
+                                                {userRole === 'ab_consultant' && record.isPublished && (
                                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-100">
                                                         <Eye className="w-3 h-3" /> Visible Client
                                                     </span>
@@ -310,8 +358,8 @@ const HistoryView: React.FC<HistoryViewProps> = ({
                                                         </button>
                                                     </>
                                                 ) : (
-                                                    <button onClick={() => onEdit(record)} className="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition text-xs font-bold shadow-sm">
-                                                        Consulter
+                                                    <button onClick={() => onEdit(record)} className="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition text-xs font-bold shadow-sm flex items-center gap-1">
+                                                        <Eye className="w-3 h-3" /> Voir le détail
                                                     </button>
                                                 )}
                                             </div>

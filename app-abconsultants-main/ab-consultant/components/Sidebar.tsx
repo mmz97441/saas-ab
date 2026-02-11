@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { LayoutDashboard, FilePlus, Settings, Database, Users, Briefcase, Eye, EyeOff, LogOut, ChevronRight, ShieldCheck, UserCircle, ChevronDown, MessageSquare, PieChart } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { LayoutDashboard, FilePlus, Settings, Database, Users, Briefcase, Eye, EyeOff, LogOut, ChevronRight, ShieldCheck, UserCircle, ChevronDown, MessageSquare, PieChart, Search, HelpCircle } from 'lucide-react';
 import { View, Client, APP_VERSION } from '../types';
 
 interface SidebarProps {
@@ -17,6 +17,64 @@ interface SidebarProps {
     onToggleSimulation: () => void;
     onLogout: () => void;
 }
+
+// Searchable company selector for multi-company clients
+const ClientCompanySelector: React.FC<{ companies: Client[], selectedId: string, onSelect: (c: Client) => void }> = ({ companies, selectedId, onSelect }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [search, setSearch] = useState('');
+    const filtered = useMemo(() => {
+        if (!search.trim()) return companies;
+        const q = search.toLowerCase();
+        return companies.filter(c => c.companyName.toLowerCase().includes(q));
+    }, [companies, search]);
+    const current = companies.find(c => c.id === selectedId);
+
+    return (
+        <div className="mb-4 relative">
+            <label className="text-[10px] font-bold text-brand-400 uppercase mb-1 block">Sélectionner un dossier</label>
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full flex items-center justify-between bg-brand-800 text-white text-sm font-bold px-3 py-2.5 rounded-lg border border-brand-600 hover:bg-brand-700 transition-colors"
+            >
+                <span className="truncate">{current?.companyName || 'Sélectionner'}</span>
+                <ChevronDown className={`w-4 h-4 text-brand-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {isOpen && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-brand-800 border border-brand-600 rounded-lg shadow-xl z-50 overflow-hidden">
+                    {companies.length >= 5 && (
+                        <div className="p-2 border-b border-brand-700">
+                            <div className="relative">
+                                <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-brand-400" />
+                                <input
+                                    type="text"
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    placeholder="Rechercher..."
+                                    className="w-full pl-8 pr-3 py-1.5 bg-brand-900 text-white text-xs rounded border border-brand-600 placeholder-brand-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+                                    autoFocus
+                                />
+                            </div>
+                        </div>
+                    )}
+                    <div className="max-h-48 overflow-y-auto">
+                        {filtered.map(c => (
+                            <button
+                                key={c.id}
+                                onClick={() => { onSelect(c); setIsOpen(false); setSearch(''); }}
+                                className={`w-full text-left px-3 py-2 text-sm hover:bg-brand-700 transition-colors ${c.id === selectedId ? 'bg-brand-700 text-accent-400 font-bold' : 'text-brand-200'}`}
+                            >
+                                {c.companyName}
+                            </button>
+                        ))}
+                        {filtered.length === 0 && (
+                            <p className="px-3 py-2 text-xs text-brand-500 italic">Aucun résultat</p>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 const Sidebar: React.FC<SidebarProps> = ({
     isOpen,
@@ -138,26 +196,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     </div>
                                 )}
 
-                                {/* Client View: Multi-Company Dropdown */}
+                                {/* Client View: Multi-Company Selector */}
                                 {userRole === 'client' && accessibleCompanies.length > 1 && (
-                                    <div className="mb-4 relative">
-                                        <label className="text-[10px] font-bold text-brand-400 uppercase mb-1 block">Sélectionner un dossier</label>
-                                        <div className="relative group">
-                                            <select
-                                                value={selectedClient.id}
-                                                onChange={(e) => {
-                                                    const nextClient = accessibleCompanies.find(c => c.id === e.target.value);
-                                                    if (nextClient) onClientSelect(nextClient);
-                                                }}
-                                                className="w-full appearance-none bg-brand-800 text-white text-sm font-bold pl-3 pr-8 py-2.5 rounded-lg border border-brand-600 focus:ring-2 focus:ring-accent-500 cursor-pointer shadow-sm hover:bg-brand-700 transition-colors"
-                                            >
-                                                {accessibleCompanies.map(c => (
-                                                    <option key={c.id} value={c.id}>{c.companyName}</option>
-                                                ))}
-                                            </select>
-                                            <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-brand-400 pointer-events-none group-hover:text-white" />
-                                        </div>
-                                    </div>
+                                    <ClientCompanySelector
+                                        companies={accessibleCompanies}
+                                        selectedId={selectedClient.id}
+                                        onSelect={(c) => onClientSelect(c)}
+                                    />
                                 )}
 
                                 {/* Navigation Links */}
@@ -196,6 +241,19 @@ const Sidebar: React.FC<SidebarProps> = ({
                             <span className="font-medium text-sm">Quitter l'aperçu</span>
                         </button>
                     )}
+
+                    {/* HELP LINK (all users) */}
+                    <button
+                        onClick={() => {
+                            // Simple toggle for a help tooltip or future FAQ page
+                            const helpMsg = "Besoin d'aide ?\n\nConsultant : contact@ab-consultants.fr\nTéléphone : 04 93 XX XX XX\n\nVotre espace vous permet de :\n• Saisir vos données mensuelles\n• Consulter vos analyses\n• Échanger avec votre consultant via le chat";
+                            window.open(`mailto:contact@ab-consultants.fr?subject=Aide - ${userRole === 'client' ? 'Client' : 'Consultant'}`, '_blank');
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-brand-300 hover:bg-brand-800 hover:text-white transition-all duration-200 mt-2"
+                    >
+                        <HelpCircle className="w-5 h-5" />
+                        <span className="font-medium text-sm">Aide & Contact</span>
+                    </button>
 
                     <button
                         onClick={onLogout}

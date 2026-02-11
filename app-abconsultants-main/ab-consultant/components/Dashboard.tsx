@@ -714,7 +714,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                     {kpis.revenuePerformance}% Obj
                 </div>
             </div>
-            <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-slate-400">Chiffre d'Affaires</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-slate-400" title="CA HT facturé sur la période sélectionnée">Chiffre d'Affaires</p>
             <h3 className="text-xl font-bold text-slate-800">
                 <AnimatedNumber value={kpis.revenue} />
             </h3>
@@ -736,7 +736,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                     <Percent className="w-4 h-4" />
                 </div>
             </div>
-            <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-slate-400">Taux de Marge</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-slate-400" title="Marge commerciale brute en % du CA HT">Taux de Marge</p>
             <h3 className="text-xl font-bold text-slate-800">
                 {kpis.globalMarginRate.toFixed(1)}%
             </h3>
@@ -757,7 +757,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                 </div>
                 {kpis.treasury < 0 && <div className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">ALERTE</div>}
              </div>
-             <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-slate-400">Tresorerie Nette</p>
+             <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-slate-400" title="Soldes bancaires créditeurs - Soldes débiteurs et découverts">Trésorerie Nette</p>
              <h3 className={`text-xl font-bold ${kpis.treasury >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
                 <AnimatedNumber value={kpis.treasury} />
              </h3>
@@ -776,7 +776,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                     <Briefcase className="w-4 h-4" />
                 </div>
              </div>
-             <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-slate-400">BFR Moyen</p>
+             <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-slate-400" title="Besoin en Fonds de Roulement : (Créances + Stocks) - Dettes courantes">BFR Moyen</p>
              <h3 className="text-xl font-bold text-cyan-800">
                 <AnimatedNumber value={kpis.bfr} />
              </h3>
@@ -1113,11 +1113,20 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
               ) : (
                   <div className="prose prose-sm max-w-none text-slate-600 bg-slate-50 p-6 rounded-xl border border-slate-100">
                       {commentText ? (
-                          <div className="whitespace-pre-line leading-relaxed">{commentText}</div>
+                          <>
+                              <div className="whitespace-pre-line leading-relaxed">{commentText}</div>
+                              {snapshotRecord && (
+                                  <p className="text-[10px] text-slate-400 mt-4 pt-3 border-t border-slate-200">
+                                      Analyse pour {snapshotRecord.month} {snapshotRecord.year}
+                                  </p>
+                              )}
+                          </>
                       ) : (
-                          <p className="italic text-slate-400 flex items-center gap-2">
-                              <Clock className="w-4 h-4" /> Analyse en cours de redaction...
-                          </p>
+                          <div className="text-center py-4">
+                              <MessageSquare className="w-8 h-8 text-slate-200 mx-auto mb-2" />
+                              <p className="text-sm font-medium text-slate-400">Pas encore d'analyse pour cette période</p>
+                              <p className="text-xs text-slate-300 mt-1">Votre consultant publiera son analyse prochainement.</p>
+                          </div>
                       )}
                   </div>
               )}

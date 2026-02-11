@@ -187,7 +187,11 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
              gnr: { vol: 0, obj: 0 } 
          },
          topActivities: [],
-         globalMarginRate: 0
+         globalMarginRate: 0,
+         revenueVariation: null,
+         treasuryVariation: null,
+         bfrVariation: null,
+         marginVariation: null,
        };
     }
 

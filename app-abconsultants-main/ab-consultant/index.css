@@ -10,3 +10,49 @@ body {
 .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); }
 .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 10px; }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.3); }
+
+/* --- PRINT / PDF EXPORT STYLES --- */
+@media print {
+  /* Hide non-essential elements */
+  nav, aside, .print\\:hidden, button, [data-sidebar] {
+    display: none !important;
+  }
+
+  /* Full-width main content */
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  body {
+    background: white !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Ensure charts/cards print properly */
+  .bg-white, .bg-brand-50, .bg-slate-50 {
+    background-color: white !important;
+    box-shadow: none !important;
+  }
+
+  /* Keep colors for KPI cards */
+  .bg-emerald-50, .bg-red-50, .bg-blue-50, .bg-amber-50 {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Avoid page breaks inside charts */
+  .recharts-wrapper, .recharts-responsive-container {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Page setup */
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+}

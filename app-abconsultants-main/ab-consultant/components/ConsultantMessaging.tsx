@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, Send, User, Clock, AlertTriangle, CheckCircle, Shield, FileText, Bot } from 'lucide-react';
 import { Client, ChatMessage } from '../types';
 import { subscribeToChat, sendMessage, markConversationAsRead } from '../services/dataService';
+import { useConfirmDialog } from '../contexts/ConfirmContext';
 
 interface ConsultantMessagingProps {
     clients: Client[];
@@ -14,6 +15,7 @@ const ConsultantMessaging: React.FC<ConsultantMessagingProps> = ({ clients, onMa
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [replyInput, setReplyInput] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const confirmDialog = useConfirmDialog();
 
     // FILTRE ET TRI DE LA LISTE DES CONVERSATIONS
     // 1. Filtre : On garde les clients qui ont un historique (lastMessageTime) OU des non-lus OU qui sont sélectionnés.
@@ -55,7 +57,7 @@ const ConsultantMessaging: React.FC<ConsultantMessagingProps> = ({ clients, onMa
             setReplyInput('');
             // Pas besoin de rafraichir ici, le onSnapshot mettra à jour la liste des messages
         } catch (e) {
-            alert("Erreur d'envoi");
+            confirmDialog({ title: 'Erreur', message: 'Le message n\'a pas pu être envoyé. Veuillez réessayer.', variant: 'danger', showCancel: false, confirmLabel: 'OK' });
         }
     };
 

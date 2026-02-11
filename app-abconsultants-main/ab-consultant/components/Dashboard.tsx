@@ -4,16 +4,18 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Line, ComposedChart, ReferenceLine, AreaChart, Area, PieChart, Pie, Cell, LineChart
 } from 'recharts';
 import { FinancialRecord, Month, Client } from '../types';
-import { TrendingUp, TrendingDown, DollarSign, Users, MousePointerClick, Calendar, Filter, Check, Trophy, AlertCircle, Target, Droplets, ArrowRight, ArrowUpRight, ArrowDownRight, FileText, ShieldAlert, MessageSquare, Send, Bell, Clock, Fuel, Briefcase, Zap, Activity, ShoppingBag, Percent, Landmark } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Users, MousePointerClick, Calendar, Filter, Check, Trophy, AlertCircle, Target, Droplets, ArrowRight, ArrowUpRight, ArrowDownRight, FileText, ShieldAlert, MessageSquare, Send, Bell, Clock, Fuel, Briefcase, Zap, Activity, ShoppingBag, Percent, Landmark, Maximize2, Minimize2, Printer } from 'lucide-react';
 // @ts-ignore
 import confetti from 'canvas-confetti';
 import { toShortMonth } from '../services/dataService';
 
 interface DashboardProps {
   data: FinancialRecord[];
-  client: Client; // Added Client prop to access fiscalYearEnd and profitCenters
+  client: Client;
   userRole: 'ab_consultant' | 'client';
   onSaveComment: (record: FinancialRecord) => void;
+  isPresentationMode?: boolean;
+  onTogglePresentation?: () => void;
 }
 
 const COLORS_RECEIVABLES = ['#0891b2', '#06b6d4', '#22d3ee', '#67e8f9']; // Cyan/Teal shades for Assets
@@ -78,7 +80,7 @@ const formatCurrency = (value: number, fractionDigits?: number) =>
         minimumFractionDigits: fractionDigits !== undefined ? fractionDigits : 0  // Default min 0
     }).format(value);
 
-const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveComment }) => {
+const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveComment, isPresentationMode = false, onTogglePresentation }) => {
   
   // Year Selection
   const [selectedYear, setSelectedYear] = useState<number>(
@@ -608,6 +610,32 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                     </button>
                 ))}
              </div>
+           </div>
+
+           {/* Presentation & Print Controls */}
+           <div className="flex items-center gap-2 print:hidden">
+             {onTogglePresentation && (
+               <button
+                 onClick={onTogglePresentation}
+                 className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all border ${
+                   isPresentationMode
+                     ? 'bg-brand-900 text-white border-brand-800 shadow-sm'
+                     : 'bg-white text-brand-600 border-brand-200 hover:bg-brand-50'
+                 }`}
+                 title={isPresentationMode ? 'Quitter la présentation' : 'Mode présentation'}
+               >
+                 {isPresentationMode ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                 {isPresentationMode ? 'Quitter' : 'Présentation'}
+               </button>
+             )}
+             <button
+               onClick={() => window.print()}
+               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-white text-brand-600 border border-brand-200 hover:bg-brand-50 transition-all"
+               title="Imprimer / Exporter PDF"
+             >
+               <Printer className="w-3.5 h-3.5" />
+               PDF
+             </button>
            </div>
 
            {/* Active Filters Display */}

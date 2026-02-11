@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, Building, Lock, ShoppingBag, Plus, Trash2, Save, Droplets, AlertTriangle, Power, MapPin, Phone, Percent, PieChart } from 'lucide-react';
 import { Client, ProfitCenter } from '../types';
+import { useConfirmDialog } from '../contexts/ConfirmContext';
 
 interface SettingsViewProps {
     client: Client;
@@ -24,6 +25,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
     onToggleFuelModule,
     onToggleCommercialMargin
 }) => {
+    const confirm = useConfirmDialog();
     const [isEditingSettings, setIsEditingSettings] = useState(false);
     const [settingsProfitCenters, setSettingsProfitCenters] = useState<ProfitCenter[]>(client.profitCenters || []);
     const [settingsFuelObjectives, setSettingsFuelObjectives] = useState(client.settings?.fuelObjectives || { gasoil: 0, sansPlomb: 0, gnr: 0 });
@@ -44,15 +46,17 @@ const SettingsView: React.FC<SettingsViewProps> = ({
         setSettingsProfitCenters(prev => prev.map(pc => pc.id === id ? { ...pc, [field]: value } : pc));
     };
 
-    const handleRemoveProfitCenter = (id: string) => {
-        if(!window.confirm("Supprimer cette activité ?")) return;
+    const handleRemoveProfitCenter = async (id: string) => {
+        const ok = await confirm({ title: 'Supprimer cette activité ?', message: 'Elle sera retirée de la ventilation analytique.', variant: 'danger', confirmLabel: 'Supprimer' });
+        if (!ok) return;
         setSettingsProfitCenters(prev => prev.filter(pc => pc.id !== id));
     };
 
     // Handler Wrappers
-    const handleSaveClientForm = (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSaveClientForm = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if(!window.confirm("Confirmez-vous la modification des informations administratives du dossier ?")) return;
+        const ok = await confirm({ title: 'Modifier les informations ?', message: 'Les informations administratives du dossier seront mises à jour.', confirmLabel: 'Enregistrer' });
+        if (!ok) return;
         onUpdateClientSettings(e);
         setIsEditingSettings(false);
     };
@@ -171,10 +175,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                         <PieChart className="w-4 h-4" /> Suivi Marge Commerciale
                     </h3>
                     <button
-                        onClick={() => {
-                            if(window.confirm(client.settings?.showCommercialMargin ? "Désactiver le suivi de la marge ?" : "Activer le suivi de la marge ?")) {
-                                onToggleCommercialMargin();
-                            }
+                        onClick={async () => {
+                            const ok = await confirm({ title: client.settings?.showCommercialMargin ? 'Désactiver la marge ?' : 'Activer la marge ?', message: client.settings?.showCommercialMargin ? 'Le suivi de la marge commerciale sera désactivé.' : 'La marge commerciale sera calculée et analysée dans les rapports.', variant: 'info', confirmLabel: client.settings?.showCommercialMargin ? 'Désactiver' : 'Activer' });
+                            if (ok) onToggleCommercialMargin();
                         }}
                         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${client.settings?.showCommercialMargin ? 'bg-purple-600' : 'bg-slate-200'}`}
                     >
@@ -272,10 +275,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({
 
                     <div className="mt-6 flex justify-end">
                         <button
-                            onClick={() => {
-                                if(window.confirm("Valider la nouvelle structure analytique ?")) {
-                                    onUpdateProfitCenters(settingsProfitCenters);
-                                }
+                            onClick={async () => {
+                                const ok = await confirm({ title: 'Enregistrer la structure ?', message: 'La ventilation analytique sera mise à jour pour ce dossier.', variant: 'success', confirmLabel: 'Enregistrer' });
+                                if (ok) onUpdateProfitCenters(settingsProfitCenters);
                             }}
                             className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 font-bold shadow-sm transition flex items-center gap-2"
                         >
@@ -292,10 +294,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                         <Droplets className="w-4 h-4" /> Suivi Carburant
                     </h3>
                     <button
-                        onClick={() => {
-                            if(window.confirm(client.settings?.showFuelTracking ? "Désactiver le module carburant ?" : "Activer le module carburant ?")) {
-                                onToggleFuelModule();
-                            }
+                        onClick={async () => {
+                            const ok = await confirm({ title: client.settings?.showFuelTracking ? 'Désactiver le carburant ?' : 'Activer le carburant ?', message: client.settings?.showFuelTracking ? 'Le module de suivi carburant sera désactivé.' : 'Le suivi de consommation carburant sera activé pour ce dossier.', variant: 'info', confirmLabel: client.settings?.showFuelTracking ? 'Désactiver' : 'Activer' });
+                            if (ok) onToggleFuelModule();
                         }}
                         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${client.settings?.showFuelTracking ? 'bg-blue-600' : 'bg-slate-200'}`}
                     >
@@ -338,10 +339,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                         </div>
                         <div className="mt-4 flex justify-end">
                             <button
-                                onClick={() => {
-                                    if(window.confirm("Mettre à jour les objectifs carburant ?")) {
-                                        onUpdateFuelObjectives(settingsFuelObjectives);
-                                    }
+                                onClick={async () => {
+                                    const ok = await confirm({ title: 'Mettre à jour les objectifs ?', message: 'Les objectifs mensuels de consommation seront modifiés.', confirmLabel: 'Mettre à jour' });
+                                    if (ok) onUpdateFuelObjectives(settingsFuelObjectives);
                                 }}
                                 className="text-xs font-bold text-blue-700 hover:bg-blue-50 px-3 py-2 rounded transition border border-transparent hover:border-blue-100"
                             >

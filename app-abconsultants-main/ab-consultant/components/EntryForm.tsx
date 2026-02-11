@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { FinancialRecord, Month, ProfitCenter } from '../types';
 import { Save, Lock, Calendar, HelpCircle, ArrowUpCircle, ArrowDownCircle, Wallet, TrendingUp, TrendingDown, Landmark, ShoppingBag, Target, PieChart, Droplets, Users, Clock, Calculator, Scale, Briefcase, ArrowRight, Truck, Percent, Sigma, CheckCircle, History, AlertTriangle, ShieldAlert, Upload, FileText } from 'lucide-react';
 import { MONTH_ORDER } from '../services/dataService';
+import { useConfirmDialog } from '../contexts/ConfirmContext';
 
 const DEFINITIONS = {
   revenue: "Chiffre d'Affaires Hors Taxe facturé sur la période.",
@@ -213,6 +214,8 @@ const EntryForm: React.FC<EntryFormProps> = ({
   clientStatus = 'active'
 }) => {
     
+    const confirm = useConfirmDialog();
+
     // --- STATE INITIALIZATION ---
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [formData, setFormData] = useState<FinancialRecord>(() => {
@@ -400,13 +403,13 @@ const EntryForm: React.FC<EntryFormProps> = ({
                     }));
                     
                     matched = true;
-                    alert(`Données importées pour ${csvMonth} ${csvYear} !`);
+                    confirm({ title: 'Import réussi', message: `Données importées pour ${csvMonth} ${csvYear}.`, variant: 'success', showCancel: false, confirmLabel: 'OK' });
                     break;
                 }
             }
 
             if (!matched) {
-                alert(`Aucune donnée trouvée dans le fichier pour ${formData.month} ${formData.year}.`);
+                confirm({ title: 'Aucune donnée', message: `Aucune donnée trouvée dans le fichier pour ${formData.month} ${formData.year}.`, variant: 'info', showCancel: false, confirmLabel: 'OK' });
             }
             if (fileInputRef.current) fileInputRef.current.value = '';
         };
@@ -523,12 +526,10 @@ const EntryForm: React.FC<EntryFormProps> = ({
                         {isLocked ? 'Retour' : 'Annuler'}
                     </button>
                     {!isLocked && (
-                        <button 
-                            onClick={() => {
-                                // CONFIRMATION AVANT ENREGISTREMENT
-                                if (window.confirm("Confirmez-vous l'enregistrement des données ?")) {
-                                    onSave(formData);
-                                }
+                        <button
+                            onClick={async () => {
+                                const ok = await confirm({ title: 'Enregistrer les données ?', message: `Les données de ${formData.month} ${formData.year} seront sauvegardées.`, variant: 'success', confirmLabel: 'Enregistrer' });
+                                if (ok) onSave(formData);
                             }} 
                             className={`px-4 py-2 text-white rounded-lg shadow-md hover:shadow-lg transition flex items-center gap-2 font-medium ${isAdminOverride ? 'bg-amber-600 hover:bg-amber-700' : 'bg-brand-600 hover:bg-brand-700'}`}
                         >

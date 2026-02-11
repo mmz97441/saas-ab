@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Building, User, Mail, MapPin, Hash, Save, AlertCircle, ShieldCheck, Phone, Briefcase, Check, Send, Copy, ExternalLink, Power, Archive } from 'lucide-react';
 import { Client, Consultant } from '../types';
 import { getConsultants } from '../services/dataService';
+import { useConfirmDialog } from '../contexts/ConfirmContext';
 
 interface ClientModalProps {
     isOpen: boolean;
@@ -31,6 +32,7 @@ const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSave, init
     
     // NOUVEAU : État pour afficher l'écran d'invitation après succès
     const [showInviteStep, setShowInviteStep] = useState(false);
+    const confirm = useConfirmDialog();
 
     // Charger la liste des consultants au montage
     useEffect(() => {
@@ -81,9 +83,10 @@ const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSave, init
             return;
         }
 
-        // Si c'est une édition, on demande confirmation classique
-        if (initialData && !window.confirm("Confirmez-vous les modifications sur ce dossier ?")) {
-            return;
+        // Si c'est une édition, on demande confirmation
+        if (initialData) {
+            const ok = await confirm({ title: 'Modifier ce dossier ?', message: 'Les informations du dossier seront mises à jour.', confirmLabel: 'Enregistrer' });
+            if (!ok) return;
         }
 
         setIsLoading(true);
@@ -156,9 +159,9 @@ Expertise & Stratégie Financière`;
     const handleCopyLink = async () => {
         try {
             await navigator.clipboard.writeText(getInviteMessage());
-            alert("Message d'invitation (Format Premium) copié dans le presse-papier !");
+            await confirm({ title: 'Copié !', message: 'Le message d\'invitation a été copié dans le presse-papier.', variant: 'success', showCancel: false, confirmLabel: 'OK' });
         } catch (e) {
-            alert("Erreur de copie");
+            await confirm({ title: 'Erreur', message: 'Impossible de copier dans le presse-papier.', variant: 'danger', showCancel: false, confirmLabel: 'OK' });
         }
     };
 

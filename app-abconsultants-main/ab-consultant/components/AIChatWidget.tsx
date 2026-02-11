@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { MessageSquare, Send, X, Bot, Loader2, Sparkles, UserCheck, ChevronRight, Scale, Briefcase, ShieldCheck, UserCircle, Bell, Trash2 } from 'lucide-react';
 import { Client, FinancialRecord, ChatMessage } from '../types';
 import { getFinancialAdvice, generateConversationSummary } from '../services/geminiService';
+import { useConfirmDialog } from '../contexts/ConfirmContext';
 import { sendMessage, subscribeToChat, sendConsultantAlertEmail } from '../services/dataService';
 import { db, auth } from '../firebase'; 
 import { collection, writeBatch, getDocs, deleteDoc } from "firebase/firestore";
@@ -20,6 +21,7 @@ const getMessageTime = (msg: ChatMessage): number => {
 };
 
 const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
+  const confirmDialog = useConfirmDialog();
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -107,8 +109,9 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
 
   // FONCTION POUR NETTOYER L'HISTORIQUE MANUELLEMENT
   const handleClearHistory = async () => {
-      if (!confirm("Voulez-vous effacer l'historique et démarrer une nouvelle conversation ?")) return;
-      setSessionCutoff(Date.now()); // Masque localement immédiatement
+      const ok = await confirmDialog({ title: 'Effacer l\'historique ?', message: 'La conversation sera effacée et une nouvelle session démarrera.', variant: 'danger', confirmLabel: 'Effacer' });
+      if (!ok) return;
+      setSessionCutoff(Date.now());
   };
 
   const handleSend = async () => {

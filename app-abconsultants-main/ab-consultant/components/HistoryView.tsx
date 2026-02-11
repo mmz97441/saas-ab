@@ -3,6 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { Database, Plus, Download, CheckCircle, Clock, Edit2, ShieldCheck, Unlock, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { FinancialRecord, Month } from '../types';
 import { toShortMonth, MONTH_ORDER } from '../services/dataService';
+import { useConfirmDialog } from '../contexts/ConfirmContext';
 
 interface HistoryViewProps {
     data: FinancialRecord[];
@@ -28,6 +29,7 @@ const HistoryView: React.FC<HistoryViewProps> = ({
     onLockToggle
 }) => {
     const [historyYearFilter, setHistoryYearFilter] = useState<number | 'ALL'>('ALL');
+    const confirm = useConfirmDialog();
 
     // 1. Get Available Years
     const historyAvailableYears = useMemo(() => {
@@ -150,13 +152,17 @@ const HistoryView: React.FC<HistoryViewProps> = ({
                                                 {/* ACTION BUTTONS */}
                                                 {userRole === 'ab_consultant' ? (
                                                     <>
-                                                        <button 
-                                                            onClick={() => {
-                                                                if(window.confirm(record.isValidated ? "Invalider le rapport ? Il redeviendra modifiable." : "Valider définitivement ce rapport ?\nIl sera verrouillé pour le client.")) {
-                                                                    onValidate(record);
-                                                                }
-                                                            }} 
-                                                            className={`p-2 rounded-lg transition ${record.isValidated ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600'}`} 
+                                                        <button
+                                                            onClick={async () => {
+                                                                const ok = await confirm({
+                                                                    title: record.isValidated ? 'Invalider le rapport ?' : 'Valider ce rapport ?',
+                                                                    message: record.isValidated ? 'Le rapport redeviendra modifiable.' : 'Il sera verrouillé et visible pour validation.',
+                                                                    variant: record.isValidated ? 'default' : 'success',
+                                                                    confirmLabel: record.isValidated ? 'Invalider' : 'Valider',
+                                                                });
+                                                                if (ok) onValidate(record);
+                                                            }}
+                                                            className={`p-2 rounded-lg transition ${record.isValidated ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600'}`}
                                                             title={record.isValidated ? "Invalider" : "Valider"}
                                                         >
                                                             <ShieldCheck className="w-4 h-4" />
@@ -164,26 +170,34 @@ const HistoryView: React.FC<HistoryViewProps> = ({
 
                                                         {/* CLIENT UNLOCK BUTTON */}
                                                         {record.isSubmitted && !record.isValidated && (
-                                                            <button 
-                                                                onClick={() => {
-                                                                    if(window.confirm("Déverrouiller le rapport pour le client ?\nIl pourra modifier sa saisie.")) {
-                                                                        onLockToggle(record);
-                                                                    }
-                                                                }} 
-                                                                className="p-2 rounded-lg bg-amber-100 text-amber-600 hover:bg-amber-200 transition" 
+                                                            <button
+                                                                onClick={async () => {
+                                                                    const ok = await confirm({
+                                                                        title: 'Déverrouiller le rapport ?',
+                                                                        message: 'Le client pourra modifier sa saisie.',
+                                                                        variant: 'default',
+                                                                        confirmLabel: 'Déverrouiller',
+                                                                    });
+                                                                    if (ok) onLockToggle(record);
+                                                                }}
+                                                                className="p-2 rounded-lg bg-amber-100 text-amber-600 hover:bg-amber-200 transition"
                                                                 title="Déverrouiller pour le client"
                                                             >
                                                                 <Unlock className="w-4 h-4" />
                                                             </button>
                                                         )}
 
-                                                        <button 
-                                                            onClick={() => {
-                                                                if(window.confirm(record.isPublished ? "Masquer ce rapport au client ?" : "Publier ce rapport ? Le client pourra le consulter.")) {
-                                                                    onPublish(record);
-                                                                }
-                                                            }} 
-                                                            className={`p-2 rounded-lg transition ${record.isPublished ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-400 hover:bg-blue-50 hover:text-blue-600'}`} 
+                                                        <button
+                                                            onClick={async () => {
+                                                                const ok = await confirm({
+                                                                    title: record.isPublished ? 'Masquer au client ?' : 'Publier ce rapport ?',
+                                                                    message: record.isPublished ? 'Le client ne verra plus ce rapport.' : 'Le client pourra consulter ce rapport.',
+                                                                    variant: 'info',
+                                                                    confirmLabel: record.isPublished ? 'Masquer' : 'Publier',
+                                                                });
+                                                                if (ok) onPublish(record);
+                                                            }}
+                                                            className={`p-2 rounded-lg transition ${record.isPublished ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-400 hover:bg-blue-50 hover:text-blue-600'}`}
                                                             title={record.isPublished ? "Masquer au client" : "Publier au client"}
                                                         >
                                                             {record.isPublished ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}

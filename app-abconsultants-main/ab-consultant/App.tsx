@@ -12,6 +12,7 @@ import ConsultantMessaging from './components/ConsultantMessaging';
 import ConsultantDashboard from './components/ConsultantDashboard'; // Import Nouveau
 import ClientModal from './components/ClientModal';
 import TeamManagement from './components/TeamManagement';
+import { useConfirmDialog } from './contexts/ConfirmContext';
 
 import { FinancialRecord, Client, Month, ProfitCenter, Consultant, View } from './types';
 import { getClients, saveClient, updateClientStatus, getRecordsByClient, resetDatabase, MONTH_ORDER, toShortMonth, getConsultants, addConsultant, deleteConsultant, deleteRecord, checkConsultantEmailExists, checkClientEmailExists, saveRecord } from './services/dataService';
@@ -37,13 +38,16 @@ const App: React.FC = () => {
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [clientViewMode, setClientViewMode] = useState<'active' | 'inactive'>('active');
+  const [clientSearchQuery, setClientSearchQuery] = useState('');
 
   const [statusModal, setStatusModal] = useState<{isOpen: boolean, client: Client | null}>({ isOpen: false, client: null });
   
   const [editingRecord, setEditingRecord] = useState<FinancialRecord | null>(null);
   const [notification, setNotification] = useState<{message: string, type: 'success' | 'error' | 'info'} | null>(null);
+  const [isPresentationMode, setIsPresentationMode] = useState(false);
 
-  const SUPER_ADMIN_EMAIL = 'admin@ab-consultants.fr';
+  const SUPER_ADMIN_EMAIL = 'nice.guillaume@gmail.com';
+  const confirm = useConfirmDialog();
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
       setNotification({ message, type });
@@ -184,7 +188,8 @@ const App: React.FC = () => {
 
   const handleDeleteRecord = async (record: FinancialRecord) => {
       if (userRole !== 'ab_consultant') return;
-      if (!confirm("Supprimer ce rapport ?")) return;
+      const ok = await confirm({ title: 'Supprimer ce rapport ?', message: 'Cette action est irréversible. Les données seront définitivement perdues.', variant: 'danger', confirmLabel: 'Supprimer' });
+      if (!ok) return;
       await deleteRecord(record.id);
       await refreshRecords();
       showNotification("Rapport supprimé.", 'success');
@@ -273,11 +278,11 @@ const App: React.FC = () => {
 
   const handleResetDatabase = async () => {
       if (!isSuperAdmin) return;
-      if (confirm("Reset complet ?")) {
-          await resetDatabase();
-          await refreshClients();
-          setSelectedClient(null);
-      }
+      const ok = await confirm({ title: 'Réinitialiser la base ?', message: 'ATTENTION : Toutes les données (clients, rapports, messages) seront supprimées définitivement.\n\nCette action est IRRÉVERSIBLE.', variant: 'danger', confirmLabel: 'Tout supprimer' });
+      if (!ok) return;
+      await resetDatabase();
+      await refreshClients();
+      setSelectedClient(null);
   };
 
   const handleToggleFuelModule = async () => {
@@ -306,8 +311,16 @@ const App: React.FC = () => {
 
   // FILTRE POUR LA VUE LISTE CLIENTS
   const displayedClientsList = useMemo(() => {
-      return clients.filter(c => clientViewMode === 'active' ? (c.status || 'active') === 'active' : c.status === 'inactive');
-  }, [clients, clientViewMode]);
+      const statusFiltered = clients.filter(c => clientViewMode === 'active' ? (c.status || 'active') === 'active' : c.status === 'inactive');
+      if (!clientSearchQuery.trim()) return statusFiltered;
+      const q = clientSearchQuery.toLowerCase();
+      return statusFiltered.filter(c =>
+        c.companyName.toLowerCase().includes(q) ||
+        (c.managerName || '').toLowerCase().includes(q) ||
+        (c.city || '').toLowerCase().includes(q) ||
+        (c.siret || '').toLowerCase().includes(q)
+      );
+  }, [clients, clientViewMode, clientSearchQuery]);
 
   if (isAuthCheckLoading) return <div className="min-h-screen flex items-center justify-center bg-brand-50"><Loader2 className="w-8 h-8 animate-spin text-brand-600"/></div>;
   if (!isAuthenticated) return <LoginScreen onLogin={handleLoginSuccess} />;
@@ -333,11 +346,13 @@ const App: React.FC = () => {
           initialData={editingClient}
       />
 
-      <button className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-brand-900 text-white rounded-md" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
-        {isSidebarOpen ? <X /> : <Menu />}
-      </button>
+      {!isPresentationMode && (
+        <button className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-brand-900 text-white rounded-md print:hidden" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+          {isSidebarOpen ? <X /> : <Menu />}
+        </button>
+      )}
 
-      <Sidebar 
+      {!isPresentationMode && <Sidebar
           isOpen={isSidebarOpen}
           userRole={userRole}
           currentView={currentView}
@@ -366,7 +381,7 @@ const App: React.FC = () => {
               }
           }}
           onLogout={handleLogout}
-      />
+      />}
 
       <main className="flex-1 overflow-x-hidden overflow-y-auto h-screen relative">
          <div className="lg:hidden h-16 bg-white shadow-sm mb-4 flex items-center justify-end px-4">
@@ -377,7 +392,7 @@ const App: React.FC = () => {
             
             {/* VUE 1 : DASHBOARD CLIENT INDIVIDUEL */}
             {currentView === View.Dashboard && selectedClient && (
-                <Dashboard data={dashboardData} client={selectedClient} userRole={userRole} onSaveComment={handleSaveRecord}/>
+                <Dashboard data={dashboardData} client={selectedClient} userRole={userRole} onSaveComment={handleSaveRecord} isPresentationMode={isPresentationMode} onTogglePresentation={() => setIsPresentationMode(p => !p)}/>
             )}
 
             {/* VUE 2 : DASHBOARD GLOBAL CONSULTANT */}
@@ -436,6 +451,23 @@ const App: React.FC = () => {
                             </button>
                         </div>
                         
+                        {/* Search Bar */}
+                        <div className="relative mb-4">
+                            <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                            <input
+                                type="text"
+                                value={clientSearchQuery}
+                                onChange={(e) => setClientSearchQuery(e.target.value)}
+                                placeholder="Rechercher par nom, dirigeant, ville, SIRET..."
+                                className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition placeholder-slate-400"
+                            />
+                            {clientSearchQuery && (
+                                <button onClick={() => setClientSearchQuery('')} className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+                                    <X className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
+
                         {/* Onglets Actifs / Archives */}
                         <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
                             <button 

@@ -19,8 +19,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
 
-  // Email de l'expert (Admin Suprême) - Backdoor de sécurité ultime
-  const EXPERT_EMAIL = "admin@ab-consultants.fr";
+  // Email de l'expert (Super Admin) - doit correspondre à AuthContext.tsx
+  const EXPERT_EMAIL = "nice.guillaume@gmail.com";
 
   const handleAuthAction = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -232,7 +232,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                             required
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            placeholder={activeTab === 'client' ? "email@societe.com" : EXPERT_EMAIL}
+                            placeholder={activeTab === 'client' ? "email@societe.com" : "consultant@ab-consultants.fr"}
                             className="w-full pl-10 pr-4 py-3 rounded-lg border border-brand-200 bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all placeholder-brand-300 text-brand-900"
                         />
                     </div>

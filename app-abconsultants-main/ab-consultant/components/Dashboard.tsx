@@ -119,6 +119,18 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
       ];
   }, [client.fiscalYearEnd]);
 
+  // --- M-1 LOGIC: Default view = completed months only ---
+  const currentYear = new Date().getFullYear();
+  const currentMonthIndex = new Date().getMonth(); // 0=Jan, 1=Feb...
+  // For current year: only months before current month (M-1)
+  // For past years: null = show all months
+  const defaultMonthsUpToM1 = useMemo(() => {
+    if (selectedYear < currentYear) return null;
+    if (selectedYear > currentYear) return [];
+    if (currentMonthIndex === 0) return []; // January: no completed month yet
+    return standardMonthOrder.slice(0, currentMonthIndex);
+  }, [selectedYear]);
+
   // --- FILTERS LOGIC ---
   const handleMonthToggle = (month: string) => {
     setCelebrated(false);
@@ -153,9 +165,15 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
   }, [data, selectedYear, fiscalMonthOrder]);
 
   const displayData = useMemo(() => {
-    if (selectedMonths.length === 0) return yearData;
-    return yearData.filter(d => selectedMonths.includes(d.month));
-  }, [yearData, selectedMonths]);
+    if (selectedMonths.length > 0) {
+      return yearData.filter(d => selectedMonths.includes(d.month));
+    }
+    // No selection: for current year, show only completed months (up to M-1)
+    if (defaultMonthsUpToM1 !== null) {
+      return yearData.filter(d => (defaultMonthsUpToM1 as string[]).includes(d.month));
+    }
+    return yearData;
+  }, [yearData, selectedMonths, defaultMonthsUpToM1]);
 
   const snapshotRecord = useMemo(() => {
     return displayData.length > 0 ? displayData[displayData.length - 1] : null;
@@ -268,7 +286,11 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
 
     // --- N-1 COMPARISONS ---
     const n1Data = data.filter(d => d.year === selectedYear - 1);
-    const n1Filtered = selectedMonths.length === 0 ? n1Data : n1Data.filter(d => selectedMonths.includes(d.month));
+    const n1Filtered = selectedMonths.length > 0
+      ? n1Data.filter(d => selectedMonths.includes(d.month))
+      : defaultMonthsUpToM1 !== null
+        ? n1Data.filter(d => (defaultMonthsUpToM1 as string[]).includes(d.month))
+        : n1Data;
     const n1Revenue = n1Filtered.reduce((acc, curr) => acc + curr.revenue.total, 0);
     const n1Treasury = n1Filtered.length > 0 ? n1Filtered[n1Filtered.length - 1].cashFlow.treasury : null;
     const n1Bfr = n1Filtered.length > 0 ? n1Filtered.reduce((acc, curr) => acc + curr.bfr.total, 0) / n1Filtered.length : null;
@@ -305,7 +327,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
       bfrVariation,
       marginVariation,
     };
-  }, [displayData, snapshotRecord, yearData, client.profitCenters]);
+  }, [displayData, snapshotRecord, yearData, client.profitCenters, selectedMonths, defaultMonthsUpToM1, data, selectedYear]);
 
   // Celebration
   useEffect(() => {
@@ -375,10 +397,15 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
       };
     });
 
-    if (selectedMonths.length === 0) return fullYearChartData;
+    if (selectedMonths.length === 0) {
+      if (defaultMonthsUpToM1 !== null) {
+        return fullYearChartData.filter(d => (defaultMonthsUpToM1 as string[]).includes(d.fullMonth));
+      }
+      return fullYearChartData;
+    }
     return fullYearChartData.filter(d => selectedMonths.includes(d.fullMonth));
 
-  }, [data, selectedYear, selectedMonths, fiscalMonthOrder]);
+  }, [data, selectedYear, selectedMonths, fiscalMonthOrder, defaultMonthsUpToM1]);
 
   const receivablesData = useMemo(() => {
     if (!snapshotRecord) return [];
@@ -555,7 +582,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                       onChange={(e) => setSelectedYear(Number(e.target.value))}
                       className="appearance-none bg-brand-50 border border-brand-200 text-brand-900 text-sm rounded-lg focus:ring-brand-500 focus:border-brand-500 block pl-3 pr-8 py-2 font-bold cursor-pointer hover:bg-brand-100 transition-colors"
                     >
-                       {Array.from(new Set(data.map(d => d.year))).sort((a,b)=>b-a).map(y => (
+                       {Array.from(new Set([...data.map(d => d.year), currentYear])).sort((a,b)=>b-a).map(y => (
                            <option key={y} value={y}>{y}</option>
                        ))}
                     </select>
@@ -584,13 +611,18 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
            </div>
 
            {/* Active Filters Display */}
-           {selectedMonths.length > 0 && (
+           {selectedMonths.length > 0 ? (
              <div className="flex items-center gap-2 bg-brand-50 text-brand-600 px-3 py-1.5 rounded-full text-xs font-bold border border-brand-200">
                  <Filter className="w-3 h-3" />
                  {selectedMonths.length} mois selectionne{selectedMonths.length > 1 ? 's' : ''}
                  <button onClick={() => applyPreset('ALL')} className="ml-1 hover:text-red-500"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
              </div>
-           )}
+           ) : defaultMonthsUpToM1 !== null && defaultMonthsUpToM1.length > 0 ? (
+             <div className="flex items-center gap-2 bg-brand-50 text-brand-500 px-3 py-1.5 rounded-full text-xs font-bold border border-brand-200">
+                 <Calendar className="w-3 h-3" />
+                 Jusqu'a {defaultMonthsUpToM1[defaultMonthsUpToM1.length - 1]} {selectedYear}
+             </div>
+           ) : null}
          </div>
 
          {/* MONTH GRID - Clickable months */}
@@ -599,6 +631,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
               const hasData = yearData.some(d => d.month === m);
               const isSelected = selectedMonths.includes(m);
               const shortName = toShortMonth(m);
+              const isFutureMonth = selectedYear === currentYear && standardMonthOrder.indexOf(m) >= currentMonthIndex;
               return (
                 <button
                   key={m}
@@ -606,11 +639,13 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                   className={`px-1 py-2 text-[10px] font-bold rounded-lg transition-all border ${
                     isSelected
                       ? 'bg-brand-900 text-white border-brand-800 shadow-sm'
-                      : hasData
+                      : hasData && !isFutureMonth
                       ? 'bg-brand-50 text-brand-700 border-brand-200 hover:bg-brand-100 hover:border-brand-300'
+                      : isFutureMonth
+                      ? 'bg-slate-50 text-slate-200 border-dashed border-slate-200 cursor-not-allowed'
                       : 'bg-slate-50 text-slate-300 border-slate-100 cursor-default'
                   }`}
-                  disabled={!hasData}
+                  disabled={!hasData || isFutureMonth}
                 >
                   {shortName}
                 </button>

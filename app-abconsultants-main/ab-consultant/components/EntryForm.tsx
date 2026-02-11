@@ -302,6 +302,18 @@ const EntryForm: React.FC<EntryFormProps> = ({
         }
     }, [formData.year, formData.month, existingRecords, clientId, defaultFuelObjectives]);
 
+    // --- M-1 AUTO-CORRECTION: if year is current and month is in the future, snap back ---
+    useEffect(() => {
+        const now = new Date();
+        if (formData.year === now.getFullYear()) {
+            const maxAllowedIndex = now.getMonth() - 1; // M-1
+            const currentIndex = MONTH_ORDER.indexOf(formData.month);
+            if (maxAllowedIndex >= 0 && currentIndex > maxAllowedIndex) {
+                setFormData(prev => ({ ...prev, month: MONTH_ORDER[maxAllowedIndex] }));
+            }
+        }
+    }, [formData.year]);
+
     // CHECK IF CLIENT IS INACTIVE
     const isClientInactive = clientStatus === 'inactive';
     const isLocked = userRole === 'client' && (formData.isValidated || formData.isSubmitted || isClientInactive);
@@ -565,7 +577,12 @@ const EntryForm: React.FC<EntryFormProps> = ({
                             <div className="relative">
                                 <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
                                 <select value={formData.month} onChange={(e) => setFormData({...formData, month: e.target.value as Month})} disabled={isLocked} className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 bg-white font-bold text-slate-700 focus:ring-2 focus:ring-brand-500 disabled:bg-slate-100 disabled:text-slate-500">
-                                    {MONTH_ORDER.map(m => <option key={m} value={m}>{m}</option>)}
+                                    {MONTH_ORDER.map((m, idx) => {
+                                        const now = new Date();
+                                        const isFutureMonth = formData.year === now.getFullYear() && idx >= now.getMonth();
+                                        const isFutureYear = formData.year > now.getFullYear();
+                                        return <option key={m} value={m} disabled={isFutureMonth || isFutureYear}>{m}{isFutureMonth ? ' (non cloture)' : ''}</option>;
+                                    })}
                                 </select>
                             </div>
                         </div>

@@ -13,3 +13,5 @@ export { setUserRole } from './auth/setUserRole';
 export { askFinancialAdvisor } from './api/geminiProxy';
 export { exportClientCSV } from './api/exportCSV';
 export { onRecordWrite } from './triggers/onRecordWrite';
+export { onRecordPublish, onConsultantMessage } from './triggers/onPublish';
+export { sendDataReminders } from './triggers/sendReminders';

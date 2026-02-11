@@ -7,7 +7,8 @@ import { FinancialRecord, Month, Client } from '../types';
 import { TrendingUp, TrendingDown, DollarSign, Users, MousePointerClick, Calendar, Filter, Check, Trophy, AlertCircle, Target, Droplets, ArrowRight, ArrowUpRight, ArrowDownRight, FileText, ShieldAlert, MessageSquare, Send, Bell, Clock, Fuel, Briefcase, Zap, Activity, ShoppingBag, Percent, Landmark, Maximize2, Minimize2, Printer } from 'lucide-react';
 // @ts-ignore
 import confetti from 'canvas-confetti';
-import { toShortMonth } from '../services/dataService';
+import { toShortMonth, getExpertComments, saveExpertComment } from '../services/dataService';
+import { ExpertComment } from '../types';
 
 interface DashboardProps {
   data: FinancialRecord[];
@@ -16,6 +17,7 @@ interface DashboardProps {
   onSaveComment: (record: FinancialRecord) => void;
   isPresentationMode?: boolean;
   onTogglePresentation?: () => void;
+  onGenerateReport?: () => void;
 }
 
 const COLORS_RECEIVABLES = ['#0891b2', '#06b6d4', '#22d3ee', '#67e8f9']; // Cyan/Teal shades for Assets
@@ -80,7 +82,7 @@ const formatCurrency = (value: number, fractionDigits?: number) =>
         minimumFractionDigits: fractionDigits !== undefined ? fractionDigits : 0  // Default min 0
     }).format(value);
 
-const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveComment, isPresentationMode = false, onTogglePresentation }) => {
+const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveComment, isPresentationMode = false, onTogglePresentation, onGenerateReport }) => {
   
   // Year Selection
   const [selectedYear, setSelectedYear] = useState<number>(
@@ -93,6 +95,19 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
 
   // Comment State
   const [commentText, setCommentText] = useState('');
+
+  // N-1 toggle (show/hide N-1 comparison on all charts)
+  const [showN1, setShowN1] = useState(true);
+
+  // Expert Comment History
+  const [commentHistory, setCommentHistory] = useState<ExpertComment[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+
+  useEffect(() => {
+    if (client?.id) {
+      getExpertComments(client.id).then(setCommentHistory).catch(() => {});
+    }
+  }, [client?.id, commentText]);
 
   // Determine if Fuel Card should be shown based on Client Settings
   const showFuelCard = client.settings?.showFuelTracking ?? false;
@@ -185,11 +200,25 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
       setCommentText(snapshotRecord?.expertComment || '');
   }, [snapshotRecord]);
 
-  const handleSaveRestitution = () => {
+  const handleSaveRestitution = async () => {
       if (snapshotRecord) {
           const updatedRecord = { ...snapshotRecord, expertComment: commentText };
           onSaveComment(updatedRecord);
-          // Alert is handled by App.tsx notification system
+          // Save to comment history
+          if (commentText.trim()) {
+            try {
+              await saveExpertComment({
+                clientId: client.id,
+                text: commentText,
+                authorEmail: '',
+                authorName: 'Consultant',
+                month: snapshotRecord.month,
+                year: snapshotRecord.year,
+              });
+              const updated = await getExpertComments(client.id);
+              setCommentHistory(updated);
+            } catch (e) { /* ignore */ }
+          }
       }
   };
 
@@ -633,6 +662,19 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
 
            {/* Presentation & Print Controls */}
            <div className="flex items-center gap-2 print:hidden">
+             {/* N-1 Toggle */}
+             <button
+               onClick={() => setShowN1(p => !p)}
+               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all border ${
+                 showN1
+                   ? 'bg-slate-100 text-slate-700 border-slate-300 shadow-sm'
+                   : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'
+               }`}
+               title={showN1 ? 'Masquer N-1' : 'Afficher N-1'}
+             >
+               <Calendar className="w-3.5 h-3.5" />
+               N-1 {showN1 ? 'ON' : 'OFF'}
+             </button>
              {onTogglePresentation && (
                <button
                  onClick={onTogglePresentation}
@@ -645,6 +687,16 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                >
                  {isPresentationMode ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
                  {isPresentationMode ? 'Quitter' : 'Présentation'}
+               </button>
+             )}
+             {onGenerateReport && userRole === 'ab_consultant' && (
+               <button
+                 onClick={onGenerateReport}
+                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-white text-brand-600 border border-brand-200 hover:bg-brand-50 transition-all"
+                 title="Générer un rapport client"
+               >
+                 <FileText className="w-3.5 h-3.5" />
+                 Rapport
                </button>
              )}
              <button
@@ -802,7 +854,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                 </h3>
                 <div className="flex items-center gap-2 text-[10px]">
                     <span className="flex items-center gap-1"><div className="w-2 h-2 bg-brand-900 rounded-sm"></div> N</span>
-                    <span className="flex items-center gap-1"><div className="w-2 h-2 bg-slate-300 rounded-sm"></div> N-1</span>
+                    {showN1 && <span className="flex items-center gap-1"><div className="w-2 h-2 bg-slate-300 rounded-sm"></div> N-1</span>}
                     <span className="flex items-center gap-1"><div className="w-2 h-0.5 bg-amber-500"></div> Obj</span>
                 </div>
             </div>
@@ -813,7 +865,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} dy={5} />
                         <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(val: any) => { const v = Number(val); return !isNaN(v) && v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(val); }} />
                         <Tooltip content={<CustomTooltip type="revenue" />} cursor={{ fill: '#f8fafc' }} />
-                        <Bar dataKey="CA_N1" fill="#e2e8f0" radius={[3, 3, 0, 0]} barSize={16} name="CA N-1" />
+                        {showN1 && <Bar dataKey="CA_N1" fill="#e2e8f0" radius={[3, 3, 0, 0]} barSize={16} name="CA N-1" />}
                         <Bar dataKey="CA" fill="#0f172a" radius={[3, 3, 0, 0]} barSize={16} name="CA N" />
                         <Line type="monotone" dataKey="Objectif" stroke="#f59e0b" strokeWidth={2} dot={false} strokeDasharray="4 4" />
                     </ComposedChart>
@@ -830,7 +882,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                 </h3>
                 <div className="flex items-center gap-2 text-[10px]">
                     <span className="flex items-center gap-1"><div className={`w-2 h-2 rounded-sm ${kpis.treasury >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`}></div> N</span>
-                    <span className="flex items-center gap-1"><div className="w-2 h-2 bg-slate-300 rounded-sm"></div> N-1</span>
+                    {showN1 && <span className="flex items-center gap-1"><div className="w-2 h-2 bg-slate-300 rounded-sm"></div> N-1</span>}
                 </div>
             </div>
             <div className="h-[250px] w-full">
@@ -848,7 +900,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                             </linearGradient>
                         </defs>
                         <Area type="monotone" dataKey="Tresorerie" fill="url(#colorTreasury)" stroke={kpis.treasury >= 0 ? "#10b981" : "#ef4444"} strokeWidth={2} name="Tresorerie" />
-                        <Line type="monotone" dataKey="Tresorerie_N1" stroke="#94a3b8" strokeWidth={1.5} dot={false} strokeDasharray="4 4" name="Tresorerie N-1" />
+                        {showN1 && <Line type="monotone" dataKey="Tresorerie_N1" stroke="#94a3b8" strokeWidth={1.5} dot={false} strokeDasharray="4 4" name="Tresorerie N-1" />}
                     </ComposedChart>
                 </ResponsiveContainer>
             </div>
@@ -868,7 +920,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
             <div className="flex items-center gap-3 text-[10px]">
               <span className="flex items-center gap-1"><div className="w-2 h-2 bg-brand-600 rounded-full"></div> CA cumulé</span>
               <span className="flex items-center gap-1"><div className="w-2 h-0.5 bg-amber-500"></div> Objectif cumulé</span>
-              <span className="flex items-center gap-1"><div className="w-2 h-2 bg-slate-300 rounded-full"></div> CA N-1 cumulé</span>
+              {showN1 && <span className="flex items-center gap-1"><div className="w-2 h-2 bg-slate-300 rounded-full"></div> CA N-1 cumulé</span>}
             </div>
           </div>
           <div className="h-[250px] w-full">
@@ -889,7 +941,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                 </defs>
                 <Area type="monotone" dataKey="CA_Cumul" fill="url(#colorCACumul)" stroke="#0f172a" strokeWidth={2.5} dot={{ r: 3, fill: '#0f172a' }} name="CA_Cumul" />
                 <Line type="monotone" dataKey="Objectif_Cumul" stroke="#f59e0b" strokeWidth={2} dot={false} strokeDasharray="6 3" name="Objectif_Cumul" />
-                <Line type="monotone" dataKey="CA_N1_Cumul" stroke="#94a3b8" strokeWidth={1.5} dot={false} strokeDasharray="4 4" name="CA_N1_Cumul" />
+                {showN1 && <Line type="monotone" dataKey="CA_N1_Cumul" stroke="#94a3b8" strokeWidth={1.5} dot={false} strokeDasharray="4 4" name="CA_N1_Cumul" />}
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -1062,7 +1114,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
               </h3>
               <div className="flex items-center gap-2 text-[10px]">
                   <span className="flex items-center gap-1"><div className="w-2 h-2 bg-blue-500 rounded-sm"></div> N</span>
-                  <span className="flex items-center gap-1"><div className="w-2 h-2 bg-slate-300 rounded-sm"></div> N-1</span>
+                  {showN1 && <span className="flex items-center gap-1"><div className="w-2 h-2 bg-slate-300 rounded-sm"></div> N-1</span>}
               </div>
            </div>
            <div className="h-[220px] w-full">
@@ -1072,7 +1124,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                       <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} dy={5} />
                       <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
                       <Tooltip content={<CustomTooltip type="fuel" />} cursor={{ fill: '#f8fafc' }} />
-                      <Bar dataKey="Fuel_Total_N1" fill="#e2e8f0" radius={[3, 3, 0, 0]} barSize={16} name="Volume N-1" />
+                      {showN1 && <Bar dataKey="Fuel_Total_N1" fill="#e2e8f0" radius={[3, 3, 0, 0]} barSize={16} name="Volume N-1" />}
                       <Bar dataKey="Fuel_Total" fill="#3b82f6" radius={[3, 3, 0, 0]} barSize={16} name="Volume N" />
                   </ComposedChart>
               </ResponsiveContainer>
@@ -1129,6 +1181,36 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                           </div>
                       )}
                   </div>
+              )}
+
+              {/* COMMENT HISTORY */}
+              {commentHistory.length > 1 && (
+                <div className="mt-4">
+                  <button
+                    onClick={() => setShowHistory(!showHistory)}
+                    className="text-xs text-brand-500 hover:text-brand-700 font-bold flex items-center gap-1"
+                  >
+                    <Clock className="w-3 h-3" />
+                    {showHistory ? 'Masquer' : 'Voir'} l'historique ({commentHistory.length} analyses)
+                  </button>
+                  {showHistory && (
+                    <div className="mt-3 space-y-3 max-h-60 overflow-y-auto">
+                      {commentHistory.map((c, i) => (
+                        <div key={c.id || i} className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <span className="text-[10px] font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded">{c.month} {c.year}</span>
+                            {c.createdAt?.toMillis && (
+                              <span className="text-[10px] text-slate-400">
+                                {new Date(c.createdAt.toMillis()).toLocaleDateString('fr-FR')}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-600 whitespace-pre-line leading-relaxed">{c.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
           </div>
       </div>

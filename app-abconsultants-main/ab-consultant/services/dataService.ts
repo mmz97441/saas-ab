@@ -1,5 +1,5 @@
 
-import { FinancialRecord, Month, Client, Consultant, ChatMessage } from "../types";
+import { FinancialRecord, Month, Client, Consultant, ChatMessage, CRMNote, ExpertComment } from "../types";
 import { db, auth } from "../firebase"; 
 import { 
   collection, 
@@ -410,6 +410,66 @@ export const saveRecord = async (record: FinancialRecord): Promise<void> => {
 
 export const deleteRecord = async (id: string): Promise<void> => {
     await deleteDoc(doc(db, COLL_RECORDS, id));
+};
+
+// --- CRM SERVICES ---
+const COLL_CRM_NOTES = 'crmNotes';
+const COLL_EXPERT_COMMENTS = 'expertComments';
+
+export const getCRMNotes = async (clientId: string): Promise<CRMNote[]> => {
+    try {
+        const q = query(collection(db, COLL_CRM_NOTES), where("clientId", "==", clientId), orderBy("createdAt", "desc"));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as CRMNote));
+    } catch (error) {
+        console.error("Erreur chargement notes CRM", error);
+        return [];
+    }
+};
+
+export const addCRMNote = async (note: Omit<CRMNote, 'id' | 'createdAt'>): Promise<void> => {
+    await addDoc(collection(db, COLL_CRM_NOTES), { ...note, createdAt: serverTimestamp() });
+};
+
+export const updateCRMNote = async (id: string, updates: Partial<CRMNote>): Promise<void> => {
+    await updateDoc(doc(db, COLL_CRM_NOTES, id), updates);
+};
+
+export const deleteCRMNote = async (id: string): Promise<void> => {
+    await deleteDoc(doc(db, COLL_CRM_NOTES, id));
+};
+
+// --- EXPERT COMMENT HISTORY ---
+export const getExpertComments = async (clientId: string): Promise<ExpertComment[]> => {
+    try {
+        const q = query(collection(db, COLL_EXPERT_COMMENTS), where("clientId", "==", clientId), orderBy("createdAt", "desc"));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ExpertComment));
+    } catch (error) {
+        console.error("Erreur chargement commentaires expert", error);
+        return [];
+    }
+};
+
+export const saveExpertComment = async (comment: Omit<ExpertComment, 'id' | 'createdAt'> & { clientId: string }): Promise<void> => {
+    const commentId = `${comment.clientId}_${comment.year}_${comment.month}`;
+    await setDoc(doc(db, COLL_EXPERT_COMMENTS, commentId), { ...comment, createdAt: serverTimestamp() });
+};
+
+// --- EMAIL NOTIFICATION ---
+export const sendEmailNotification = async (to: string, subject: string, htmlContent: string) => {
+    try {
+        await addDoc(collection(db, COLL_MAIL), {
+            to,
+            message: { subject, html: htmlContent },
+            createdAt: serverTimestamp()
+        });
+    } catch (error) { console.error("Erreur envoi email:", error); }
+};
+
+// --- CONSULTANT PERMISSION ---
+export const updateConsultantPermission = async (id: string, permission: string): Promise<void> => {
+    await updateDoc(doc(db, COLL_CONSULTANTS, id), { permission });
 };
 
 export const resetDatabase = async (): Promise<void> => {

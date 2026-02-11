@@ -4,6 +4,7 @@ import './index.css';
 import App from './App';
 import { AuthProvider } from './contexts/AuthContext';
 import { ConfirmProvider } from './contexts/ConfirmContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import ErrorBoundary from './components/ui/ErrorBoundary';
 
 const rootElement = document.getElementById('root');
@@ -15,11 +16,13 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <ErrorBoundary>
-      <AuthProvider>
-        <ConfirmProvider>
-          <App />
-        </ConfirmProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <ConfirmProvider>
+            <App />
+          </ConfirmProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   </React.StrictMode>
 );

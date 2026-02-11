@@ -12,6 +12,12 @@ import ConsultantMessaging from './components/ConsultantMessaging';
 import ConsultantDashboard from './components/ConsultantDashboard'; // Import Nouveau
 import ClientModal from './components/ClientModal';
 import TeamManagement from './components/TeamManagement';
+import ProfileView from './components/ProfileView';
+import ClientMessaging from './components/ClientMessaging';
+import CRMView from './components/CRMView';
+import GlossaryPanel from './components/GlossaryTooltip';
+import OnboardingTour from './components/OnboardingTour';
+import ReportGenerator from './components/ReportGenerator';
 import { useConfirmDialog } from './contexts/ConfirmContext';
 
 import { FinancialRecord, Client, Month, ProfitCenter, Consultant, View } from './types';
@@ -46,6 +52,9 @@ const App: React.FC = () => {
   const [notification, setNotification] = useState<{message: string, type: 'success' | 'error' | 'info'} | null>(null);
   const [isPresentationMode, setIsPresentationMode] = useState(false);
   const [newDataBanner, setNewDataBanner] = useState(false);
+  const [showGlossary, setShowGlossary] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('ab-onboarding-done'));
+  const [showReportGenerator, setShowReportGenerator] = useState(false);
 
   const SUPER_ADMIN_EMAIL = 'nice.guillaume@gmail.com';
   const confirm = useConfirmDialog();
@@ -115,7 +124,7 @@ const App: React.FC = () => {
             const isCurrentValid = selectedClient && userCompanies.find(c => c.id === selectedClient.id);
             if (!isCurrentValid) setSelectedClient(userCompanies[0]);
         }
-        if ([View.Settings, View.Clients, View.Team, View.Messages].includes(currentView)) {
+        if ([View.Settings, View.Clients, View.Team, View.Messages, View.CRM].includes(currentView)) {
             setCurrentView(View.Dashboard);
         }
     } else {
@@ -449,7 +458,10 @@ const App: React.FC = () => {
                        currentView === View.Settings ? 'Paramètres' :
                        currentView === View.Messages ? 'Messagerie' :
                        currentView === View.Team ? 'Équipe' :
-                       currentView === View.Clients ? 'Clients' : ''}
+                       currentView === View.Clients ? 'Clients' :
+                       currentView === View.Profile ? 'Mon Profil' :
+                       currentView === View.CRM ? 'CRM' :
+                       currentView === View.ClientMessages ? 'Ma Messagerie' : ''}
                     </span>
                   </>
                 )}
@@ -473,7 +485,7 @@ const App: React.FC = () => {
 
             {/* VUE 1 : DASHBOARD CLIENT INDIVIDUEL */}
             {currentView === View.Dashboard && selectedClient && (
-                <Dashboard data={dashboardData} client={selectedClient} userRole={userRole} onSaveComment={handleSaveRecord} isPresentationMode={isPresentationMode} onTogglePresentation={() => setIsPresentationMode(p => !p)}/>
+                <Dashboard data={dashboardData} client={selectedClient} userRole={userRole} onSaveComment={handleSaveRecord} isPresentationMode={isPresentationMode} onTogglePresentation={() => setIsPresentationMode(p => !p)} onGenerateReport={() => setShowReportGenerator(true)}/>
             )}
 
             {/* VUE 2 : DASHBOARD GLOBAL CONSULTANT */}
@@ -515,6 +527,21 @@ const App: React.FC = () => {
             {/* VUE EQUIPE (TEAM) */}
             {currentView === View.Team && userRole === 'ab_consultant' && (
                 <TeamManagement currentUserEmail={currentUserEmail} />
+            )}
+
+            {/* VUE PROFIL */}
+            {currentView === View.Profile && (
+                <ProfileView currentUserEmail={currentUserEmail} userRole={userRole} clientName={selectedClient?.companyName} />
+            )}
+
+            {/* VUE MESSAGERIE CLIENT */}
+            {currentView === View.ClientMessages && userRole === 'client' && selectedClient && (
+                <ClientMessaging client={selectedClient} />
+            )}
+
+            {/* VUE CRM (Consultant) */}
+            {currentView === View.CRM && userRole === 'ab_consultant' && selectedClient && (
+                <CRMView client={selectedClient} currentUserEmail={currentUserEmail || ''} currentUserName="Consultant" />
             )}
 
             {/* VUE LISTE CLIENTS */}
@@ -608,6 +635,19 @@ const App: React.FC = () => {
          </div>
       </main>
       
+      {/* REPORT GENERATOR */}
+      {selectedClient && (
+        <ReportGenerator client={selectedClient} data={data} isOpen={showReportGenerator} onClose={() => setShowReportGenerator(false)} />
+      )}
+
+      {/* GLOSSAIRE FINANCIER */}
+      <GlossaryPanel isOpen={showGlossary} onClose={() => setShowGlossary(false)} />
+
+      {/* ONBOARDING TOUR */}
+      {showOnboarding && isAuthenticated && (
+        <OnboardingTour userRole={userRole} onComplete={() => setShowOnboarding(false)} />
+      )}
+
       {statusModal.isOpen && statusModal.client && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-900/50 backdrop-blur-sm">
                 <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 text-center">

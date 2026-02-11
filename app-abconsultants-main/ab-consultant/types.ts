@@ -24,7 +24,10 @@ export enum View {
   Settings = 'settings',
   Clients = 'clients',
   Team = 'team',
-  Messages = 'messages'
+  Messages = 'messages',
+  Profile = 'profile',
+  CRM = 'crm',
+  ClientMessages = 'clientMessages'
 }
 
 export interface ProfitCenter {
@@ -34,12 +37,42 @@ export interface ProfitCenter {
   type: 'goods' | 'services'; 
 }
 
+export type ConsultantPermission = 'admin' | 'senior' | 'junior' | 'readonly';
+
 export interface Consultant {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'consultant'; 
+  role: 'admin' | 'consultant';
+  permission?: ConsultantPermission;
   addedAt: string;
+}
+
+// CRM Types
+export interface CRMNote {
+  id: string;
+  clientId: string;
+  authorEmail: string;
+  authorName: string;
+  text: string;
+  createdAt: any;
+  type: 'note' | 'rdv' | 'call' | 'email' | 'task';
+  dueDate?: string;
+  isDone?: boolean;
+}
+
+// Workflow Types
+export type WorkflowStatus = 'draft' | 'submitted' | 'reviewing' | 'validated' | 'published';
+
+// Expert Comment with history
+export interface ExpertComment {
+  id: string;
+  text: string;
+  authorEmail: string;
+  authorName: string;
+  createdAt: any;
+  month: string;
+  year: number;
 }
 
 export interface Client {

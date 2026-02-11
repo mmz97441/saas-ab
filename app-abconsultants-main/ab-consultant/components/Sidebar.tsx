@@ -1,7 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
-import { LayoutDashboard, FilePlus, Settings, Database, Users, Briefcase, Eye, EyeOff, LogOut, ChevronRight, ShieldCheck, UserCircle, ChevronDown, MessageSquare, PieChart, Search, HelpCircle } from 'lucide-react';
+import { LayoutDashboard, FilePlus, Settings, Database, Users, Briefcase, Eye, EyeOff, LogOut, ChevronRight, ShieldCheck, UserCircle, ChevronDown, MessageSquare, PieChart, Search, HelpCircle, Moon, Sun, User, FileText } from 'lucide-react';
 import { View, Client, APP_VERSION } from '../types';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface SidebarProps {
     isOpen: boolean;
@@ -90,6 +91,8 @@ const Sidebar: React.FC<SidebarProps> = ({
     onToggleSimulation,
     onLogout
 }) => {
+
+    const { theme, toggleTheme } = useTheme();
 
     // Calcul des notifications
     const unreadCount = clients.filter(c => c.hasUnreadMessages).length;
@@ -210,6 +213,12 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     <NavItem view={View.Dashboard} icon={LayoutDashboard} label="Tableau de Bord" />
                                     <NavItem view={View.Entry} icon={FilePlus} label="Saisie Mensuelle" />
                                     <NavItem view={View.History} icon={Database} label="Historique & Export" />
+                                    {userRole === 'client' && (
+                                        <NavItem view={View.ClientMessages} icon={MessageSquare} label="Ma Messagerie" />
+                                    )}
+                                    {userRole === 'ab_consultant' && (
+                                        <NavItem view={View.CRM} icon={FileText} label="CRM / Suivi" />
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -242,14 +251,24 @@ const Sidebar: React.FC<SidebarProps> = ({
                         </button>
                     )}
 
+                    {/* Profile */}
+                    <NavItem view={View.Profile} icon={User} label="Mon Profil" />
+
+                    {/* Dark Mode Toggle */}
+                    <button
+                        onClick={toggleTheme}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-brand-300 hover:bg-brand-800 hover:text-white transition-all duration-200 mt-1"
+                    >
+                        {theme === 'dark' ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5" />}
+                        <span className="font-medium text-sm">{theme === 'dark' ? 'Mode clair' : 'Mode sombre'}</span>
+                    </button>
+
                     {/* HELP LINK (all users) */}
                     <button
                         onClick={() => {
-                            // Simple toggle for a help tooltip or future FAQ page
-                            const helpMsg = "Besoin d'aide ?\n\nConsultant : contact@ab-consultants.fr\nTéléphone : 04 93 XX XX XX\n\nVotre espace vous permet de :\n• Saisir vos données mensuelles\n• Consulter vos analyses\n• Échanger avec votre consultant via le chat";
                             window.open(`mailto:contact@ab-consultants.fr?subject=Aide - ${userRole === 'client' ? 'Client' : 'Consultant'}`, '_blank');
                         }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-brand-300 hover:bg-brand-800 hover:text-white transition-all duration-200 mt-2"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-brand-300 hover:bg-brand-800 hover:text-white transition-all duration-200 mt-1"
                     >
                         <HelpCircle className="w-5 h-5" />
                         <span className="font-medium text-sm">Aide & Contact</span>

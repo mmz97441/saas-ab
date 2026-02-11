@@ -11,6 +11,37 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 10px; }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.3); }
 
+/* ============================================= */
+/* DARK MODE                                     */
+/* ============================================= */
+.dark body,
+.dark .bg-brand-50 { background-color: #0f172a !important; }
+.dark .bg-white { background-color: #1e293b !important; }
+.dark .bg-slate-50 { background-color: #1e293b !important; }
+.dark .bg-slate-100 { background-color: #334155 !important; }
+.dark .text-slate-800, .dark .text-slate-700 { color: #e2e8f0 !important; }
+.dark .text-slate-600 { color: #cbd5e1 !important; }
+.dark .text-slate-500 { color: #94a3b8 !important; }
+.dark .text-brand-900 { color: #f1f5f9 !important; }
+.dark .text-brand-700 { color: #cbd5e1 !important; }
+.dark .border-slate-200, .dark .border-slate-100,
+.dark .border-brand-100, .dark .border-brand-200 { border-color: #334155 !important; }
+.dark input:not([type="range"]), .dark textarea, .dark select {
+  background-color: #0f172a !important; color: #e2e8f0 !important; border-color: #475569 !important;
+}
+.dark input::placeholder, .dark textarea::placeholder { color: #64748b !important; }
+.dark .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0,0,0,0.3) !important; }
+.dark .shadow-lg { box-shadow: 0 4px 12px 0 rgba(0,0,0,0.4) !important; }
+.dark .shadow-2xl { box-shadow: 0 12px 40px 0 rgba(0,0,0,0.5) !important; }
+.dark .recharts-cartesian-grid line { stroke: #334155 !important; }
+.dark .recharts-text { fill: #94a3b8 !important; }
+.dark .bg-brand-900 { background-color: #061626 !important; }
+.dark .bg-brand-800 { background-color: #0f172a !important; }
+.dark .bg-white\/95 { background-color: rgba(30,41,59,0.95) !important; }
+.dark .bg-red-50 { background-color: rgba(127,29,29,0.2) !important; }
+.dark .bg-emerald-50 { background-color: rgba(6,78,59,0.2) !important; }
+.dark .bg-amber-50 { background-color: rgba(120,53,15,0.2) !important; }
+
 /* --- PRINT / PDF EXPORT STYLES --- */
 @media print {
   /* Hide non-essential elements */

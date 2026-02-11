@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Plus, Trash2, Mail, Shield, ShieldCheck, AlertCircle, Check, Copy, Send, ExternalLink, Edit2, X } from 'lucide-react';
 import { Consultant } from '../types';
-import { getConsultants, addConsultant, deleteConsultant, normalizeId, updateConsultant } from '../services/dataService';
+import { getConsultants, addConsultant, deleteConsultant, normalizeId, updateConsultant, updateConsultantPermission } from '../services/dataService';
 import { useConfirmDialog } from '../contexts/ConfirmContext';
 
 interface TeamManagementProps {
@@ -169,9 +169,20 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ currentUserEmail }) => 
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                <span className="px-2 py-1 bg-brand-100 text-brand-800 text-xs font-bold rounded-md uppercase tracking-wide">
-                                    {c.role}
-                                </span>
+                                <select
+                                    value={c.permission || 'admin'}
+                                    onChange={async (e) => {
+                                        await updateConsultantPermission(c.id, e.target.value);
+                                        await loadTeam();
+                                    }}
+                                    className="px-2 py-1 bg-brand-50 border border-brand-200 text-brand-800 text-xs font-bold rounded-md cursor-pointer"
+                                    title="Niveau de droits"
+                                >
+                                    <option value="admin">Admin</option>
+                                    <option value="senior">Senior</option>
+                                    <option value="junior">Junior</option>
+                                    <option value="readonly">Lecture seule</option>
+                                </select>
                                 {c.email !== currentUserEmail && (
                                     <button 
                                         onClick={() => handleDelete(c.id)}

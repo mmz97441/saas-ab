@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Client, FinancialRecord } from '../types';
 import { getRecordsByClient } from '../services/dataService';
-import { AlertTriangle, Clock, CheckCircle, TrendingDown, MessageSquare, ArrowRight, Briefcase, Loader2, Filter, Shield, Search, X } from 'lucide-react';
+import { AlertTriangle, Clock, CheckCircle, TrendingDown, MessageSquare, ArrowRight, Briefcase, Loader2, Filter, Shield, Search, X, DollarSign, Percent, BarChart3, Users } from 'lucide-react';
 
 interface ConsultantDashboardProps {
     clients: Client[];
@@ -14,6 +14,7 @@ interface ConsultantDashboardProps {
 interface ClientSummary {
     client: Client;
     lastRecord: FinancialRecord | null;
+    allRecords: FinancialRecord[];
     pendingValidation: boolean;
     treasuryAlert: boolean;
     lastActivity: string;
@@ -44,6 +45,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                 return {
                     client,
                     lastRecord,
+                    allRecords: records,
                     pendingValidation,
                     treasuryAlert: lastRecord ? lastRecord.cashFlow.treasury < 0 : false,
                     lastActivity: lastRecord ? `${lastRecord.month} ${lastRecord.year}` : 'Aucune'
@@ -72,6 +74,34 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
     const totalUnread = clients.filter(c => c.hasUnreadMessages).length;
     const totalPending = summaries.filter(s => s.pendingValidation).length;
     const totalAlerts = summaries.filter(s => s.treasuryAlert).length;
+
+    // AGGREGATED KPIs
+    const portfolioKPIs = useMemo(() => {
+        const currentYear = new Date().getFullYear();
+        let totalCA = 0;
+        let totalObjective = 0;
+        let clientsWithData = 0;
+        let totalDataEntries = 0;
+        let expectedEntries = 0;
+        const currentMonth = new Date().getMonth(); // 0-indexed
+
+        summaries.forEach(s => {
+            const yearRecords = s.allRecords.filter(r => r.year === currentYear);
+            if (yearRecords.length > 0) clientsWithData++;
+            totalDataEntries += yearRecords.length;
+            expectedEntries += currentMonth; // each client should have currentMonth entries
+
+            yearRecords.forEach(r => {
+                totalCA += r.revenue.total;
+                totalObjective += r.revenue.objective;
+            });
+        });
+
+        const avgDataRate = expectedEntries > 0 ? Math.round((totalDataEntries / expectedEntries) * 100) : 0;
+        const caPerformance = totalObjective > 0 ? ((totalCA / totalObjective) * 100).toFixed(1) : '0';
+
+        return { totalCA, totalObjective, clientsWithData, avgDataRate, caPerformance };
+    }, [summaries]);
 
     const filteredSummaries = useMemo(() => {
         let result = summaries;
@@ -132,6 +162,46 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                         <X className="w-4 h-4" />
                     </button>
                 )}
+            </div>
+
+            {/* PORTFOLIO KPIs */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="flex items-center gap-2 mb-2">
+                        <div className="p-1.5 rounded-lg bg-brand-50"><DollarSign className="w-4 h-4 text-brand-600" /></div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">CA Portefeuille</span>
+                    </div>
+                    <p className="text-xl font-bold text-slate-800">{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(portfolioKPIs.totalCA)}</p>
+                    {portfolioKPIs.totalObjective > 0 && (
+                        <p className="text-[10px] text-slate-400 mt-0.5">{portfolioKPIs.caPerformance}% de l'objectif</p>
+                    )}
+                </div>
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="flex items-center gap-2 mb-2">
+                        <div className="p-1.5 rounded-lg bg-emerald-50"><Users className="w-4 h-4 text-emerald-600" /></div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">Clients actifs</span>
+                    </div>
+                    <p className="text-xl font-bold text-slate-800">{summaries.length}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{portfolioKPIs.clientsWithData} avec données {new Date().getFullYear()}</p>
+                </div>
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="flex items-center gap-2 mb-2">
+                        <div className="p-1.5 rounded-lg bg-amber-50"><BarChart3 className="w-4 h-4 text-amber-600" /></div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">Taux de saisie</span>
+                    </div>
+                    <p className="text-xl font-bold text-slate-800">{portfolioKPIs.avgDataRate}%</p>
+                    <div className="mt-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full transition-all ${portfolioKPIs.avgDataRate >= 80 ? 'bg-emerald-500' : portfolioKPIs.avgDataRate >= 50 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${Math.min(portfolioKPIs.avgDataRate, 100)}%` }} />
+                    </div>
+                </div>
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="flex items-center gap-2 mb-2">
+                        <div className="p-1.5 rounded-lg bg-red-50"><AlertTriangle className="w-4 h-4 text-red-600" /></div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">Actions requises</span>
+                    </div>
+                    <p className="text-xl font-bold text-red-700">{totalAlerts + totalPending + totalUnread}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{totalAlerts} alertes, {totalPending} validations, {totalUnread} msgs</p>
+                </div>
             </div>
 
             {/* ACTION CARDS */}

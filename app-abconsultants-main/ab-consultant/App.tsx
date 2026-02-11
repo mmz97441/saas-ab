@@ -24,6 +24,7 @@ import { FinancialRecord, Client, Month, ProfitCenter, Consultant, View } from '
 import { getClients, saveClient, updateClientStatus, getRecordsByClient, resetDatabase, MONTH_ORDER, toShortMonth, getConsultants, addConsultant, deleteConsultant, deleteRecord, checkConsultantEmailExists, checkClientEmailExists, saveRecord } from './services/dataService';
 import { auth } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
+import { SUPER_ADMIN_EMAIL } from './config';
 
 type UserRole = 'ab_consultant' | 'client';
 
@@ -56,7 +57,6 @@ const App: React.FC = () => {
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('ab-onboarding-done'));
   const [showReportGenerator, setShowReportGenerator] = useState(false);
 
-  const SUPER_ADMIN_EMAIL = 'nice.guillaume@gmail.com';
   const confirm = useConfirmDialog();
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {

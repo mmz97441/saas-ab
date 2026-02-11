@@ -17,59 +17,101 @@ service cloud.firestore {
       return isConsultant() && request.auth.token.isAdmin == true;
     }
 
-    function isOwnerClient(clientId) {
-      return isAuthenticated()
-        && request.auth.token.role == 'client'
-        && request.auth.token.clientId == clientId;
-    }
-
     function isClient() {
       return isAuthenticated() && request.auth.token.role == 'client';
     }
 
+    function isOwnerClient(clientId) {
+      return isClient() && request.auth.token.clientId == clientId;
+    }
+
+    // RBAC : vérifie que le consultant peut écrire (admin ou senior).
+    // Backward-compatible : si permission n'est pas encore dans le token,
+    // undefined != 'readonly' → true, donc l'accès est maintenu.
+    function canWrite() {
+      return isConsultant()
+        && request.auth.token.permission != 'readonly'
+        && request.auth.token.permission != 'junior';
+    }
+
+    // RBAC : vérifie que le consultant peut modifier (tous sauf readonly).
+    function canEdit() {
+      return isConsultant() && request.auth.token.permission != 'readonly';
+    }
+
     // =============================================
     // CLIENTS COLLECTION
+    // Lecture : authentifié (nécessaire pour le flux de login/whitelist)
+    // Écriture : consultants avec droits d'écriture
+    // Suppression : admin uniquement
     // =============================================
     match /clients/{clientId} {
       allow read: if isAuthenticated();
-      allow create: if isConsultant() || isAuthenticated();
-      allow update: if isConsultant() || isAuthenticated();
+      allow create: if canWrite();
+      allow update: if canWrite() || isOwnerClient(clientId);
       allow delete: if isAdmin();
     }
 
     // =============================================
-    // RECORDS COLLECTION (Financial Data)
+    // RECORDS COLLECTION (Données Financières)
+    // ISOLATION STRICTE : un client ne voit que ses propres données
     // =============================================
     match /records/{recordId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
-      allow delete: if isConsultant() || isAuthenticated();
+      allow read: if isConsultant()
+        || (isClient() && resource.data.clientId == request.auth.token.clientId);
+      allow create: if canEdit()
+        || (isClient() && request.resource.data.clientId == request.auth.token.clientId);
+      allow update: if canEdit()
+        || (isClient() && resource.data.clientId == request.auth.token.clientId);
+      allow delete: if canWrite();
     }
 
     // =============================================
-    // CONSULTANTS COLLECTION (Team Management)
+    // CONSULTANTS COLLECTION (Gestion Équipe)
+    // Lecture : authentifié (nécessaire pour le flux de login/whitelist)
+    // Écriture : admin uniquement
     // =============================================
     match /consultants/{consultantId} {
       allow read: if isAuthenticated();
-      allow create, update, delete: if isAdmin() || isAuthenticated();
+      allow create, update, delete: if isAdmin();
     }
 
     // =============================================
     // CONVERSATIONS & MESSAGES (Chat)
+    // ISOLATION : un client ne voit que sa propre conversation
     // =============================================
     match /conversations/{clientId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if isConsultant() || isOwnerClient(clientId);
 
       match /messages/{messageId} {
-        allow read: if isAuthenticated();
-        allow create: if isAuthenticated();
+        allow read: if isConsultant() || isOwnerClient(clientId);
+        allow create: if isConsultant() || isOwnerClient(clientId);
         allow update, delete: if false;
       }
     }
 
     // =============================================
-    // MAIL COLLECTION
+    // CRM NOTES (Consultants uniquement)
+    // =============================================
+    match /crmNotes/{noteId} {
+      allow read: if isConsultant();
+      allow create, update, delete: if canEdit();
+    }
+
+    // =============================================
+    // EXPERT COMMENTS (Historique des restitutions)
+    // Lecture : consultants + client propriétaire
+    // Écriture : consultants uniquement
+    // =============================================
+    match /expertComments/{commentId} {
+      allow read: if isConsultant()
+        || (isClient() && resource.data.clientId == request.auth.token.clientId);
+      allow create, update: if canEdit();
+      allow delete: if isAdmin();
+    }
+
+    // =============================================
+    // MAIL COLLECTION (Firebase Mail Extension)
     // =============================================
     match /mail/{mailId} {
       allow create: if isAuthenticated();

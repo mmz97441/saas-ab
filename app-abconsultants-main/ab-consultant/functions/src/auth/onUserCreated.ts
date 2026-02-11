@@ -41,14 +41,17 @@ export const onUserCreated = functions.auth.user().onCreate(async (user) => {
 
     if (!consultantsSnap.empty) {
       const consultantDoc = consultantsSnap.docs[0];
-      const isAdmin = email === SUPER_ADMIN_EMAIL || consultantDoc.data().role === 'admin';
+      const consultantData = consultantDoc.data();
+      const permission = consultantData.permission || 'senior';
+      const isAdmin = email === SUPER_ADMIN_EMAIL || consultantData.role === 'admin' || permission === 'admin';
 
       await auth.setCustomUserClaims(user.uid, {
         role: 'consultant',
         isAdmin,
+        permission,
       });
 
-      functions.logger.info('Custom claims set: consultant', { email, isAdmin });
+      functions.logger.info('Custom claims set: consultant', { email, isAdmin, permission });
       return;
     }
   } catch (err) {

@@ -26,21 +26,41 @@ export const setUserRole = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError('unauthenticated', 'Authentification requise.');
   }
 
-  // L'UID ciblé : soit celui passé en paramètre (admin only), soit l'appelant
-  const targetUid = data?.uid || context.auth.uid;
+  const targetUid = data?.uid;
+  const targetEmail = data?.email;
 
-  // Si on cible un autre utilisateur, vérifier que l'appelant est admin
-  if (targetUid !== context.auth.uid) {
+  // Déterminer l'UID ciblé
+  let resolvedUid: string;
+
+  if (targetEmail) {
+    // Recherche par email (admin only) — utilisé pour rafraîchir les claims d'un consultant
     const callerClaims = context.auth.token;
     if (callerClaims.role !== 'consultant' || !callerClaims.isAdmin) {
       throw new functions.https.HttpsError('permission-denied', 'Seul un administrateur peut modifier les rôles.');
     }
+    try {
+      const userRecord = await auth.getUserByEmail(targetEmail.toLowerCase().trim());
+      resolvedUid = userRecord.uid;
+    } catch (err) {
+      // L'utilisateur n'a pas encore créé son compte Firebase Auth — c'est normal
+      return { status: 'pending', message: 'Utilisateur non inscrit. Les claims seront définis à la première connexion.' };
+    }
+  } else if (targetUid) {
+    resolvedUid = targetUid;
+    if (targetUid !== context.auth.uid) {
+      const callerClaims = context.auth.token;
+      if (callerClaims.role !== 'consultant' || !callerClaims.isAdmin) {
+        throw new functions.https.HttpsError('permission-denied', 'Seul un administrateur peut modifier les rôles.');
+      }
+    }
+  } else {
+    resolvedUid = context.auth.uid;
   }
 
   // Récupérer les infos du user ciblé
   let targetUser;
   try {
-    targetUser = await auth.getUser(targetUid);
+    targetUser = await auth.getUser(resolvedUid);
   } catch (err) {
     throw new functions.https.HttpsError('not-found', 'Utilisateur introuvable.');
   }
@@ -58,11 +78,12 @@ export const setUserRole = functions.https.onCall(async (data, context) => {
     .get();
 
   if (!consultantsSnap.empty) {
-    const doc = consultantsSnap.docs[0];
-    const isAdmin = email === SUPER_ADMIN_EMAIL || doc.data().role === 'admin';
+    const consultantData = consultantsSnap.docs[0].data();
+    const permission = consultantData.permission || 'senior';
+    const isAdmin = email === SUPER_ADMIN_EMAIL || consultantData.role === 'admin' || permission === 'admin';
 
-    await auth.setCustomUserClaims(targetUid, { role: 'consultant', isAdmin });
-    return { role: 'consultant', isAdmin };
+    await auth.setCustomUserClaims(resolvedUid, { role: 'consultant', isAdmin, permission });
+    return { role: 'consultant', isAdmin, permission };
   }
 
   const clientsSnap = await db
@@ -73,11 +94,11 @@ export const setUserRole = functions.https.onCall(async (data, context) => {
 
   if (!clientsSnap.empty) {
     const doc = clientsSnap.docs[0];
-    await auth.setCustomUserClaims(targetUid, { role: 'client', clientId: doc.id });
+    await auth.setCustomUserClaims(resolvedUid, { role: 'client', clientId: doc.id });
     return { role: 'client', clientId: doc.id };
   }
 
   // Pas de rôle trouvé
-  await auth.setCustomUserClaims(targetUid, {});
+  await auth.setCustomUserClaims(resolvedUid, {});
   throw new functions.https.HttpsError('permission-denied', 'Email non autorisé dans le système.');
 });

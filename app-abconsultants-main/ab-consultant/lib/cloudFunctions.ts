@@ -101,12 +101,16 @@ export async function exportClientCSV(params: ExportCSVParams): Promise<void> {
 // =============================================
 interface SetRoleParams {
   uid?: string;
+  email?: string;
 }
 
 interface SetRoleResponse {
-  role: string;
+  role?: string;
   isAdmin?: boolean;
+  permission?: string;
   clientId?: string;
+  status?: string;
+  message?: string;
 }
 
 export async function refreshUserRole(uid?: string): Promise<SetRoleResponse> {
@@ -116,5 +120,20 @@ export async function refreshUserRole(uid?: string): Promise<SetRoleResponse> {
   );
 
   const result = await fn({ uid });
+  return result.data;
+}
+
+/**
+ * Rafraîchir les Custom Claims d'un consultant par email.
+ * Utilisé après modification des permissions dans TeamManagement.
+ * Si le consultant n'a pas encore créé son compte, retourne { status: 'pending' }.
+ */
+export async function refreshConsultantClaims(email: string): Promise<SetRoleResponse> {
+  const fn = httpsCallable<SetRoleParams, SetRoleResponse>(
+    getFirebaseFunctions(),
+    'setUserRole'
+  );
+
+  const result = await fn({ email });
   return result.data;
 }

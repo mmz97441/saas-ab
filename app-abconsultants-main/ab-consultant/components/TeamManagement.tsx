@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Users, Plus, Trash2, Mail, Shield, ShieldCheck, AlertCircle, Check, Copy, Send, ExternalLink, Edit2, X } from 'lucide-react';
 import { Consultant } from '../types';
 import { getConsultants, addConsultant, deleteConsultant, normalizeId, updateConsultant, updateConsultantPermission } from '../services/dataService';
+import { refreshConsultantClaims } from '../lib/cloudFunctions';
 import { useConfirmDialog } from '../contexts/ConfirmContext';
 
 interface TeamManagementProps {
@@ -173,6 +174,9 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ currentUserEmail }) => 
                                     value={c.permission || 'admin'}
                                     onChange={async (e) => {
                                         await updateConsultantPermission(c.id, e.target.value);
+                                        // Rafraîchir les Custom Claims Firebase pour que les nouvelles permissions
+                                        // soient appliquées immédiatement dans les Firestore Rules
+                                        try { await refreshConsultantClaims(c.email); } catch (err) { console.warn('Claims refresh pending:', err); }
                                         await loadTeam();
                                     }}
                                     className="px-2 py-1 bg-brand-50 border border-brand-200 text-brand-800 text-xs font-bold rounded-md cursor-pointer"

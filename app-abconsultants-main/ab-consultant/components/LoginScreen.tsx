@@ -5,6 +5,7 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword, deleteUser,
 import { auth } from '../firebase';
 import { checkClientEmailExists, checkConsultantEmailExists } from '../services/dataService';
 import { APP_VERSION } from '../types';
+import { SUPER_ADMIN_EMAIL } from '../config';
 
 interface LoginScreenProps {
   onLogin: (role: 'ab_consultant' | 'client', email?: string) => void;
@@ -19,8 +20,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
 
-  // Email de l'expert (Super Admin) - doit correspondre à AuthContext.tsx
-  const EXPERT_EMAIL = "nice.guillaume@gmail.com";
+  // Email de l'expert (Super Admin) - source unique dans config.ts
+  const EXPERT_EMAIL = SUPER_ADMIN_EMAIL;
 
   const handleAuthAction = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -262,6 +262,20 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
 
     const globalMarginRate = totalRevenue > 0 ? (totalMargin / totalRevenue) * 100 : 0;
 
+    // --- N-1 COMPARISONS ---
+    const n1Data = data.filter(d => d.year === selectedYear - 1);
+    const n1Filtered = selectedMonths.length === 0 ? n1Data : n1Data.filter(d => selectedMonths.includes(d.month));
+    const n1Revenue = n1Filtered.reduce((acc, curr) => acc + curr.revenue.total, 0);
+    const n1Treasury = n1Filtered.length > 0 ? n1Filtered[n1Filtered.length - 1].cashFlow.treasury : null;
+    const n1Bfr = n1Filtered.length > 0 ? n1Filtered.reduce((acc, curr) => acc + curr.bfr.total, 0) / n1Filtered.length : null;
+    const n1Margin = n1Filtered.reduce((acc, curr) => acc + (curr.margin?.total || 0), 0);
+    const n1MarginRate = n1Revenue > 0 ? (n1Margin / n1Revenue) * 100 : null;
+
+    const revenueVariation = n1Revenue > 0 ? ((totalRevenue - n1Revenue) / n1Revenue) * 100 : null;
+    const treasuryVariation = n1Treasury !== null && n1Treasury !== 0 ? ((lastTreasury - n1Treasury) / Math.abs(n1Treasury)) * 100 : null;
+    const bfrVariation = n1Bfr !== null && n1Bfr !== 0 ? ((avgBfr - n1Bfr) / Math.abs(n1Bfr)) * 100 : null;
+    const marginVariation = n1MarginRate !== null ? globalMarginRate - n1MarginRate : null;
+
     return {
       revenue: totalRevenue,
       objective: totalObjective,
@@ -281,7 +295,11 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
           gnr: { vol: totalGNR, obj: totalGNRObj } 
       },
       topActivities,
-      globalMarginRate
+      globalMarginRate,
+      revenueVariation,
+      treasuryVariation,
+      bfrVariation,
+      marginVariation,
     };
   }, [displayData, snapshotRecord, yearData, client.profitCenters]);
 
@@ -598,208 +616,179 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
       </div>
 
       {/* KPIS GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
 
          {/* REVENUE CARD */}
-         <div className="p-5 rounded-xl border bg-white border-brand-100 shadow-sm relative overflow-hidden">
-            <div className="flex justify-between items-start mb-2">
-                <div className="p-2 rounded-lg bg-brand-50 text-brand-600">
-                    <DollarSign className="w-5 h-5" />
+         <div className="p-4 rounded-xl border bg-white border-brand-100 shadow-sm relative overflow-hidden">
+            <div className="flex justify-between items-start mb-1">
+                <div className="p-1.5 rounded-lg bg-brand-50 text-brand-600">
+                    <DollarSign className="w-4 h-4" />
                 </div>
-                <div className="text-xs font-bold px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">
+                <div className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
                     {kpis.revenuePerformance}% Obj
                 </div>
             </div>
-            <p className="text-xs font-bold uppercase tracking-wider mb-1 text-slate-400">Chiffre d'Affaires</p>
-            <h3 className="text-2xl font-bold text-slate-800">
+            <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-slate-400">Chiffre d'Affaires</p>
+            <h3 className="text-xl font-bold text-slate-800">
                 <AnimatedNumber value={kpis.revenue} />
             </h3>
-            {/* Progress Bar */}
-            <div className="mt-3 h-1.5 w-full bg-slate-200/20 rounded-full overflow-hidden">
-                <div
-                    className={`h-full rounded-full transition-all duration-1000 ${parseFloat(kpis.revenuePerformance) >= 100 ? 'bg-emerald-500' : 'bg-amber-500'}`}
-                    style={{ width: `${Math.min(parseFloat(kpis.revenuePerformance), 100)}%` }}
-                />
+            {kpis.revenueVariation !== null && (
+              <div className={`flex items-center gap-1 mt-1 text-[10px] font-bold ${kpis.revenueVariation >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                {kpis.revenueVariation >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                {kpis.revenueVariation > 0 ? '+' : ''}{kpis.revenueVariation.toFixed(1)}% vs N-1
+              </div>
+            )}
+            <div className="mt-2 h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full transition-all duration-1000 ${parseFloat(kpis.revenuePerformance) >= 100 ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${Math.min(parseFloat(kpis.revenuePerformance), 100)}%` }} />
             </div>
          </div>
 
          {/* MARGIN CARD */}
-         <div className="bg-white p-5 rounded-xl border border-brand-100 shadow-sm relative overflow-hidden">
-            <div className="flex justify-between items-start mb-2">
-                <div className="p-2 rounded-lg bg-purple-50 text-purple-600">
-                    <Percent className="w-5 h-5" />
-                </div>
-                <div className="text-xs font-bold px-2 py-1 rounded-full bg-purple-100 text-purple-700">
-                    Marge
+         <div className="bg-white p-4 rounded-xl border border-brand-100 shadow-sm relative overflow-hidden">
+            <div className="flex justify-between items-start mb-1">
+                <div className="p-1.5 rounded-lg bg-purple-50 text-purple-600">
+                    <Percent className="w-4 h-4" />
                 </div>
             </div>
-            <p className="text-xs font-bold uppercase tracking-wider mb-1 text-slate-400">Taux de Marge Global</p>
-            <h3 className="text-2xl font-bold text-slate-800">
+            <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-slate-400">Taux de Marge</p>
+            <h3 className="text-xl font-bold text-slate-800">
                 {kpis.globalMarginRate.toFixed(1)}%
             </h3>
-            <p className="text-xs text-slate-500 mt-1">Sur CA HT total</p>
+            {kpis.marginVariation !== null && (
+              <div className={`flex items-center gap-1 mt-1 text-[10px] font-bold ${kpis.marginVariation >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                {kpis.marginVariation >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                {kpis.marginVariation > 0 ? '+' : ''}{kpis.marginVariation.toFixed(1)} pts vs N-1
+              </div>
+            )}
+            <p className="text-[10px] text-slate-400 mt-1">Sur CA HT total</p>
          </div>
 
          {/* TREASURY CARD */}
-         <div className="p-5 rounded-xl border bg-white border-brand-100 shadow-sm">
-             <div className="flex justify-between items-start mb-2">
-                <div className={`p-2 rounded-lg ${kpis.treasury >= 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
-                    <Landmark className="w-5 h-5" />
+         <div className={`p-4 rounded-xl border shadow-sm ${kpis.treasury < 0 ? 'bg-red-50 border-red-200' : 'bg-white border-brand-100'}`}>
+             <div className="flex justify-between items-start mb-1">
+                <div className={`p-1.5 rounded-lg ${kpis.treasury >= 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                    <Landmark className="w-4 h-4" />
                 </div>
+                {kpis.treasury < 0 && <div className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">ALERTE</div>}
              </div>
-             <p className="text-xs font-bold uppercase tracking-wider mb-1 text-slate-400">Tresorerie Nette</p>
-             <h3 className={`text-2xl font-bold ${kpis.treasury >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+             <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-slate-400">Tresorerie Nette</p>
+             <h3 className={`text-xl font-bold ${kpis.treasury >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
                 <AnimatedNumber value={kpis.treasury} />
              </h3>
-             <p className="text-xs text-slate-500 mt-1">Situation fin de periode</p>
+             {kpis.treasuryVariation !== null && (
+               <div className={`flex items-center gap-1 mt-1 text-[10px] font-bold ${kpis.treasuryVariation >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                 {kpis.treasuryVariation >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                 {kpis.treasuryVariation > 0 ? '+' : ''}{kpis.treasuryVariation.toFixed(1)}% vs N-1
+               </div>
+             )}
          </div>
 
          {/* BFR CARD */}
-         <div className="p-5 rounded-xl border bg-white border-brand-100 shadow-sm">
-             <div className="flex justify-between items-start mb-2">
-                <div className="p-2 rounded-lg bg-cyan-100 text-cyan-600">
-                    <Briefcase className="w-5 h-5" />
+         <div className="p-4 rounded-xl border bg-white border-brand-100 shadow-sm">
+             <div className="flex justify-between items-start mb-1">
+                <div className="p-1.5 rounded-lg bg-cyan-100 text-cyan-600">
+                    <Briefcase className="w-4 h-4" />
                 </div>
              </div>
-             <p className="text-xs font-bold uppercase tracking-wider mb-1 text-slate-400">BFR Moyen</p>
-             <h3 className="text-2xl font-bold text-cyan-800">
+             <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-slate-400">BFR Moyen</p>
+             <h3 className="text-xl font-bold text-cyan-800">
                 <AnimatedNumber value={kpis.bfr} />
              </h3>
-             <p className="text-xs text-slate-500 mt-1">Besoin en fonds de roulement</p>
-         </div>
-
-         {/* OPTIONAL: FUEL CARD (IF ENABLED) */}
-         {showFuelCard && (
-             <div className="md:col-span-2 lg:col-span-1 p-5 rounded-xl border bg-white border-brand-100 shadow-sm">
-                 <div className="flex justify-between items-start mb-2">
-                    <div className="p-2 rounded-lg bg-blue-100 text-blue-600">
-                        <Fuel className="w-5 h-5" />
-                    </div>
-                 </div>
-                 <p className="text-xs font-bold uppercase tracking-wider mb-1 text-slate-400">Carburant</p>
-                 <h3 className="text-2xl font-bold text-blue-800">
-                    {Math.round(kpis.fuelVolume).toLocaleString()} L
-                 </h3>
-                 <p className="text-xs text-slate-500 mt-1">Consommation Totale</p>
-             </div>
-         )}
-      </div>
-
-      {/* ============================================= */}
-      {/* CHART 1: CA - Chiffre d'Affaires              */}
-      {/* ============================================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-         <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-brand-100">
-            <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-bold text-brand-900 flex items-center gap-2">
-                    <DollarSign className="w-5 h-5 text-brand-600" />
-                    Evolution du Chiffre d'Affaires
-                </h3>
-                <div className="flex items-center gap-3 text-xs">
-                    <span className="flex items-center gap-1"><div className="w-3 h-3 bg-brand-900 rounded-sm"></div> N</span>
-                    <span className="flex items-center gap-1"><div className="w-3 h-3 bg-slate-300 rounded-sm"></div> N-1</span>
-                    <span className="flex items-center gap-1"><div className="w-3 h-0.5 bg-amber-500"></div> Objectif</span>
-                </div>
-            </div>
-            <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={chartData} onClick={handleChartClick} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} dy={10} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={(val: any) => { const v = Number(val); return !isNaN(v) && v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(val); }} />
-                        <Tooltip content={<CustomTooltip type="revenue" />} cursor={{ fill: '#f8fafc' }} />
-                        <Bar dataKey="CA_N1" fill="#e2e8f0" radius={[4, 4, 0, 0]} barSize={20} name="CA N-1" />
-                        <Bar dataKey="CA" fill="#0f172a" radius={[4, 4, 0, 0]} barSize={20} name="CA N" />
-                        <Line type="monotone" dataKey="Objectif" stroke="#f59e0b" strokeWidth={2} dot={false} strokeDasharray="4 4" />
-                        {averageObjectiveN !== null && <ReferenceLine y={averageObjectiveN} stroke="#f59e0b" strokeDasharray="8 4" strokeOpacity={0.4} />}
-                    </ComposedChart>
-                </ResponsiveContainer>
-            </div>
-         </div>
-
-         {/* ACTIVITY BREAKDOWN */}
-         <div className="bg-white p-6 rounded-xl shadow-sm border border-brand-100">
-             <h3 className="text-sm font-bold text-brand-900 mb-4 flex items-center gap-2 uppercase tracking-wide">
-                <ShoppingBag className="w-4 h-4 text-purple-500" /> Repartition Activite
-             </h3>
-             {kpis.topActivities.length > 0 ? (
-               <div className="space-y-4">
-                 {kpis.topActivities.map((act, idx) => (
-                   <div key={act.id} className="relative">
-                     <div className="flex justify-between items-end mb-1">
-                       <span className="text-sm font-medium text-slate-700 truncate max-w-[150px]" title={act.name}>{act.name}</span>
-                       <span className="text-sm font-bold text-brand-900">{act.percent.toFixed(0)}%</span>
-                     </div>
-                     <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                       <div className="h-full rounded-full" style={{ width: `${act.percent}%`, backgroundColor: COLORS_ACTIVITIES[Number(idx) % COLORS_ACTIVITIES.length] }} />
-                     </div>
-                     <div className="flex justify-between mt-1 text-[10px] text-slate-400">
-                       <span>{formatCurrency(act.val)}</span>
-                       <span>Marge: {act.marginRate.toFixed(1)}%</span>
-                     </div>
-                   </div>
-                 ))}
+             {kpis.bfrVariation !== null && (
+               <div className={`flex items-center gap-1 mt-1 text-[10px] font-bold ${kpis.bfrVariation <= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                 {kpis.bfrVariation <= 0 ? <ArrowDownRight className="w-3 h-3" /> : <ArrowUpRight className="w-3 h-3" />}
+                 {kpis.bfrVariation > 0 ? '+' : ''}{kpis.bfrVariation.toFixed(1)}% vs N-1
                </div>
-             ) : (
-               <p className="text-sm text-slate-400 italic">Aucun centre de profit configure</p>
              )}
          </div>
       </div>
 
       {/* ============================================= */}
-      {/* CHART 2: Tresorerie                           */}
+      {/* ROW 1: CA + Tresorerie side by side           */}
       {/* ============================================= */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-brand-100">
-         <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-bold text-brand-900 flex items-center gap-2">
-                <Landmark className={`w-5 h-5 ${kpis.treasury >= 0 ? 'text-emerald-600' : 'text-red-600'}`} />
-                Evolution de la Tresorerie
-            </h3>
-            <div className="flex items-center gap-3 text-xs">
-                <span className="flex items-center gap-1"><div className={`w-3 h-3 rounded-sm ${kpis.treasury >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`}></div> Tresorerie N</span>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+         {/* CA Chart */}
+         <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-brand-600" />
+                    Chiffre d'Affaires
+                </h3>
+                <div className="flex items-center gap-2 text-[10px]">
+                    <span className="flex items-center gap-1"><div className="w-2 h-2 bg-brand-900 rounded-sm"></div> N</span>
+                    <span className="flex items-center gap-1"><div className="w-2 h-2 bg-slate-300 rounded-sm"></div> N-1</span>
+                    <span className="flex items-center gap-1"><div className="w-2 h-0.5 bg-amber-500"></div> Obj</span>
+                </div>
+            </div>
+            <div className="h-[250px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={chartData} onClick={handleChartClick} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} dy={5} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(val: any) => { const v = Number(val); return !isNaN(v) && v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(val); }} />
+                        <Tooltip content={<CustomTooltip type="revenue" />} cursor={{ fill: '#f8fafc' }} />
+                        <Bar dataKey="CA_N1" fill="#e2e8f0" radius={[3, 3, 0, 0]} barSize={16} name="CA N-1" />
+                        <Bar dataKey="CA" fill="#0f172a" radius={[3, 3, 0, 0]} barSize={16} name="CA N" />
+                        <Line type="monotone" dataKey="Objectif" stroke="#f59e0b" strokeWidth={2} dot={false} strokeDasharray="4 4" />
+                    </ComposedChart>
+                </ResponsiveContainer>
             </div>
          </div>
-         <div className="h-[280px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData} onClick={handleChartClick} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={(val: any) => { const v = Number(val); return !isNaN(v) && Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(val); }} />
-                    <Tooltip content={<CustomTooltip type="treasury" />} cursor={{ fill: '#f8fafc' }} />
-                    <ReferenceLine y={0} stroke="#cbd5e1" />
-                    <defs>
-                        <linearGradient id="colorTreasury" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor={kpis.treasury >= 0 ? "#10b981" : "#ef4444"} stopOpacity={0.2}/>
-                            <stop offset="95%" stopColor={kpis.treasury >= 0 ? "#10b981" : "#ef4444"} stopOpacity={0}/>
-                        </linearGradient>
-                    </defs>
-                    <Area type="monotone" dataKey="Tresorerie" fill="url(#colorTreasury)" stroke={kpis.treasury >= 0 ? "#10b981" : "#ef4444"} strokeWidth={2} name="Tresorerie" />
-                    <Line type="monotone" dataKey="Tresorerie_N1" stroke="#94a3b8" strokeWidth={1.5} dot={false} strokeDasharray="4 4" name="Tresorerie N-1" />
-                </ComposedChart>
-            </ResponsiveContainer>
+
+         {/* Tresorerie Chart */}
+         <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2">
+                    <Landmark className={`w-4 h-4 ${kpis.treasury >= 0 ? 'text-emerald-600' : 'text-red-600'}`} />
+                    Tresorerie
+                </h3>
+                <div className="flex items-center gap-2 text-[10px]">
+                    <span className="flex items-center gap-1"><div className={`w-2 h-2 rounded-sm ${kpis.treasury >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`}></div> N</span>
+                    <span className="flex items-center gap-1"><div className="w-2 h-2 bg-slate-300 rounded-sm"></div> N-1</span>
+                </div>
+            </div>
+            <div className="h-[250px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={chartData} onClick={handleChartClick} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} dy={5} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} domain={['auto', 'auto']} allowDataOverflow={false} tickFormatter={(val: any) => { const v = Number(val); return !isNaN(v) && Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(val); }} />
+                        <Tooltip content={<CustomTooltip type="treasury" />} cursor={{ fill: '#f8fafc' }} />
+                        <ReferenceLine y={0} stroke="#cbd5e1" />
+                        <defs>
+                            <linearGradient id="colorTreasury" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor={kpis.treasury >= 0 ? "#10b981" : "#ef4444"} stopOpacity={0.2}/>
+                                <stop offset="95%" stopColor={kpis.treasury >= 0 ? "#10b981" : "#ef4444"} stopOpacity={0}/>
+                            </linearGradient>
+                        </defs>
+                        <Area type="monotone" dataKey="Tresorerie" fill="url(#colorTreasury)" stroke={kpis.treasury >= 0 ? "#10b981" : "#ef4444"} strokeWidth={2} name="Tresorerie" />
+                        <Line type="monotone" dataKey="Tresorerie_N1" stroke="#94a3b8" strokeWidth={1.5} dot={false} strokeDasharray="4 4" name="Tresorerie N-1" />
+                    </ComposedChart>
+                </ResponsiveContainer>
+            </div>
          </div>
       </div>
 
       {/* ============================================= */}
-      {/* CHART 3 & 4: BFR Evolution + Repartition BFR */}
+      {/* ROW 2: BFR Evolution + Repartition BFR        */}
       {/* ============================================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
          {/* BFR Evolution (stacked: creances, stocks, dettes) */}
-         <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-brand-100">
-            <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-bold text-brand-900 flex items-center gap-2">
-                    <Briefcase className="w-5 h-5 text-cyan-600" />
+         <div className="lg:col-span-2 bg-white p-5 rounded-xl shadow-sm border border-brand-100">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2">
+                    <Briefcase className="w-4 h-4 text-cyan-600" />
                     Evolution du BFR
                 </h3>
-                <div className="flex items-center gap-3 text-xs">
-                    <span className="flex items-center gap-1"><div className="w-3 h-3 bg-cyan-500 rounded-sm"></div> Creances</span>
-                    <span className="flex items-center gap-1"><div className="w-3 h-3 bg-amber-500 rounded-sm"></div> Stocks</span>
-                    <span className="flex items-center gap-1"><div className="w-3 h-3 bg-rose-500 rounded-sm"></div> Dettes</span>
-                    <span className="flex items-center gap-1"><div className="w-3 h-0.5 bg-slate-800"></div> BFR Net</span>
+                <div className="flex items-center gap-2 text-[10px]">
+                    <span className="flex items-center gap-1"><div className="w-2 h-2 bg-cyan-500 rounded-sm"></div> Creances</span>
+                    <span className="flex items-center gap-1"><div className="w-2 h-2 bg-amber-500 rounded-sm"></div> Stocks</span>
+                    <span className="flex items-center gap-1"><div className="w-2 h-2 bg-rose-500 rounded-sm"></div> Dettes</span>
+                    <span className="flex items-center gap-1"><div className="w-2 h-0.5 bg-slate-800"></div> BFR Net</span>
                 </div>
             </div>
-            <div className="h-[300px] w-full">
+            <div className="h-[250px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={bfrStackedData} onClick={handleChartClick} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -870,65 +859,94 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
       </div>
 
       {/* ============================================= */}
-      {/* CHART 5: Productivite (if data exists)        */}
+      {/* ROW 3: Productivite + Activite side by side  */}
       {/* ============================================= */}
-      {displayData.some(d => d.expenses.hoursWorked > 0) && (
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-brand-100">
-           <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-bold text-brand-900 flex items-center gap-2">
-                  <Users className="w-5 h-5 text-orange-600" />
-                  Productivite (Heures travaillees)
-              </h3>
-              <div className="flex items-center gap-3 text-xs">
-                  <span className="flex items-center gap-1"><div className="w-3 h-3 bg-orange-500 rounded-sm"></div> N</span>
-                  <span className="flex items-center gap-1"><div className="w-3 h-3 bg-slate-300 rounded-sm"></div> N-1</span>
-                  <span className="flex items-center gap-1"><div className="w-3 h-0.5 bg-purple-500"></div> CA/Heure</span>
-              </div>
-           </div>
-           <div className="h-[280px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={chartData} onClick={handleChartClick} margin={{ top: 10, right: 40, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} dy={10} />
-                      <YAxis yAxisId="hours" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} />
-                      <YAxis yAxisId="rate" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#8b5cf6' }} tickFormatter={(val: any) => `${Number(val).toFixed(0)}E/h`} />
-                      <Tooltip formatter={(value: any, name: string) => {
-                        if (name === 'CA/Heure') return [`${Number(value).toFixed(1)} E/h`, name];
-                        return [Number(value).toLocaleString('fr-FR'), name];
-                      }} />
-                      <Bar yAxisId="hours" dataKey="Productivity_N1" fill="#e2e8f0" radius={[4, 4, 0, 0]} barSize={18} name="Heures N-1" />
-                      <Bar yAxisId="hours" dataKey="Productivity" fill="#f97316" radius={[4, 4, 0, 0]} barSize={18} name="Heures N" />
-                      <Line yAxisId="rate" type="monotone" dataKey="ProductivityRate" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3, fill: '#8b5cf6' }} name="CA/Heure" />
-                  </ComposedChart>
-              </ResponsiveContainer>
-           </div>
+      {(displayData.some(d => d.expenses.hoursWorked > 0) || kpis.topActivities.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Productivite */}
+          {displayData.some(d => d.expenses.hoursWorked > 0) && (
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
+               <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2">
+                      <Users className="w-4 h-4 text-orange-600" />
+                      Productivite
+                  </h3>
+                  <div className="flex items-center gap-2 text-[10px]">
+                      <span className="flex items-center gap-1"><div className="w-2 h-2 bg-orange-500 rounded-sm"></div> Heures</span>
+                      <span className="flex items-center gap-1"><div className="w-2 h-0.5 bg-purple-500"></div> CA/h</span>
+                  </div>
+               </div>
+               <div className="h-[220px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={chartData} margin={{ top: 5, right: 35, left: -10, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} dy={5} />
+                          <YAxis yAxisId="hours" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
+                          <YAxis yAxisId="rate" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#8b5cf6' }} tickFormatter={(val: any) => `${Number(val).toFixed(0)}E/h`} />
+                          <Tooltip formatter={(value: any, name: string) => {
+                            if (name === 'CA/Heure') return [`${Number(value).toFixed(1)} E/h`, name];
+                            return [Number(value).toLocaleString('fr-FR'), name];
+                          }} />
+                          <Bar yAxisId="hours" dataKey="Productivity" fill="#f97316" radius={[3, 3, 0, 0]} barSize={16} name="Heures N" />
+                          <Line yAxisId="rate" type="monotone" dataKey="ProductivityRate" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3, fill: '#8b5cf6' }} name="CA/Heure" />
+                      </ComposedChart>
+                  </ResponsiveContainer>
+               </div>
+            </div>
+          )}
+
+          {/* Activity Breakdown */}
+          {kpis.topActivities.length > 0 && (
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
+               <h3 className="text-sm font-bold text-brand-900 mb-4 flex items-center gap-2 uppercase tracking-wide">
+                  <ShoppingBag className="w-4 h-4 text-purple-500" /> Repartition Activite
+               </h3>
+               <div className="space-y-3">
+                 {kpis.topActivities.map((act, idx) => (
+                   <div key={act.id} className="relative">
+                     <div className="flex justify-between items-end mb-1">
+                       <span className="text-xs font-medium text-slate-700 truncate max-w-[150px]" title={act.name}>{act.name}</span>
+                       <span className="text-xs font-bold text-brand-900">{act.percent.toFixed(0)}%</span>
+                     </div>
+                     <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                       <div className="h-full rounded-full" style={{ width: `${act.percent}%`, backgroundColor: COLORS_ACTIVITIES[Number(idx) % COLORS_ACTIVITIES.length] }} />
+                     </div>
+                     <div className="flex justify-between mt-0.5 text-[10px] text-slate-400">
+                       <span>{formatCurrency(act.val)}</span>
+                       <span>Marge: {act.marginRate.toFixed(1)}%</span>
+                     </div>
+                   </div>
+                 ))}
+               </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* ============================================= */}
-      {/* CHART 6: Carburant (if enabled)               */}
+      {/* Carburant (only if enabled AND has data)      */}
       {/* ============================================= */}
-      {showFuelCard && (
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-brand-100">
-           <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-bold text-brand-900 flex items-center gap-2">
-                  <Fuel className="w-5 h-5 text-blue-600" />
+      {showFuelCard && kpis.fuelVolume > 0 && (
+        <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
+           <div className="flex justify-between items-center mb-4">
+              <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2">
+                  <Fuel className="w-4 h-4 text-blue-600" />
                   Consommation Carburant
               </h3>
-              <div className="flex items-center gap-3 text-xs">
-                  <span className="flex items-center gap-1"><div className="w-3 h-3 bg-blue-500 rounded-sm"></div> N</span>
-                  <span className="flex items-center gap-1"><div className="w-3 h-3 bg-slate-300 rounded-sm"></div> N-1</span>
+              <div className="flex items-center gap-2 text-[10px]">
+                  <span className="flex items-center gap-1"><div className="w-2 h-2 bg-blue-500 rounded-sm"></div> N</span>
+                  <span className="flex items-center gap-1"><div className="w-2 h-2 bg-slate-300 rounded-sm"></div> N-1</span>
               </div>
            </div>
-           <div className="h-[280px] w-full">
+           <div className="h-[220px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={chartData} onClick={handleChartClick} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <ComposedChart data={chartData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} dy={10} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} dy={5} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
                       <Tooltip content={<CustomTooltip type="fuel" />} cursor={{ fill: '#f8fafc' }} />
-                      <Bar dataKey="Fuel_Total_N1" fill="#e2e8f0" radius={[4, 4, 0, 0]} barSize={20} name="Volume N-1" />
-                      <Bar dataKey="Fuel_Total" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20} name="Volume N" />
+                      <Bar dataKey="Fuel_Total_N1" fill="#e2e8f0" radius={[3, 3, 0, 0]} barSize={16} name="Volume N-1" />
+                      <Bar dataKey="Fuel_Total" fill="#3b82f6" radius={[3, 3, 0, 0]} barSize={16} name="Volume N" />
                   </ComposedChart>
               </ResponsiveContainer>
            </div>

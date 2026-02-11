@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Users, Plus, Trash2, Mail, Shield, ShieldCheck, AlertCircle, Check, Copy, Send, ExternalLink, Edit2, X } from 'lucide-react';
 import { Consultant } from '../types';
 import { getConsultants, addConsultant, deleteConsultant, normalizeId, updateConsultant } from '../services/dataService';
+import { useConfirmDialog } from '../contexts/ConfirmContext';
 
 interface TeamManagementProps {
     currentUserEmail: string | null;
@@ -21,6 +22,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ currentUserEmail }) => 
     // État pour l'édition
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editName, setEditName] = useState('');
+    const confirm = useConfirmDialog();
 
     useEffect(() => {
         loadTeam();
@@ -36,14 +38,12 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ currentUserEmail }) => 
     const handleAdd = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        setLastAdded(null); 
-        
+        setLastAdded(null);
+
         if (!newEmail || !newName) return;
 
-        // CONFIRMATION AJOUT
-        if (!window.confirm(`Confirmez-vous l'ajout de ${newName} (${newEmail}) à l'équipe ?\nCette personne aura accès aux données confidentielles.`)) {
-            return;
-        }
+        const ok = await confirm({ title: 'Ajouter ce consultant ?', message: `${newName} (${newEmail}) aura accès aux données confidentielles de tous les clients.`, variant: 'default', confirmLabel: 'Autoriser l\'accès' });
+        if (!ok) return;
 
         try {
             const emailClean = newEmail.toLowerCase().trim();
@@ -70,8 +70,8 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ currentUserEmail }) => 
     };
 
     const handleDelete = async (id: string) => {
-        // CONFIRMATION SUPPRESSION (Déjà présente, renforcée)
-        if (!window.confirm("⚠️ ACTION IRRÉVERSIBLE\n\nVoulez-vous vraiment révoquer l'accès de ce consultant ?\nIl ne pourra plus se connecter.")) return;
+        const ok = await confirm({ title: 'Révoquer cet accès ?', message: 'Ce consultant ne pourra plus se connecter à la plateforme.\nCette action est irréversible.', variant: 'danger', confirmLabel: 'Révoquer' });
+        if (!ok) return;
         await deleteConsultant(id);
         await loadTeam();
     };
@@ -83,16 +83,16 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ currentUserEmail }) => 
 
     const handleSaveEdit = async (id: string) => {
         if (!editName.trim()) return;
-        
-        // CONFIRMATION MODIFICATION
-        if (!window.confirm("Confirmez-vous la modification du nom de ce consultant ?")) return;
+
+        const ok = await confirm({ title: 'Modifier ce consultant ?', message: 'Le nom sera mis à jour dans la plateforme.', confirmLabel: 'Modifier' });
+        if (!ok) return;
 
         try {
             await updateConsultant(id, editName);
             setEditingId(null);
             await loadTeam();
         } catch (e) {
-            alert("Erreur lors de la modification");
+            await confirm({ title: 'Erreur', message: 'Erreur lors de la modification.', variant: 'danger', showCancel: false, confirmLabel: 'OK' });
         }
     };
 
@@ -102,11 +102,8 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ currentUserEmail }) => 
         return `Bonjour ${name},\n\nTon accès à la plateforme AB Consultants est ouvert.\n\nPour activer ton compte :\n1. Va sur : ${url}\n2. Choisis "Espace Consultant"\n3. Clique sur "Activer mon accès" (en bas)\n4. Utilise ton email : ${email}\n\nÀ tout de suite !`;
     };
 
-    const handleSendMail = () => {
+    const handleSendMail = async () => {
         if (!lastAdded) return;
-        // CONFIRMATION ENVOI EMAIL
-        if (!window.confirm(`Ouvrir le client mail pour envoyer l'invitation à ${lastAdded.email} ?`)) return;
-
         const subject = "Activation accès AB Consultants";
         const body = getInviteMessage(lastAdded.name, lastAdded.email);
         window.location.href = `mailto:${lastAdded.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -117,9 +114,9 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ currentUserEmail }) => 
         const body = getInviteMessage(lastAdded.name, lastAdded.email);
         try {
             await navigator.clipboard.writeText(body);
-            alert("Message d'invitation copié !");
+            await confirm({ title: 'Copié !', message: 'Le message d\'invitation a été copié dans le presse-papier.', variant: 'success', showCancel: false, confirmLabel: 'OK' });
         } catch (err) {
-            alert("Erreur de copie.");
+            await confirm({ title: 'Erreur', message: 'Impossible de copier dans le presse-papier.', variant: 'danger', showCancel: false, confirmLabel: 'OK' });
         }
     };
 

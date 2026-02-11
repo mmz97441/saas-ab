@@ -27,7 +27,7 @@ interface AuthContextValue extends AuthState {
   refreshClaims: () => Promise<void>;
 }
 
-const SUPER_ADMIN_EMAIL = 'admin@ab-consultants.fr';
+const SUPER_ADMIN_EMAIL = 'nice.guillaume@gmail.com';
 
 // =============================================
 // CONTEXT

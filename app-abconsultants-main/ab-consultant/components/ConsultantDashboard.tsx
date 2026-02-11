@@ -1,8 +1,8 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Client, FinancialRecord } from '../types';
 import { getRecordsByClient } from '../services/dataService';
-import { AlertTriangle, Clock, CheckCircle, TrendingDown, MessageSquare, ArrowRight, Briefcase, Loader2, Filter, Shield } from 'lucide-react';
+import { AlertTriangle, Clock, CheckCircle, TrendingDown, MessageSquare, ArrowRight, Briefcase, Loader2, Filter, Shield, Search, X } from 'lucide-react';
 
 interface ConsultantDashboardProps {
     clients: Client[];
@@ -23,32 +23,32 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
     const [summaries, setSummaries] = useState<ClientSummary[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [filter, setFilter] = useState<'ALL' | 'ALERT' | 'PENDING'>('ALL');
+    const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
         const loadGlobalData = async () => {
             setIsLoading(true);
-            const results: ClientSummary[] = [];
 
-            // Pour chaque client, on récupère le dernier record pour analyser la santé
-            // Note: En production avec beaucoup de clients, on optimiserait cela côté backend/firestore
-            for (const client of clients) {
-                if (client.status === 'inactive') continue;
+            const activeClients = clients.filter(c => c.status !== 'inactive');
 
-                const records = await getRecordsByClient(client.id);
-                // On prend le dernier record saisi (le plus récent en année/mois)
+            // Parallel fetch: all client records at once (fixes N+1 query issue)
+            const allRecords = await Promise.all(
+                activeClients.map(client => getRecordsByClient(client.id))
+            );
+
+            const results: ClientSummary[] = activeClients.map((client, i) => {
+                const records = allRecords[i];
                 const lastRecord = records.length > 0 ? records[records.length - 1] : null;
-                
-                // Détection validation en attente (Soumis mais pas validé)
                 const pendingValidation = !!records.find(r => r.isSubmitted && !r.isValidated);
 
-                results.push({
+                return {
                     client,
                     lastRecord,
                     pendingValidation,
                     treasuryAlert: lastRecord ? lastRecord.cashFlow.treasury < 0 : false,
                     lastActivity: lastRecord ? `${lastRecord.month} ${lastRecord.year}` : 'Aucune'
-                });
-            }
+                };
+            });
 
             // Tri : Ceux qui ont besoin d'attention en premier
             results.sort((a, b) => {
@@ -73,11 +73,20 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
     const totalPending = summaries.filter(s => s.pendingValidation).length;
     const totalAlerts = summaries.filter(s => s.treasuryAlert).length;
 
-    const filteredSummaries = summaries.filter(s => {
-        if (filter === 'ALERT') return s.treasuryAlert;
-        if (filter === 'PENDING') return s.pendingValidation;
-        return true;
-    });
+    const filteredSummaries = useMemo(() => {
+        let result = summaries;
+        if (filter === 'ALERT') result = result.filter(s => s.treasuryAlert);
+        if (filter === 'PENDING') result = result.filter(s => s.pendingValidation);
+        if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase();
+            result = result.filter(s =>
+                s.client.companyName.toLowerCase().includes(q) ||
+                (s.client.managerName || '').toLowerCase().includes(q) ||
+                (s.client.city || '').toLowerCase().includes(q)
+            );
+        }
+        return result;
+    }, [summaries, filter, searchQuery]);
 
     if (isLoading) return (
         <div className="flex flex-col items-center justify-center h-[50vh] text-brand-500">
@@ -106,6 +115,23 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                          <p className="font-bold text-slate-700">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
                      </div>
                 </div>
+            </div>
+
+            {/* SEARCH BAR */}
+            <div className="relative">
+                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Rechercher un client par nom, dirigeant ou ville..."
+                    className="w-full pl-10 pr-10 py-2 rounded-lg border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition placeholder-slate-400 shadow-sm"
+                />
+                {searchQuery && (
+                    <button onClick={() => setSearchQuery('')} className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+                        <X className="w-4 h-4" />
+                    </button>
+                )}
             </div>
 
             {/* ACTION CARDS */}

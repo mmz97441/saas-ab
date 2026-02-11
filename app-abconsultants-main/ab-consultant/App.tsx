@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Menu, X, UserCircle, CheckCircle, Eye, EyeOff, Users, Plus, Edit2, Trash2, Search, Briefcase, Phone, Mail, MapPin, Archive, Send, Power, Loader2, UserPlus, Crown, ShieldCheck } from 'lucide-react';
+import { Menu, X, UserCircle, CheckCircle, Eye, EyeOff, Users, Plus, Edit2, Trash2, Search, Briefcase, Phone, Mail, MapPin, Archive, Send, Power, Loader2, UserPlus, Crown, ShieldCheck, ChevronRight, Home, Bell } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import EntryForm from './components/EntryForm';
 import LoginScreen from './components/LoginScreen'; 
@@ -12,6 +12,7 @@ import ConsultantMessaging from './components/ConsultantMessaging';
 import ConsultantDashboard from './components/ConsultantDashboard'; // Import Nouveau
 import ClientModal from './components/ClientModal';
 import TeamManagement from './components/TeamManagement';
+import { useConfirmDialog } from './contexts/ConfirmContext';
 
 import { FinancialRecord, Client, Month, ProfitCenter, Consultant, View } from './types';
 import { getClients, saveClient, updateClientStatus, getRecordsByClient, resetDatabase, MONTH_ORDER, toShortMonth, getConsultants, addConsultant, deleteConsultant, deleteRecord, checkConsultantEmailExists, checkClientEmailExists, saveRecord } from './services/dataService';
@@ -37,13 +38,17 @@ const App: React.FC = () => {
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [clientViewMode, setClientViewMode] = useState<'active' | 'inactive'>('active');
+  const [clientSearchQuery, setClientSearchQuery] = useState('');
 
   const [statusModal, setStatusModal] = useState<{isOpen: boolean, client: Client | null}>({ isOpen: false, client: null });
   
   const [editingRecord, setEditingRecord] = useState<FinancialRecord | null>(null);
   const [notification, setNotification] = useState<{message: string, type: 'success' | 'error' | 'info'} | null>(null);
+  const [isPresentationMode, setIsPresentationMode] = useState(false);
+  const [newDataBanner, setNewDataBanner] = useState(false);
 
-  const SUPER_ADMIN_EMAIL = 'admin@ab-consultants.fr';
+  const SUPER_ADMIN_EMAIL = 'nice.guillaume@gmail.com';
+  const confirm = useConfirmDialog();
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
       setNotification({ message, type });
@@ -184,7 +189,8 @@ const App: React.FC = () => {
 
   const handleDeleteRecord = async (record: FinancialRecord) => {
       if (userRole !== 'ab_consultant') return;
-      if (!confirm("Supprimer ce rapport ?")) return;
+      const ok = await confirm({ title: 'Supprimer ce rapport ?', message: 'Cette action est irréversible. Les données seront définitivement perdues.', variant: 'danger', confirmLabel: 'Supprimer' });
+      if (!ok) return;
       await deleteRecord(record.id);
       await refreshRecords();
       showNotification("Rapport supprimé.", 'success');
@@ -273,11 +279,11 @@ const App: React.FC = () => {
 
   const handleResetDatabase = async () => {
       if (!isSuperAdmin) return;
-      if (confirm("Reset complet ?")) {
-          await resetDatabase();
-          await refreshClients();
-          setSelectedClient(null);
-      }
+      const ok = await confirm({ title: 'Réinitialiser la base ?', message: 'ATTENTION : Toutes les données (clients, rapports, messages) seront supprimées définitivement.\n\nCette action est IRRÉVERSIBLE.', variant: 'danger', confirmLabel: 'Tout supprimer' });
+      if (!ok) return;
+      await resetDatabase();
+      await refreshClients();
+      setSelectedClient(null);
   };
 
   const handleToggleFuelModule = async () => {
@@ -299,6 +305,18 @@ const App: React.FC = () => {
   };
 
   const dashboardData = useMemo(() => userRole === 'client' ? data.filter(r => r.isPublished) : data, [data, userRole]);
+
+  // Track new published data for client
+  const prevPublishedCountRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (userRole !== 'client') return;
+    const publishedCount = data.filter(r => r.isPublished).length;
+    if (prevPublishedCountRef.current !== null && publishedCount > prevPublishedCountRef.current) {
+      setNewDataBanner(true);
+      setTimeout(() => setNewDataBanner(false), 10000);
+    }
+    prevPublishedCountRef.current = publishedCount;
+  }, [data, userRole]);
   const accessibleCompanies = useMemo(() => {
     if (userRole !== 'client' || !simulatedUserEmail) return [];
     return clients.filter(c => c.owner.email.toLowerCase() === simulatedUserEmail.toLowerCase());
@@ -306,8 +324,16 @@ const App: React.FC = () => {
 
   // FILTRE POUR LA VUE LISTE CLIENTS
   const displayedClientsList = useMemo(() => {
-      return clients.filter(c => clientViewMode === 'active' ? (c.status || 'active') === 'active' : c.status === 'inactive');
-  }, [clients, clientViewMode]);
+      const statusFiltered = clients.filter(c => clientViewMode === 'active' ? (c.status || 'active') === 'active' : c.status === 'inactive');
+      if (!clientSearchQuery.trim()) return statusFiltered;
+      const q = clientSearchQuery.toLowerCase();
+      return statusFiltered.filter(c =>
+        c.companyName.toLowerCase().includes(q) ||
+        (c.managerName || '').toLowerCase().includes(q) ||
+        (c.city || '').toLowerCase().includes(q) ||
+        (c.siret || '').toLowerCase().includes(q)
+      );
+  }, [clients, clientViewMode, clientSearchQuery]);
 
   if (isAuthCheckLoading) return <div className="min-h-screen flex items-center justify-center bg-brand-50"><Loader2 className="w-8 h-8 animate-spin text-brand-600"/></div>;
   if (!isAuthenticated) return <LoginScreen onLogin={handleLoginSuccess} />;
@@ -317,6 +343,23 @@ const App: React.FC = () => {
       {notification && (
           <div className="fixed top-4 right-4 z-50 px-6 py-4 bg-white rounded-lg shadow-xl border border-brand-200 animate-in slide-in-from-right-10">
               <p className="font-medium text-sm">{notification.message}</p>
+          </div>
+      )}
+
+      {/* NEW DATA PUBLISHED BANNER (client only) */}
+      {newDataBanner && userRole === 'client' && (
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 bg-emerald-600 text-white rounded-xl shadow-xl flex items-center gap-3 animate-in slide-in-from-top-4 duration-300">
+              <Bell className="w-5 h-5 shrink-0" />
+              <div>
+                  <p className="font-bold text-sm">Nouvelles données disponibles</p>
+                  <p className="text-xs text-emerald-100">Votre consultant a publié de nouvelles analyses.</p>
+              </div>
+              <button onClick={() => { setNewDataBanner(false); setCurrentView(View.Dashboard); }} className="ml-4 px-3 py-1 bg-white/20 rounded-lg text-xs font-bold hover:bg-white/30 transition">
+                  Voir
+              </button>
+              <button onClick={() => setNewDataBanner(false)} className="text-white/60 hover:text-white transition">
+                  <X className="w-4 h-4" />
+              </button>
           </div>
       )}
 
@@ -333,11 +376,13 @@ const App: React.FC = () => {
           initialData={editingClient}
       />
 
-      <button className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-brand-900 text-white rounded-md" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
-        {isSidebarOpen ? <X /> : <Menu />}
-      </button>
+      {!isPresentationMode && (
+        <button className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-brand-900 text-white rounded-md print:hidden" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+          {isSidebarOpen ? <X /> : <Menu />}
+        </button>
+      )}
 
-      <Sidebar 
+      {!isPresentationMode && <Sidebar
           isOpen={isSidebarOpen}
           userRole={userRole}
           currentView={currentView}
@@ -366,7 +411,7 @@ const App: React.FC = () => {
               }
           }}
           onLogout={handleLogout}
-      />
+      />}
 
       <main className="flex-1 overflow-x-hidden overflow-y-auto h-screen relative">
          <div className="lg:hidden h-16 bg-white shadow-sm mb-4 flex items-center justify-end px-4">
@@ -374,10 +419,61 @@ const App: React.FC = () => {
          </div>
          
          <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24 lg:pb-8">
-            
+
+            {/* BREADCRUMB NAVIGATION */}
+            {!isPresentationMode && (
+              <nav className="flex items-center gap-1.5 text-xs text-slate-400 mb-4 print:hidden">
+                <button
+                  onClick={() => { setSelectedClient(null); setCurrentView(View.Dashboard); }}
+                  className="hover:text-brand-600 transition flex items-center gap-1"
+                >
+                  <Home className="w-3 h-3" /> Accueil
+                </button>
+                {selectedClient && (
+                  <>
+                    <ChevronRight className="w-3 h-3" />
+                    <button
+                      onClick={() => setCurrentView(View.Dashboard)}
+                      className="hover:text-brand-600 transition font-medium text-slate-500"
+                    >
+                      {selectedClient.companyName}
+                    </button>
+                  </>
+                )}
+                {currentView !== View.Dashboard && (
+                  <>
+                    <ChevronRight className="w-3 h-3" />
+                    <span className="font-bold text-slate-600">
+                      {currentView === View.Entry ? (editingRecord ? 'Modification' : 'Nouvelle saisie') :
+                       currentView === View.History ? 'Historique' :
+                       currentView === View.Settings ? 'Paramètres' :
+                       currentView === View.Messages ? 'Messagerie' :
+                       currentView === View.Team ? 'Équipe' :
+                       currentView === View.Clients ? 'Clients' : ''}
+                    </span>
+                  </>
+                )}
+              </nav>
+            )}
+
+            {/* WELCOME MESSAGE FOR CLIENTS WITH NO DATA */}
+            {userRole === 'client' && selectedClient && dashboardData.length === 0 && currentView === View.Dashboard && (
+                <div className="mb-6 bg-gradient-to-r from-brand-50 to-blue-50 border border-brand-200 rounded-xl p-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                    <h2 className="text-xl font-bold text-brand-900 mb-2">Bienvenue sur votre espace, {selectedClient.managerName || 'cher client'} !</h2>
+                    <p className="text-sm text-brand-700 mb-4">
+                        Votre espace de pilotage financier est prêt. Commencez par saisir vos données du mois en cours.
+                    </p>
+                    <div className="flex flex-wrap gap-3">
+                        <button onClick={() => setCurrentView(View.Entry)} className="px-4 py-2 bg-brand-600 text-white rounded-lg font-bold text-sm hover:bg-brand-700 transition shadow-sm flex items-center gap-2">
+                            <Plus className="w-4 h-4" /> Saisir mes données
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* VUE 1 : DASHBOARD CLIENT INDIVIDUEL */}
             {currentView === View.Dashboard && selectedClient && (
-                <Dashboard data={dashboardData} client={selectedClient} userRole={userRole} onSaveComment={handleSaveRecord}/>
+                <Dashboard data={dashboardData} client={selectedClient} userRole={userRole} onSaveComment={handleSaveRecord} isPresentationMode={isPresentationMode} onTogglePresentation={() => setIsPresentationMode(p => !p)}/>
             )}
 
             {/* VUE 2 : DASHBOARD GLOBAL CONSULTANT */}
@@ -436,6 +532,23 @@ const App: React.FC = () => {
                             </button>
                         </div>
                         
+                        {/* Search Bar */}
+                        <div className="relative mb-4">
+                            <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                            <input
+                                type="text"
+                                value={clientSearchQuery}
+                                onChange={(e) => setClientSearchQuery(e.target.value)}
+                                placeholder="Rechercher par nom, dirigeant, ville, SIRET..."
+                                className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition placeholder-slate-400"
+                            />
+                            {clientSearchQuery && (
+                                <button onClick={() => setClientSearchQuery('')} className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+                                    <X className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
+
                         {/* Onglets Actifs / Archives */}
                         <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
                             <button 

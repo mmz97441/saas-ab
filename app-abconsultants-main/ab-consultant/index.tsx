@@ -1,7 +1,9 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import './index.css';
 import App from './App';
 import { AuthProvider } from './contexts/AuthContext';
+import { ConfirmProvider } from './contexts/ConfirmContext';
 import ErrorBoundary from './components/ui/ErrorBoundary';
 
 const rootElement = document.getElementById('root');
@@ -14,7 +16,9 @@ root.render(
   <React.StrictMode>
     <ErrorBoundary>
       <AuthProvider>
-        <App />
+        <ConfirmProvider>
+          <App />
+        </ConfirmProvider>
       </AuthProvider>
     </ErrorBoundary>
   </React.StrictMode>

@@ -1,8 +1,9 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { MessageSquare, Send, X, Bot, Loader2, Sparkles, UserCheck, ChevronRight, Scale, Briefcase, ShieldCheck, UserCircle, Bell, Trash2 } from 'lucide-react';
+import { MessageSquare, Send, X, Bot, Loader2, Sparkles, UserCheck, ChevronRight, Scale, Briefcase, ShieldCheck, UserCircle, Bell, Trash2, AlertTriangle, PhoneCall } from 'lucide-react';
 import { Client, FinancialRecord, ChatMessage } from '../types';
 import { getFinancialAdvice, generateConversationSummary } from '../services/geminiService';
+import { useConfirmDialog } from '../contexts/ConfirmContext';
 import { sendMessage, subscribeToChat, sendConsultantAlertEmail } from '../services/dataService';
 import { db, auth } from '../firebase'; 
 import { collection, writeBatch, getDocs, deleteDoc } from "firebase/firestore";
@@ -20,6 +21,7 @@ const getMessageTime = (msg: ChatMessage): number => {
 };
 
 const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
+  const confirmDialog = useConfirmDialog();
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -32,6 +34,8 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const SESSION_TIMEOUT_MS = 90 * 60 * 1000; // 90 minutes
+  const SESSION_WARNING_MS = 80 * 60 * 1000; // Warning at 80 minutes
+  const [sessionWarning, setSessionWarning] = useState(false);
 
   // LOGIQUE BADGE : S'allume si le dernier message est du consultant ET qu'on ne l'a pas encore "vu" (ouvert)
   const hasUnreadConsultantMessage = useMemo(() => {
@@ -57,10 +61,12 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
             const lastTime = getMessageTime(lastMsg);
             const now = Date.now();
 
-            // Si le dernier message date de plus de 90min, on coupe la session (peu importe qui a parlé)
+            // Warning at 80min, cutoff at 90min
             if ((now - lastTime) > SESSION_TIMEOUT_MS) {
-                // On met le cutoff à "Maintenant" pour masquer tout ce qui est antérieur
                 setSessionCutoff(now);
+                setSessionWarning(false);
+            } else if ((now - lastTime) > SESSION_WARNING_MS) {
+                setSessionWarning(true);
             }
         }
     });
@@ -107,8 +113,9 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
 
   // FONCTION POUR NETTOYER L'HISTORIQUE MANUELLEMENT
   const handleClearHistory = async () => {
-      if (!confirm("Voulez-vous effacer l'historique et démarrer une nouvelle conversation ?")) return;
-      setSessionCutoff(Date.now()); // Masque localement immédiatement
+      const ok = await confirmDialog({ title: 'Effacer l\'historique ?', message: 'La conversation sera effacée et une nouvelle session démarrera.', variant: 'danger', confirmLabel: 'Effacer' });
+      if (!ok) return;
+      setSessionCutoff(Date.now());
   };
 
   const handleSend = async () => {
@@ -214,7 +221,7 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
             )}
           </div>
           <span className="font-semibold pr-2 hidden group-hover:block whitespace-nowrap overflow-hidden">
-             {hasUnreadConsultantMessage ? "1 Message Expert" : "Consultant 360°"}
+             {hasUnreadConsultantMessage ? "1 Message Expert" : "Assistant IA"}
           </span>
         </button>
       )}
@@ -227,10 +234,10 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
                 <Bot className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="font-bold text-sm">Consultant Stratégique</h3>
+                <h3 className="font-bold text-sm">Assistant IA</h3>
                 <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                    <p className="text-[10px] text-brand-300">En ligne • Gemini 3 Pro</p>
+                    <span className="w-1.5 h-1.5 rounded-full bg-accent-400"></span>
+                    <p className="text-[10px] text-brand-300">Propulsé par IA • AB Consultants</p>
                 </div>
               </div>
             </div>
@@ -302,6 +309,13 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
           </div>
 
           <div className="p-3 bg-white border-t border-brand-100 shrink-0">
+             {/* SESSION TIMEOUT WARNING */}
+             {sessionWarning && (
+                 <div className="mb-2 bg-amber-50 border border-amber-200 rounded-lg p-2 flex items-center gap-2 text-xs text-amber-700 animate-in fade-in duration-200">
+                     <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                     <span>Votre session expire bientôt. Envoyez un message pour la prolonger.</span>
+                 </div>
+             )}
              {visibleMessages.length === 1 && visibleMessages[0].id === 'welcome-msg' && (
                  <div className="flex gap-2 overflow-x-auto pb-3 no-scrollbar px-1">
                      <button onClick={() => { setInput("Analyse ma trésorerie."); }} className="whitespace-nowrap px-3 py-1.5 bg-brand-50 text-brand-700 text-xs rounded-full border border-brand-200 shadow-sm">Trésorerie</button>
@@ -312,9 +326,17 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
               <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder="Votre message..." className="flex-1 bg-brand-50 text-brand-900 text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:bg-white transition-all" />
               <button onClick={handleSend} disabled={isLoading || !input.trim()} className="p-3 bg-brand-700 text-white rounded-xl hover:bg-brand-800 disabled:opacity-50 transition-all shadow-md"><Send className="w-4 h-4" /></button>
             </div>
-            <div className="mt-2 text-center">
-                <button onClick={() => handleManualHandoff()} className="text-[10px] text-brand-400 hover:text-brand-700 flex items-center justify-center gap-1 mx-auto transition-colors font-medium group">Besoin d'aide humaine ? <span className="underline decoration-dotted group-hover:decoration-brand-700">Alerter mon consultant</span> <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" /></button>
-            </div>
+            {/* ALERT CONSULTANT - More visible after 3+ messages */}
+            {visibleMessages.length > 3 ? (
+                <button onClick={() => handleManualHandoff()} className="mt-2 w-full py-2 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-200 text-xs font-bold flex items-center justify-center gap-2 hover:bg-emerald-100 transition">
+                    <PhoneCall className="w-3.5 h-3.5" /> Contacter mon consultant
+                </button>
+            ) : (
+                <div className="mt-2 text-center">
+                    <button onClick={() => handleManualHandoff()} className="text-[10px] text-brand-400 hover:text-brand-700 flex items-center justify-center gap-1 mx-auto transition-colors font-medium group">Besoin d'aide humaine ? <span className="underline decoration-dotted group-hover:decoration-brand-700">Alerter mon consultant</span> <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" /></button>
+                </div>
+            )}
+            <p className="text-[9px] text-slate-300 text-center mt-1">Cet assistant est une intelligence artificielle. Il ne remplace pas l'avis de votre consultant.</p>
           </div>
         </div>
       )}

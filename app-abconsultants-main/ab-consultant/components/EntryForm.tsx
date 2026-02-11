@@ -1,8 +1,9 @@
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { FinancialRecord, Month, ProfitCenter } from '../types';
-import { Save, Lock, Calendar, HelpCircle, ArrowUpCircle, ArrowDownCircle, Wallet, TrendingUp, TrendingDown, Landmark, ShoppingBag, Target, PieChart, Droplets, Users, Clock, Calculator, Scale, Briefcase, ArrowRight, Truck, Percent, Sigma, CheckCircle, History, AlertTriangle, ShieldAlert, Upload, FileText } from 'lucide-react';
+import { Save, Lock, Calendar, HelpCircle, ArrowUpCircle, ArrowDownCircle, Wallet, TrendingUp, TrendingDown, Landmark, ShoppingBag, Target, PieChart, Droplets, Users, Clock, Calculator, Scale, Briefcase, ArrowRight, Truck, Percent, Sigma, CheckCircle, History, AlertTriangle, ShieldAlert, Upload, FileText, RotateCcw, Send } from 'lucide-react';
 import { MONTH_ORDER } from '../services/dataService';
+import { useConfirmDialog } from '../contexts/ConfirmContext';
 
 const DEFINITIONS = {
   revenue: "Chiffre d'Affaires Hors Taxe facturé sur la période.",
@@ -213,6 +214,8 @@ const EntryForm: React.FC<EntryFormProps> = ({
   clientStatus = 'active'
 }) => {
     
+    const confirm = useConfirmDialog();
+
     // --- STATE INITIALIZATION ---
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [formData, setFormData] = useState<FinancialRecord>(() => {
@@ -302,6 +305,18 @@ const EntryForm: React.FC<EntryFormProps> = ({
         }
     }, [formData.year, formData.month, existingRecords, clientId, defaultFuelObjectives]);
 
+    // --- M-1 AUTO-CORRECTION: if year is current and month is in the future, snap back ---
+    useEffect(() => {
+        const now = new Date();
+        if (formData.year === now.getFullYear()) {
+            const maxAllowedIndex = now.getMonth() - 1; // M-1
+            const currentIndex = MONTH_ORDER.indexOf(formData.month);
+            if (maxAllowedIndex >= 0 && currentIndex > maxAllowedIndex) {
+                setFormData(prev => ({ ...prev, month: MONTH_ORDER[maxAllowedIndex] }));
+            }
+        }
+    }, [formData.year]);
+
     // CHECK IF CLIENT IS INACTIVE
     const isClientInactive = clientStatus === 'inactive';
     const isLocked = userRole === 'client' && (formData.isValidated || formData.isSubmitted || isClientInactive);
@@ -310,6 +325,100 @@ const EntryForm: React.FC<EntryFormProps> = ({
     const comparisonRecord = useMemo(() => {
         return existingRecords.find(r => r.year === formData.year - 1 && r.month === formData.month);
     }, [existingRecords, formData.year, formData.month]);
+
+    // --- REPRENDRE M-1 LOGIC ---
+    const previousMonthRecord = useMemo(() => {
+        const currentMonthIdx = MONTH_ORDER.indexOf(formData.month);
+        let prevMonth: Month;
+        let prevYear: number;
+        if (currentMonthIdx === 0) {
+            prevMonth = MONTH_ORDER[11];
+            prevYear = formData.year - 1;
+        } else {
+            prevMonth = MONTH_ORDER[currentMonthIdx - 1];
+            prevYear = formData.year;
+        }
+        return existingRecords.find(r => r.year === prevYear && r.month === prevMonth) || null;
+    }, [existingRecords, formData.year, formData.month]);
+
+    const isFormEmpty = useMemo(() => {
+        return formData.revenue.total === 0 && formData.expenses.salaries === 0 && formData.cashFlow.treasury === 0;
+    }, [formData.revenue.total, formData.expenses.salaries, formData.cashFlow.treasury]);
+
+    // --- AUTO-SAVE BROUILLON (localStorage) ---
+    const draftKey = `draft-${clientId}-${formData.year}-${formData.month}`;
+    const [hasDraft, setHasDraft] = useState(false);
+    const [draftSaved, setDraftSaved] = useState(false);
+
+    // Restore draft on mount / month change (only for new entries)
+    useEffect(() => {
+        if (initialData || isLocked) return;
+        try {
+            const saved = localStorage.getItem(draftKey);
+            if (saved) {
+                setHasDraft(true);
+            }
+        } catch {}
+    }, [draftKey, initialData, isLocked]);
+
+    const handleRestoreDraft = () => {
+        try {
+            const saved = localStorage.getItem(draftKey);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                setFormData(prev => ({ ...prev, ...parsed, id: prev.id, clientId: prev.clientId, year: prev.year, month: prev.month }));
+                setHasDraft(false);
+            }
+        } catch {}
+    };
+
+    const handleDismissDraft = () => {
+        localStorage.removeItem(draftKey);
+        setHasDraft(false);
+    };
+
+    // Auto-save debounced (every 5 seconds of inactivity)
+    const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => {
+        if (isLocked || isFormEmpty) return;
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = setTimeout(() => {
+            try {
+                const { id, clientId, year, month, isValidated, isPublished, isSubmitted, ...saveable } = formData;
+                localStorage.setItem(draftKey, JSON.stringify(saveable));
+                setDraftSaved(true);
+                setTimeout(() => setDraftSaved(false), 2000);
+            } catch {}
+        }, 5000);
+        return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+    }, [formData, draftKey, isLocked, isFormEmpty]);
+
+    // Clean draft after successful save
+    const originalOnSave = onSave;
+    const wrappedOnSave = useCallback((record: FinancialRecord) => {
+        localStorage.removeItem(draftKey);
+        originalOnSave(record);
+    }, [draftKey, originalOnSave]);
+
+    const handleReprendreM1 = async () => {
+        if (!previousMonthRecord) return;
+        const ok = await confirm({
+            title: 'Reprendre les données M-1 ?',
+            message: `Les données de ${previousMonthRecord.month} ${previousMonthRecord.year} seront copiées comme point de départ. Vous pourrez les modifier ensuite.`,
+            variant: 'default',
+            confirmLabel: 'Reprendre'
+        });
+        if (!ok) return;
+        setFormData(prev => ({
+            ...prev,
+            revenue: { ...JSON.parse(JSON.stringify(previousMonthRecord.revenue)) },
+            margin: previousMonthRecord.margin ? { ...JSON.parse(JSON.stringify(previousMonthRecord.margin)) } : prev.margin,
+            expenses: { ...previousMonthRecord.expenses },
+            bfr: { ...JSON.parse(JSON.stringify(previousMonthRecord.bfr)) },
+            cashFlow: { ...previousMonthRecord.cashFlow },
+            fuel: previousMonthRecord.fuel ? { ...JSON.parse(JSON.stringify(previousMonthRecord.fuel)) } : prev.fuel,
+        }));
+    };
 
     const detailTotals = useMemo(() => {
         let totalCA = 0;
@@ -388,13 +497,13 @@ const EntryForm: React.FC<EntryFormProps> = ({
                     }));
                     
                     matched = true;
-                    alert(`Données importées pour ${csvMonth} ${csvYear} !`);
+                    confirm({ title: 'Import réussi', message: `Données importées pour ${csvMonth} ${csvYear}.`, variant: 'success', showCancel: false, confirmLabel: 'OK' });
                     break;
                 }
             }
 
             if (!matched) {
-                alert(`Aucune donnée trouvée dans le fichier pour ${formData.month} ${formData.year}.`);
+                confirm({ title: 'Aucune donnée', message: `Aucune donnée trouvée dans le fichier pour ${formData.month} ${formData.year}.`, variant: 'info', showCancel: false, confirmLabel: 'OK' });
             }
             if (fileInputRef.current) fileInputRef.current.value = '';
         };
@@ -495,7 +604,13 @@ const EntryForm: React.FC<EntryFormProps> = ({
                     </h2>
                     <p className="text-sm text-slate-500">Remplissez les informations mensuelles.</p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex items-center gap-3">
+                    {/* AUTO-SAVE INDICATOR */}
+                    {draftSaved && (
+                        <span className="text-[10px] text-slate-400 flex items-center gap-1 animate-in fade-in duration-200">
+                            <CheckCircle className="w-3 h-3 text-emerald-400" /> Brouillon sauvé
+                        </span>
+                    )}
                     {/* CSV IMPORT BUTTON */}
                     {!isLocked && (
                         <button 
@@ -510,14 +625,34 @@ const EntryForm: React.FC<EntryFormProps> = ({
                     <button onClick={onCancel} className="px-4 py-2 text-slate-600 hover:bg-white border border-transparent hover:border-slate-300 rounded-lg transition font-medium">
                         {isLocked ? 'Retour' : 'Annuler'}
                     </button>
-                    {!isLocked && (
-                        <button 
-                            onClick={() => {
-                                // CONFIRMATION AVANT ENREGISTREMENT
-                                if (window.confirm("Confirmez-vous l'enregistrement des données ?")) {
-                                    onSave(formData);
-                                }
-                            }} 
+                    {!isLocked && userRole === 'client' && !isAdminOverride && (
+                        <>
+                            <button
+                                onClick={async () => {
+                                    const draft = { ...formData, isSubmitted: false };
+                                    wrappedOnSave(draft);
+                                }}
+                                className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition flex items-center gap-2 font-medium shadow-sm"
+                            >
+                                <Save className="w-4 h-4" /> Sauvegarder
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    const ok = await confirm({ title: 'Soumettre au cabinet ?', message: `Vos données de ${formData.month} ${formData.year} seront transmises au consultant.\n\nUne fois soumises, vous ne pourrez plus les modifier sans l'accord du cabinet.`, variant: 'info', confirmLabel: 'Soumettre' });
+                                    if (ok) wrappedOnSave(formData);
+                                }}
+                                className="px-4 py-2 bg-brand-600 text-white rounded-lg shadow-md hover:bg-brand-700 hover:shadow-lg transition flex items-center gap-2 font-medium"
+                            >
+                                <Send className="w-4 h-4" /> Soumettre
+                            </button>
+                        </>
+                    )}
+                    {!isLocked && (userRole !== 'client' || isAdminOverride) && (
+                        <button
+                            onClick={async () => {
+                                const ok = await confirm({ title: 'Enregistrer les données ?', message: `Les données de ${formData.month} ${formData.year} seront sauvegardées.`, variant: 'success', confirmLabel: 'Enregistrer' });
+                                if (ok) wrappedOnSave(formData);
+                            }}
                             className={`px-4 py-2 text-white rounded-lg shadow-md hover:shadow-lg transition flex items-center gap-2 font-medium ${isAdminOverride ? 'bg-amber-600 hover:bg-amber-700' : 'bg-brand-600 hover:bg-brand-700'}`}
                         >
                             <Save className="w-4 h-4" /> {isAdminOverride ? 'Forcer l\'enregistrement' : 'Enregistrer'}
@@ -526,7 +661,29 @@ const EntryForm: React.FC<EntryFormProps> = ({
                 </div>
             </div>
 
-            {/* ... RESTE DU COMPOSANT (NON MODIFIÉ) ... */}
+            {/* PROGRESS BAR */}
+            {!isLocked && (
+                <div className="px-6 pt-3 pb-0 bg-slate-50/30 border-b border-slate-100 print:hidden">
+                    <div className="flex items-center gap-1 mb-2">
+                        {(() => {
+                            const totalSteps = 4 + (showFuelTracking ? 1 : 0);
+                            let filled = 0;
+                            if (formData.revenue.total > 0 || (formData.margin?.total || 0) > 0) filled++;
+                            if (showFuelTracking && (formData.fuel?.volume || 0) > 0) filled++;
+                            if (formData.expenses.salaries > 0 || formData.expenses.hoursWorked > 0) filled++;
+                            if (formData.bfr.receivables.total > 0 || formData.bfr.debts.total > 0 || formData.bfr.stock.total > 0) filled++;
+                            if (formData.cashFlow.active > 0 || formData.cashFlow.passive > 0) filled++;
+                            const labels = ['Activité', ...(showFuelTracking ? ['Carburant'] : []), 'Charges', 'BFR', 'Trésorerie'];
+                            return labels.map((label, i) => (
+                                <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+                                    <div className={`h-1.5 w-full rounded-full transition-colors ${i < filled ? 'bg-brand-500' : 'bg-slate-200'}`} />
+                                    <span className={`text-[9px] font-bold ${i < filled ? 'text-brand-600' : 'text-slate-300'}`}>{label}</span>
+                                </div>
+                            ));
+                        })()}
+                    </div>
+                </div>
+            )}
             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-slate-50/30">
                 {isClientInactive && userRole === 'client' && (
                      <div className="mb-6 bg-red-50 border border-red-200 text-red-800 px-4 py-4 rounded-lg flex items-center gap-4 shadow-sm">
@@ -539,11 +696,13 @@ const EntryForm: React.FC<EntryFormProps> = ({
                 )}
 
                 {isLocked && !isClientInactive && (
-                    <div className="mb-6 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-4 rounded-lg flex items-center gap-4 shadow-sm">
-                        <div className="p-2 bg-amber-100 rounded-full"><CheckCircle className="w-6 h-6 text-amber-600" /></div>
+                    <div className={`mb-6 px-4 py-4 rounded-lg flex items-center gap-4 shadow-sm ${formData.isValidated ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' : 'bg-amber-50 border border-amber-200 text-amber-800'}`}>
+                        <div className={`p-2 rounded-full ${formData.isValidated ? 'bg-emerald-100' : 'bg-amber-100'}`}><CheckCircle className={`w-6 h-6 ${formData.isValidated ? 'text-emerald-600' : 'text-amber-600'}`} /></div>
                         <div>
-                            <p className="font-bold text-lg">{formData.isValidated ? "Période Validée par le Cabinet" : "Saisie Transmise au Cabinet"}</p>
-                            <p className="text-sm opacity-90">{formData.isValidated ? "Ce rapport a été audité et validé. Il n'est plus modifiable." : "Vos chiffres ont été bien enregistrés. Ils sont figés en attente de validation par votre consultant."}</p>
+                            <p className="font-bold text-lg">{formData.isValidated ? "Rapport Validé" : "Saisie Transmise au Cabinet"}</p>
+                            <p className="text-sm opacity-90">{formData.isValidated
+                                ? "Ce rapport a été audité et validé par votre consultant. Les données sont définitives."
+                                : "Vos chiffres ont bien été transmis. Votre consultant les examinera sous 48h ouvrées. Vous serez notifié quand l'analyse sera publiée."}</p>
                         </div>
                     </div>
                 )}
@@ -558,6 +717,27 @@ const EntryForm: React.FC<EntryFormProps> = ({
                     </div>
                 )}
 
+                {/* DRAFT RESTORE BANNER */}
+                {hasDraft && !initialData && (
+                    <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between animate-in slide-in-from-top-2 duration-200">
+                        <div className="flex items-center gap-3">
+                            <History className="w-5 h-5 text-amber-600" />
+                            <div>
+                                <p className="text-sm font-bold text-amber-800">Brouillon disponible</p>
+                                <p className="text-xs text-amber-600">Une saisie en cours a été sauvegardée automatiquement.</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={handleRestoreDraft} className="px-3 py-1.5 bg-amber-600 text-white text-xs font-bold rounded-lg hover:bg-amber-700 transition">
+                                Restaurer
+                            </button>
+                            <button onClick={handleDismissDraft} className="px-3 py-1.5 bg-white border border-amber-200 text-amber-700 text-xs font-bold rounded-lg hover:bg-amber-100 transition">
+                                Ignorer
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 <SectionCard className="mb-6 border-l-4 border-l-brand-500">
                     <div className="grid grid-cols-2 gap-6">
                         <div>
@@ -565,7 +745,12 @@ const EntryForm: React.FC<EntryFormProps> = ({
                             <div className="relative">
                                 <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
                                 <select value={formData.month} onChange={(e) => setFormData({...formData, month: e.target.value as Month})} disabled={isLocked} className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 bg-white font-bold text-slate-700 focus:ring-2 focus:ring-brand-500 disabled:bg-slate-100 disabled:text-slate-500">
-                                    {MONTH_ORDER.map(m => <option key={m} value={m}>{m}</option>)}
+                                    {MONTH_ORDER.map((m, idx) => {
+                                        const now = new Date();
+                                        const isFutureMonth = formData.year === now.getFullYear() && idx >= now.getMonth();
+                                        const isFutureYear = formData.year > now.getFullYear();
+                                        return <option key={m} value={m} disabled={isFutureMonth || isFutureYear}>{m}{isFutureMonth ? ' (non cloture)' : ''}</option>;
+                                    })}
                                 </select>
                             </div>
                         </div>
@@ -576,6 +761,22 @@ const EntryForm: React.FC<EntryFormProps> = ({
                             </select>
                         </div>
                     </div>
+                    {/* Bouton Reprendre M-1 */}
+                    {!isLocked && isFormEmpty && previousMonthRecord && !initialData && (
+                        <div className="mt-4 flex items-center gap-3 p-3 bg-brand-50 rounded-lg border border-brand-200">
+                            <RotateCcw className="w-4 h-4 text-brand-600 shrink-0" />
+                            <span className="text-sm text-brand-700 flex-1">
+                                Données disponibles pour <strong>{previousMonthRecord.month} {previousMonthRecord.year}</strong>
+                            </span>
+                            <button
+                                type="button"
+                                onClick={handleReprendreM1}
+                                className="px-3 py-1.5 bg-brand-600 text-white text-xs font-bold rounded-lg hover:bg-brand-700 transition whitespace-nowrap"
+                            >
+                                Reprendre M-1
+                            </button>
+                        </div>
+                    )}
                 </SectionCard>
 
                 <div className="space-y-6">

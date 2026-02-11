@@ -19,8 +19,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
 
-  // Email de l'expert (Admin Suprême) - Backdoor de sécurité ultime
-  const EXPERT_EMAIL = "admin@ab-consultants.fr";
+  // Email de l'expert (Super Admin) - doit correspondre à AuthContext.tsx
+  const EXPERT_EMAIL = "nice.guillaume@gmail.com";
 
   const handleAuthAction = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,9 +108,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         if (err.message === 'CONSULTANT_NOT_AUTHORIZED') {
             setError("ACCÈS REFUSÉ : Email non reconnu dans l'équipe Consultant.");
         } else if (err.message === 'CLIENT_NOT_FOUND') {
-            setError(isSignUp 
-                ? "ACTIVATION IMPOSSIBLE : Votre dossier n'est pas encore créé par le cabinet. Contactez votre consultant." 
-                : "ACCÈS REFUSÉ : Aucun dossier client actif associé à cet email.");
+            setError(isSignUp
+                ? "ACTIVATION IMPOSSIBLE : Votre dossier n'est pas encore créé par le cabinet.\n\nContactez AB Consultants : contact@ab-consultants.fr"
+                : "ACCÈS REFUSÉ : Aucun dossier client actif associé à cet email.\n\nSi vous pensez que c'est une erreur, contactez votre consultant ou écrivez à contact@ab-consultants.fr");
         } else if (err.message === 'WRONG_PORTAL_CONSULTANT') {
             setError("IDENTIFICATION CONSULTANT : Veuillez utiliser l'onglet 'Espace Consultant'.");
         } else if (err.message === 'EMAIL_TAKEN') {
@@ -232,7 +232,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                             required
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            placeholder={activeTab === 'client' ? "email@societe.com" : EXPERT_EMAIL}
+                            placeholder={activeTab === 'client' ? "email@societe.com" : "consultant@ab-consultants.fr"}
                             className="w-full pl-10 pr-4 py-3 rounded-lg border border-brand-200 bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all placeholder-brand-300 text-brand-900"
                         />
                     </div>
@@ -261,8 +261,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
 
                 {error && (
                     <div className="p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-lg flex items-start gap-2 animate-in slide-in-from-top-1">
-                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /> 
-                        <span className="leading-tight">{error}</span>
+                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                        <span className="leading-tight whitespace-pre-line">{error}</span>
                     </div>
                 )}
 

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Menu, X, UserCircle, CheckCircle, Eye, EyeOff, Users, Plus, Edit2, Trash2, Search, Briefcase, Phone, Mail, MapPin, Archive, Send, Power, Loader2, UserPlus, Crown, ShieldCheck } from 'lucide-react';
+import { Menu, X, UserCircle, CheckCircle, Eye, EyeOff, Users, Plus, Edit2, Trash2, Search, Briefcase, Phone, Mail, MapPin, Archive, Send, Power, Loader2, UserPlus, Crown, ShieldCheck, ChevronRight, Home } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import EntryForm from './components/EntryForm';
 import LoginScreen from './components/LoginScreen'; 
@@ -389,7 +389,43 @@ const App: React.FC = () => {
          </div>
          
          <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24 lg:pb-8">
-            
+
+            {/* BREADCRUMB NAVIGATION */}
+            {!isPresentationMode && (
+              <nav className="flex items-center gap-1.5 text-xs text-slate-400 mb-4 print:hidden">
+                <button
+                  onClick={() => { setSelectedClient(null); setCurrentView(View.Dashboard); }}
+                  className="hover:text-brand-600 transition flex items-center gap-1"
+                >
+                  <Home className="w-3 h-3" /> Accueil
+                </button>
+                {selectedClient && (
+                  <>
+                    <ChevronRight className="w-3 h-3" />
+                    <button
+                      onClick={() => setCurrentView(View.Dashboard)}
+                      className="hover:text-brand-600 transition font-medium text-slate-500"
+                    >
+                      {selectedClient.companyName}
+                    </button>
+                  </>
+                )}
+                {currentView !== View.Dashboard && (
+                  <>
+                    <ChevronRight className="w-3 h-3" />
+                    <span className="font-bold text-slate-600">
+                      {currentView === View.Entry ? (editingRecord ? 'Modification' : 'Nouvelle saisie') :
+                       currentView === View.History ? 'Historique' :
+                       currentView === View.Settings ? 'Paramètres' :
+                       currentView === View.Messages ? 'Messagerie' :
+                       currentView === View.Team ? 'Équipe' :
+                       currentView === View.Clients ? 'Clients' : ''}
+                    </span>
+                  </>
+                )}
+              </nav>
+            )}
+
             {/* VUE 1 : DASHBOARD CLIENT INDIVIDUEL */}
             {currentView === View.Dashboard && selectedClient && (
                 <Dashboard data={dashboardData} client={selectedClient} userRole={userRole} onSaveComment={handleSaveRecord} isPresentationMode={isPresentationMode} onTogglePresentation={() => setIsPresentationMode(p => !p)}/>

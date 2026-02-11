@@ -556,6 +556,25 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
   };
 
 
+  // --- CUMULATIVE CA vs OBJECTIF ---
+  const cumulativeData = useMemo(() => {
+    let cumulCA = 0;
+    let cumulObj = 0;
+    let cumulCA_N1 = 0;
+    return chartData.map(d => {
+      cumulCA += (d.CA || 0);
+      cumulObj += (d.Objectif || 0);
+      cumulCA_N1 += (d.CA_N1 || 0);
+      return {
+        name: d.name,
+        fullMonth: d.fullMonth,
+        CA_Cumul: cumulCA,
+        Objectif_Cumul: cumulObj,
+        CA_N1_Cumul: cumulCA_N1,
+      };
+    });
+  }, [chartData]);
+
   // BFR stacked chart data (evolution créances / stocks / dettes)
   const bfrStackedData = useMemo(() => {
     return chartData.map(d => ({
@@ -835,6 +854,47 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
             </div>
          </div>
       </div>
+
+      {/* ============================================= */}
+      {/* ROW 1.5: CA Cumulé vs Objectif Cumulé         */}
+      {/* ============================================= */}
+      {kpis.objective > 0 && (
+        <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2">
+              <Target className="w-4 h-4 text-amber-500" />
+              Progression Cumulée CA vs Objectif
+            </h3>
+            <div className="flex items-center gap-3 text-[10px]">
+              <span className="flex items-center gap-1"><div className="w-2 h-2 bg-brand-600 rounded-full"></div> CA cumulé</span>
+              <span className="flex items-center gap-1"><div className="w-2 h-0.5 bg-amber-500"></div> Objectif cumulé</span>
+              <span className="flex items-center gap-1"><div className="w-2 h-2 bg-slate-300 rounded-full"></div> CA N-1 cumulé</span>
+            </div>
+          </div>
+          <div className="h-[250px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={cumulativeData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} dy={5} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(val: any) => { const v = Number(val); return !isNaN(v) && v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(val); }} />
+                <Tooltip formatter={(value: any, name: string) => {
+                  const labels: Record<string, string> = { CA_Cumul: 'CA Cumulé', Objectif_Cumul: 'Objectif Cumulé', CA_N1_Cumul: 'CA N-1 Cumulé' };
+                  return [formatCurrency(Number(value)), labels[name] || name];
+                }} />
+                <defs>
+                  <linearGradient id="colorCACumul" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#0f172a" stopOpacity={0.15}/>
+                    <stop offset="95%" stopColor="#0f172a" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <Area type="monotone" dataKey="CA_Cumul" fill="url(#colorCACumul)" stroke="#0f172a" strokeWidth={2.5} dot={{ r: 3, fill: '#0f172a' }} name="CA_Cumul" />
+                <Line type="monotone" dataKey="Objectif_Cumul" stroke="#f59e0b" strokeWidth={2} dot={false} strokeDasharray="6 3" name="Objectif_Cumul" />
+                <Line type="monotone" dataKey="CA_N1_Cumul" stroke="#94a3b8" strokeWidth={1.5} dot={false} strokeDasharray="4 4" name="CA_N1_Cumul" />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       {/* ============================================= */}
       {/* ROW 2: BFR Evolution + Repartition BFR        */}

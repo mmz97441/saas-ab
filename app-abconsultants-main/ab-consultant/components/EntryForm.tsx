@@ -1,7 +1,7 @@
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { FinancialRecord, Month, ProfitCenter } from '../types';
-import { Save, Lock, Calendar, HelpCircle, ArrowUpCircle, ArrowDownCircle, Wallet, TrendingUp, TrendingDown, Landmark, ShoppingBag, Target, PieChart, Droplets, Users, Clock, Calculator, Scale, Briefcase, ArrowRight, Truck, Percent, Sigma, CheckCircle, History, AlertTriangle, ShieldAlert, Upload, FileText } from 'lucide-react';
+import { Save, Lock, Calendar, HelpCircle, ArrowUpCircle, ArrowDownCircle, Wallet, TrendingUp, TrendingDown, Landmark, ShoppingBag, Target, PieChart, Droplets, Users, Clock, Calculator, Scale, Briefcase, ArrowRight, Truck, Percent, Sigma, CheckCircle, History, AlertTriangle, ShieldAlert, Upload, FileText, RotateCcw } from 'lucide-react';
 import { MONTH_ORDER } from '../services/dataService';
 import { useConfirmDialog } from '../contexts/ConfirmContext';
 
@@ -326,6 +326,100 @@ const EntryForm: React.FC<EntryFormProps> = ({
         return existingRecords.find(r => r.year === formData.year - 1 && r.month === formData.month);
     }, [existingRecords, formData.year, formData.month]);
 
+    // --- REPRENDRE M-1 LOGIC ---
+    const previousMonthRecord = useMemo(() => {
+        const currentMonthIdx = MONTH_ORDER.indexOf(formData.month);
+        let prevMonth: Month;
+        let prevYear: number;
+        if (currentMonthIdx === 0) {
+            prevMonth = MONTH_ORDER[11];
+            prevYear = formData.year - 1;
+        } else {
+            prevMonth = MONTH_ORDER[currentMonthIdx - 1];
+            prevYear = formData.year;
+        }
+        return existingRecords.find(r => r.year === prevYear && r.month === prevMonth) || null;
+    }, [existingRecords, formData.year, formData.month]);
+
+    const isFormEmpty = useMemo(() => {
+        return formData.revenue.total === 0 && formData.expenses.salaries === 0 && formData.cashFlow.treasury === 0;
+    }, [formData.revenue.total, formData.expenses.salaries, formData.cashFlow.treasury]);
+
+    // --- AUTO-SAVE BROUILLON (localStorage) ---
+    const draftKey = `draft-${clientId}-${formData.year}-${formData.month}`;
+    const [hasDraft, setHasDraft] = useState(false);
+    const [draftSaved, setDraftSaved] = useState(false);
+
+    // Restore draft on mount / month change (only for new entries)
+    useEffect(() => {
+        if (initialData || isLocked) return;
+        try {
+            const saved = localStorage.getItem(draftKey);
+            if (saved) {
+                setHasDraft(true);
+            }
+        } catch {}
+    }, [draftKey, initialData, isLocked]);
+
+    const handleRestoreDraft = () => {
+        try {
+            const saved = localStorage.getItem(draftKey);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                setFormData(prev => ({ ...prev, ...parsed, id: prev.id, clientId: prev.clientId, year: prev.year, month: prev.month }));
+                setHasDraft(false);
+            }
+        } catch {}
+    };
+
+    const handleDismissDraft = () => {
+        localStorage.removeItem(draftKey);
+        setHasDraft(false);
+    };
+
+    // Auto-save debounced (every 5 seconds of inactivity)
+    const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => {
+        if (isLocked || isFormEmpty) return;
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = setTimeout(() => {
+            try {
+                const { id, clientId, year, month, isValidated, isPublished, isSubmitted, ...saveable } = formData;
+                localStorage.setItem(draftKey, JSON.stringify(saveable));
+                setDraftSaved(true);
+                setTimeout(() => setDraftSaved(false), 2000);
+            } catch {}
+        }, 5000);
+        return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+    }, [formData, draftKey, isLocked, isFormEmpty]);
+
+    // Clean draft after successful save
+    const originalOnSave = onSave;
+    const wrappedOnSave = useCallback((record: FinancialRecord) => {
+        localStorage.removeItem(draftKey);
+        originalOnSave(record);
+    }, [draftKey, originalOnSave]);
+
+    const handleReprendreM1 = async () => {
+        if (!previousMonthRecord) return;
+        const ok = await confirm({
+            title: 'Reprendre les données M-1 ?',
+            message: `Les données de ${previousMonthRecord.month} ${previousMonthRecord.year} seront copiées comme point de départ. Vous pourrez les modifier ensuite.`,
+            variant: 'default',
+            confirmLabel: 'Reprendre'
+        });
+        if (!ok) return;
+        setFormData(prev => ({
+            ...prev,
+            revenue: { ...JSON.parse(JSON.stringify(previousMonthRecord.revenue)) },
+            margin: previousMonthRecord.margin ? { ...JSON.parse(JSON.stringify(previousMonthRecord.margin)) } : prev.margin,
+            expenses: { ...previousMonthRecord.expenses },
+            bfr: { ...JSON.parse(JSON.stringify(previousMonthRecord.bfr)) },
+            cashFlow: { ...previousMonthRecord.cashFlow },
+            fuel: previousMonthRecord.fuel ? { ...JSON.parse(JSON.stringify(previousMonthRecord.fuel)) } : prev.fuel,
+        }));
+    };
+
     const detailTotals = useMemo(() => {
         let totalCA = 0;
         let totalMargin = 0;
@@ -510,7 +604,13 @@ const EntryForm: React.FC<EntryFormProps> = ({
                     </h2>
                     <p className="text-sm text-slate-500">Remplissez les informations mensuelles.</p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex items-center gap-3">
+                    {/* AUTO-SAVE INDICATOR */}
+                    {draftSaved && (
+                        <span className="text-[10px] text-slate-400 flex items-center gap-1 animate-in fade-in duration-200">
+                            <CheckCircle className="w-3 h-3 text-emerald-400" /> Brouillon sauvé
+                        </span>
+                    )}
                     {/* CSV IMPORT BUTTON */}
                     {!isLocked && (
                         <button 
@@ -529,7 +629,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                         <button
                             onClick={async () => {
                                 const ok = await confirm({ title: 'Enregistrer les données ?', message: `Les données de ${formData.month} ${formData.year} seront sauvegardées.`, variant: 'success', confirmLabel: 'Enregistrer' });
-                                if (ok) onSave(formData);
+                                if (ok) wrappedOnSave(formData);
                             }} 
                             className={`px-4 py-2 text-white rounded-lg shadow-md hover:shadow-lg transition flex items-center gap-2 font-medium ${isAdminOverride ? 'bg-amber-600 hover:bg-amber-700' : 'bg-brand-600 hover:bg-brand-700'}`}
                         >
@@ -571,6 +671,27 @@ const EntryForm: React.FC<EntryFormProps> = ({
                     </div>
                 )}
 
+                {/* DRAFT RESTORE BANNER */}
+                {hasDraft && !initialData && (
+                    <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between animate-in slide-in-from-top-2 duration-200">
+                        <div className="flex items-center gap-3">
+                            <History className="w-5 h-5 text-amber-600" />
+                            <div>
+                                <p className="text-sm font-bold text-amber-800">Brouillon disponible</p>
+                                <p className="text-xs text-amber-600">Une saisie en cours a été sauvegardée automatiquement.</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={handleRestoreDraft} className="px-3 py-1.5 bg-amber-600 text-white text-xs font-bold rounded-lg hover:bg-amber-700 transition">
+                                Restaurer
+                            </button>
+                            <button onClick={handleDismissDraft} className="px-3 py-1.5 bg-white border border-amber-200 text-amber-700 text-xs font-bold rounded-lg hover:bg-amber-100 transition">
+                                Ignorer
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 <SectionCard className="mb-6 border-l-4 border-l-brand-500">
                     <div className="grid grid-cols-2 gap-6">
                         <div>
@@ -594,6 +715,22 @@ const EntryForm: React.FC<EntryFormProps> = ({
                             </select>
                         </div>
                     </div>
+                    {/* Bouton Reprendre M-1 */}
+                    {!isLocked && isFormEmpty && previousMonthRecord && !initialData && (
+                        <div className="mt-4 flex items-center gap-3 p-3 bg-brand-50 rounded-lg border border-brand-200">
+                            <RotateCcw className="w-4 h-4 text-brand-600 shrink-0" />
+                            <span className="text-sm text-brand-700 flex-1">
+                                Données disponibles pour <strong>{previousMonthRecord.month} {previousMonthRecord.year}</strong>
+                            </span>
+                            <button
+                                type="button"
+                                onClick={handleReprendreM1}
+                                className="px-3 py-1.5 bg-brand-600 text-white text-xs font-bold rounded-lg hover:bg-brand-700 transition whitespace-nowrap"
+                            >
+                                Reprendre M-1
+                            </button>
+                        </div>
+                    )}
                 </SectionCard>
 
                 <div className="space-y-6">

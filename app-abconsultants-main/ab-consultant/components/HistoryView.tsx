@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
-import { Database, Plus, Download, CheckCircle, Clock, Edit2, ShieldCheck, Unlock, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { Database, Plus, Download, CheckCircle, Clock, Edit2, ShieldCheck, Unlock, Eye, EyeOff, Trash2, CheckSquare, Square } from 'lucide-react';
 import { FinancialRecord, Month } from '../types';
 import { toShortMonth, MONTH_ORDER } from '../services/dataService';
 import { useConfirmDialog } from '../contexts/ConfirmContext';
@@ -15,6 +15,8 @@ interface HistoryViewProps {
     onValidate: (record: FinancialRecord) => void;
     onPublish: (record: FinancialRecord) => void;
     onLockToggle: (record: FinancialRecord) => void;
+    onBulkValidate?: (records: FinancialRecord[]) => void;
+    onBulkPublish?: (records: FinancialRecord[]) => void;
 }
 
 const HistoryView: React.FC<HistoryViewProps> = ({
@@ -26,9 +28,12 @@ const HistoryView: React.FC<HistoryViewProps> = ({
     onDelete,
     onValidate,
     onPublish,
-    onLockToggle
+    onLockToggle,
+    onBulkValidate,
+    onBulkPublish
 }) => {
     const [historyYearFilter, setHistoryYearFilter] = useState<number | 'ALL'>('ALL');
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const confirm = useConfirmDialog();
 
     // 1. Get Available Years
@@ -48,6 +53,61 @@ const HistoryView: React.FC<HistoryViewProps> = ({
             return MONTH_ORDER.indexOf(b.month) - MONTH_ORDER.indexOf(a.month);
         });
     }, [data, historyYearFilter]);
+
+    // --- BULK SELECTION ---
+    const toggleSelect = (id: string) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.size === filteredHistoryData.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(filteredHistoryData.map(r => r.id)));
+        }
+    };
+
+    const selectedRecords = useMemo(() => filteredHistoryData.filter(r => selectedIds.has(r.id)), [filteredHistoryData, selectedIds]);
+
+    const handleBulkValidate = async () => {
+        const toValidate = selectedRecords.filter(r => !r.isValidated);
+        if (toValidate.length === 0) return;
+        const ok = await confirm({
+            title: `Valider ${toValidate.length} rapport(s) ?`,
+            message: 'Les rapports sélectionnés seront marqués comme validés.',
+            variant: 'success',
+            confirmLabel: 'Tout valider',
+        });
+        if (!ok) return;
+        if (onBulkValidate) {
+            onBulkValidate(toValidate);
+        } else {
+            for (const r of toValidate) onValidate(r);
+        }
+        setSelectedIds(new Set());
+    };
+
+    const handleBulkPublish = async () => {
+        const toPublish = selectedRecords.filter(r => !r.isPublished);
+        if (toPublish.length === 0) return;
+        const ok = await confirm({
+            title: `Publier ${toPublish.length} rapport(s) ?`,
+            message: 'Les rapports sélectionnés seront visibles pour le client.',
+            variant: 'info',
+            confirmLabel: 'Tout publier',
+        });
+        if (!ok) return;
+        if (onBulkPublish) {
+            onBulkPublish(toPublish);
+        } else {
+            for (const r of toPublish) onPublish(r);
+        }
+        setSelectedIds(new Set());
+    };
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -91,11 +151,39 @@ const HistoryView: React.FC<HistoryViewProps> = ({
                 ))}
             </div>
 
+            {/* BULK ACTION BAR */}
+            {userRole === 'ab_consultant' && selectedIds.size > 0 && (
+                <div className="bg-brand-900 text-white p-3 rounded-xl flex items-center justify-between shadow-md animate-in slide-in-from-top-2 duration-200">
+                    <span className="text-sm font-bold">{selectedIds.size} rapport(s) sélectionné(s)</span>
+                    <div className="flex gap-2">
+                        <button onClick={handleBulkValidate} className="px-3 py-1.5 bg-emerald-500 text-white text-xs font-bold rounded-lg hover:bg-emerald-600 transition flex items-center gap-1">
+                            <ShieldCheck className="w-3.5 h-3.5" /> Valider tout
+                        </button>
+                        <button onClick={handleBulkPublish} className="px-3 py-1.5 bg-blue-500 text-white text-xs font-bold rounded-lg hover:bg-blue-600 transition flex items-center gap-1">
+                            <Eye className="w-3.5 h-3.5" /> Publier tout
+                        </button>
+                        <button onClick={() => setSelectedIds(new Set())} className="px-3 py-1.5 bg-white/20 text-white text-xs font-bold rounded-lg hover:bg-white/30 transition">
+                            Annuler
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-bold">
+                                {userRole === 'ab_consultant' && (
+                                    <th className="p-4 w-10">
+                                        <button onClick={toggleSelectAll} className="text-slate-400 hover:text-brand-600 transition">
+                                            {selectedIds.size === filteredHistoryData.length && filteredHistoryData.length > 0
+                                                ? <CheckSquare className="w-4 h-4 text-brand-600" />
+                                                : <Square className="w-4 h-4" />
+                                            }
+                                        </button>
+                                    </th>
+                                )}
                                 <th className="p-4">Période</th>
                                 <th className="p-4 text-right">Chiffre d'Affaires</th>
                                 <th className="p-4 text-right">Résultat / Trésorerie</th>
@@ -106,7 +194,17 @@ const HistoryView: React.FC<HistoryViewProps> = ({
                         <tbody className="text-sm">
                             {filteredHistoryData.length > 0 ? (
                                 filteredHistoryData.map((record) => (
-                                    <tr key={record.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors group">
+                                    <tr key={record.id} className={`border-b border-slate-100 hover:bg-slate-50/50 transition-colors group ${selectedIds.has(record.id) ? 'bg-brand-50/50' : ''}`}>
+                                        {userRole === 'ab_consultant' && (
+                                            <td className="p-4 w-10">
+                                                <button onClick={() => toggleSelect(record.id)} className="text-slate-300 hover:text-brand-600 transition">
+                                                    {selectedIds.has(record.id)
+                                                        ? <CheckSquare className="w-4 h-4 text-brand-600" />
+                                                        : <Square className="w-4 h-4" />
+                                                    }
+                                                </button>
+                                            </td>
+                                        )}
                                         <td className="p-4 font-medium text-slate-900 flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-lg bg-brand-50 text-brand-600 flex flex-col items-center justify-center border border-brand-100">
                                                 <span className="text-xs font-bold leading-none">{toShortMonth(record.month)}</span>
@@ -222,7 +320,7 @@ const HistoryView: React.FC<HistoryViewProps> = ({
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={5} className="p-8 text-center text-slate-400 italic">
+                                    <td colSpan={userRole === 'ab_consultant' ? 6 : 5} className="p-8 text-center text-slate-400 italic">
                                         Aucune donnée disponible pour les filtres sélectionnés.
                                     </td>
                                 </tr>

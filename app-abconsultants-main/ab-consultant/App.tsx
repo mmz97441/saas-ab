@@ -316,12 +316,20 @@ const App: React.FC = () => {
 
   const dashboardData = useMemo(() => userRole === 'client' ? data.filter(r => r.isPublished) : data, [data, userRole]);
 
-  // Track new published data for client
+  // Track new published data for client (only after initial load)
   const prevPublishedCountRef = useRef<number | null>(null);
   useEffect(() => {
-    if (userRole !== 'client') return;
+    if (userRole !== 'client' || data.length === 0) return;
+
     const publishedCount = data.filter(r => r.isPublished).length;
-    if (prevPublishedCountRef.current !== null && publishedCount > prevPublishedCountRef.current) {
+
+    // First real data load — record baseline count, no banner
+    if (prevPublishedCountRef.current === null) {
+      prevPublishedCountRef.current = publishedCount;
+      return;
+    }
+
+    if (publishedCount > prevPublishedCountRef.current) {
       setNewDataBanner(true);
       setTimeout(() => setNewDataBanner(false), 10000);
     }

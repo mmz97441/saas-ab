@@ -196,6 +196,27 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
     return displayData.length > 0 ? displayData[displayData.length - 1] : null;
   }, [displayData]);
 
+  // Financial Ratios (based on snapshot record — last month of displayed period)
+  const ratios = useMemo(() => {
+    if (!snapshotRecord) return null;
+
+    const ca = snapshotRecord.revenue.total;
+    const margin = snapshotRecord.margin?.total || 0;
+    const achats = Math.max(ca - margin, 0);
+    const salaries = snapshotRecord.expenses.salaries;
+    const hours = snapshotRecord.expenses.hoursWorked;
+
+    const dso = ca > 0 ? (snapshotRecord.bfr.receivables.clients / ca) * 30 : 0;
+    const dpo = achats > 0 ? (snapshotRecord.bfr.debts.suppliers / achats) * 30 : 0;
+    const dio = achats > 0 ? (snapshotRecord.bfr.stock.total / achats) * 30 : 0;
+    const bfrDays = dso + dio - dpo;
+    const salaryRatio = ca > 0 ? (salaries / ca) * 100 : 0;
+    const productivityPerHour = hours > 0 ? ca / hours : 0;
+    const costPerHour = hours > 0 ? salaries / hours : 0;
+
+    return { dso, dpo, dio, bfrDays, salaryRatio, productivityPerHour, costPerHour };
+  }, [snapshotRecord]);
+
   useEffect(() => {
       setCommentText(snapshotRecord?.expertComment || '');
   }, [snapshotRecord]);
@@ -616,6 +637,41 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
     }));
   }, [chartData]);
 
+  // Profit Center Trends (evolution per activity across months)
+  const profitCenterTrendsData = useMemo(() => {
+    if (!client.profitCenters || client.profitCenters.length === 0) return [];
+
+    return chartData.map(d => {
+      const record = data.find(r => r.year === selectedYear && r.month === d.fullMonth);
+      const entry: Record<string, any> = { name: d.name, fullMonth: d.fullMonth };
+
+      client.profitCenters!.forEach(pc => {
+        entry[pc.name] = record?.revenue.breakdown?.[pc.id] || 0;
+      });
+      return entry;
+    });
+  }, [chartData, data, selectedYear, client.profitCenters]);
+
+  // Ratios Evolution Chart Data (DSO / DPO / BFR jours over months)
+  const ratiosChartData = useMemo(() => {
+    return chartData.map(d => {
+      const record = data.find(r => r.year === selectedYear && r.month === d.fullMonth);
+      if (!record) return { name: d.name, fullMonth: d.fullMonth, DSO: null, DPO: null, DIO: null, BFR_Jours: null, Masse_Sal: null };
+
+      const ca = record.revenue.total;
+      const margin = record.margin?.total || 0;
+      const achats = Math.max(ca - margin, 0);
+
+      const dso = ca > 0 ? (record.bfr.receivables.clients / ca) * 30 : null;
+      const dpo = achats > 0 ? (record.bfr.debts.suppliers / achats) * 30 : null;
+      const dio = achats > 0 ? (record.bfr.stock.total / achats) * 30 : null;
+      const bfrDays = (dso !== null && dpo !== null && dio !== null) ? dso + dio - dpo : null;
+      const masseSal = ca > 0 ? (record.expenses.salaries / ca) * 100 : null;
+
+      return { name: d.name, fullMonth: d.fullMonth, DSO: dso, DPO: dpo, DIO: dio, BFR_Jours: bfrDays, Masse_Sal: masseSal };
+    });
+  }, [chartData, data, selectedYear]);
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
 
@@ -842,6 +898,183 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
       </div>
 
       {/* ============================================= */}
+      {/* FINANCIAL RATIOS PANEL                        */}
+      {/* ============================================= */}
+      {ratios && (
+        <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-indigo-600" />
+              Ratios Financiers
+            </h3>
+            {snapshotRecord && (
+              <span className="text-[10px] text-slate-400 font-bold bg-slate-50 px-2 py-1 rounded">
+                {snapshotRecord.month} {snapshotRecord.year}
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+            <div className="bg-slate-50 rounded-lg p-3 text-center" title="Days Sales Outstanding — Délai moyen d'encaissement clients">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1">DSO</p>
+              <p className="text-lg font-bold text-cyan-700">{ratios.dso.toFixed(0)}<span className="text-xs font-normal text-slate-400"> j</span></p>
+              <p className="text-[9px] text-slate-400 mt-0.5">Délai encaissement</p>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-3 text-center" title="Days Payable Outstanding — Délai moyen de paiement fournisseurs">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1">DPO</p>
+              <p className="text-lg font-bold text-rose-700">{ratios.dpo.toFixed(0)}<span className="text-xs font-normal text-slate-400"> j</span></p>
+              <p className="text-[9px] text-slate-400 mt-0.5">Délai paiement</p>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-3 text-center" title="Days Inventory Outstanding — Durée moyenne de rotation des stocks">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1">DIO</p>
+              <p className="text-lg font-bold text-amber-700">{ratios.dio.toFixed(0)}<span className="text-xs font-normal text-slate-400"> j</span></p>
+              <p className="text-[9px] text-slate-400 mt-0.5">Rotation stock</p>
+            </div>
+            <div className={`rounded-lg p-3 text-center ${ratios.bfrDays > 60 ? 'bg-red-50' : 'bg-slate-50'}`} title="BFR exprimé en jours de CA — DSO + DIO - DPO">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1">BFR</p>
+              <p className={`text-lg font-bold ${ratios.bfrDays > 60 ? 'text-red-700' : 'text-brand-700'}`}>{ratios.bfrDays.toFixed(0)}<span className="text-xs font-normal text-slate-400"> j</span></p>
+              <p className="text-[9px] text-slate-400 mt-0.5">en jours de CA</p>
+            </div>
+            <div className={`rounded-lg p-3 text-center ${ratios.salaryRatio > 50 ? 'bg-red-50' : 'bg-slate-50'}`} title="Masse salariale rapportée au chiffre d'affaires">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1">Masse Sal.</p>
+              <p className={`text-lg font-bold ${ratios.salaryRatio > 50 ? 'text-red-700' : 'text-purple-700'}`}>{ratios.salaryRatio.toFixed(1)}<span className="text-xs font-normal text-slate-400">%</span></p>
+              <p className="text-[9px] text-slate-400 mt-0.5">du CA</p>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-3 text-center" title="Chiffre d'affaires généré par heure travaillée">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1">CA / Heure</p>
+              <p className="text-lg font-bold text-emerald-700">{ratios.productivityPerHour.toFixed(0)}<span className="text-xs font-normal text-slate-400"> €</span></p>
+              <p className="text-[9px] text-slate-400 mt-0.5">Productivité</p>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-3 text-center" title="Coût salarial par heure travaillée">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1">Coût / h</p>
+              <p className="text-lg font-bold text-orange-700">{ratios.costPerHour.toFixed(0)}<span className="text-xs font-normal text-slate-400"> €</span></p>
+              <p className="text-[9px] text-slate-400 mt-0.5">Masse sal.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================= */}
+      {/* MONTHLY DETAIL PANEL (when 1 month selected)  */}
+      {/* ============================================= */}
+      {selectedMonths.length === 1 && snapshotRecord && (() => {
+        const prevYearRecord = data.find(d => d.year === selectedYear - 1 && d.month === selectedMonths[0]);
+        return (
+          <div className="bg-gradient-to-br from-brand-50 to-white p-5 rounded-xl shadow-sm border border-brand-200">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-brand-600" />
+                Fiche Mensuelle — {snapshotRecord.month} {snapshotRecord.year}
+              </h3>
+              <button onClick={() => applyPreset('ALL')} className="text-[10px] text-brand-500 hover:text-brand-700 font-bold">
+                Voir l'année complète
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Column 1: Activité */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 pb-1">Activité</h4>
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between"><span className="text-slate-500">CA HT</span><span className="font-bold">{formatCurrency(snapshotRecord.revenue.total)}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Objectif</span><span className="font-bold">{formatCurrency(snapshotRecord.revenue.objective)}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Performance</span><span className={`font-bold ${snapshotRecord.revenue.objective > 0 && snapshotRecord.revenue.total >= snapshotRecord.revenue.objective ? 'text-emerald-600' : 'text-amber-600'}`}>{snapshotRecord.revenue.objective > 0 ? ((snapshotRecord.revenue.total / snapshotRecord.revenue.objective) * 100).toFixed(1) : '-'}%</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Marge brute</span><span className="font-bold">{formatCurrency(snapshotRecord.margin?.total || 0)}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Taux marge</span><span className="font-bold">{(snapshotRecord.margin?.rate || 0).toFixed(1)}%</span></div>
+                  {prevYearRecord && (
+                    <>
+                      <div className="border-t border-slate-100 pt-1 mt-1 text-slate-400">
+                        <div className="flex justify-between"><span>CA N-1</span><span>{formatCurrency(prevYearRecord.revenue.total)}</span></div>
+                        {prevYearRecord.revenue.total > 0 && (
+                          <div className="flex justify-between">
+                            <span>Variation</span>
+                            <span className={((snapshotRecord.revenue.total - prevYearRecord.revenue.total) / prevYearRecord.revenue.total * 100) >= 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'}>
+                              {((snapshotRecord.revenue.total - prevYearRecord.revenue.total) / prevYearRecord.revenue.total * 100) > 0 ? '+' : ''}
+                              {((snapshotRecord.revenue.total - prevYearRecord.revenue.total) / prevYearRecord.revenue.total * 100).toFixed(1)}%
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+                {snapshotRecord.revenue.breakdown && Object.keys(snapshotRecord.revenue.breakdown).length > 0 && (
+                  <div className="mt-3 pt-2 border-t border-slate-100">
+                    <h5 className="text-[10px] font-bold text-slate-400 uppercase mb-1">Par activité</h5>
+                    {Object.entries(snapshotRecord.revenue.breakdown).map(([id, val]) => {
+                      const name = client.profitCenters?.find(p => p.id === id)?.name || id;
+                      return (
+                        <div key={id} className="flex justify-between text-[11px]">
+                          <span className="text-slate-500 truncate max-w-[120px]">{name}</span>
+                          <span className="font-medium">{formatCurrency(val as number)} <span className="text-slate-300">({snapshotRecord.revenue.total > 0 ? (((val as number) / snapshotRecord.revenue.total) * 100).toFixed(0) : 0}%)</span></span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Column 2: Charges & RH */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 pb-1">Charges & RH</h4>
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between"><span className="text-slate-500">Masse salariale</span><span className="font-bold">{formatCurrency(snapshotRecord.expenses.salaries)}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Heures travaillées</span><span className="font-bold">{snapshotRecord.expenses.hoursWorked.toLocaleString('fr-FR')} h</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Heures sup.</span><span className="font-bold">{(snapshotRecord.expenses.overtimeHours || 0).toLocaleString('fr-FR')} h</span></div>
+                  {snapshotRecord.expenses.hoursWorked > 0 && (
+                    <>
+                      <div className="border-t border-slate-100 pt-1 mt-1">
+                        <div className="flex justify-between"><span className="text-slate-500">CA / heure</span><span className="font-bold text-emerald-600">{(snapshotRecord.revenue.total / snapshotRecord.expenses.hoursWorked).toFixed(1)} €/h</span></div>
+                        <div className="flex justify-between"><span className="text-slate-500">Coût / heure</span><span className="font-bold text-orange-600">{(snapshotRecord.expenses.salaries / snapshotRecord.expenses.hoursWorked).toFixed(1)} €/h</span></div>
+                      </div>
+                    </>
+                  )}
+                  {snapshotRecord.revenue.total > 0 && (
+                    <div className="flex justify-between border-t border-slate-100 pt-1 mt-1">
+                      <span className="text-slate-500">Ratio masse sal.</span>
+                      <span className={`font-bold ${(snapshotRecord.expenses.salaries / snapshotRecord.revenue.total * 100) > 50 ? 'text-red-600' : 'text-purple-600'}`}>
+                        {(snapshotRecord.expenses.salaries / snapshotRecord.revenue.total * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  )}
+                  {prevYearRecord && (
+                    <div className="border-t border-slate-100 pt-1 mt-1 text-slate-400">
+                      <div className="flex justify-between"><span>Salaires N-1</span><span>{formatCurrency(prevYearRecord.expenses.salaries)}</span></div>
+                      <div className="flex justify-between"><span>Heures N-1</span><span>{prevYearRecord.expenses.hoursWorked.toLocaleString('fr-FR')} h</span></div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Column 3: Trésorerie & BFR */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 pb-1">Trésorerie & BFR</h4>
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between"><span className="text-slate-500">Trésorerie nette</span><span className={`font-bold ${snapshotRecord.cashFlow.treasury >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatCurrency(snapshotRecord.cashFlow.treasury)}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">BFR net</span><span className="font-bold">{formatCurrency(snapshotRecord.bfr.total)}</span></div>
+                  {ratios && (
+                    <div className="border-t border-slate-100 pt-1 mt-1">
+                      <div className="flex justify-between"><span className="text-slate-500">DSO (clients)</span><span className="font-bold text-cyan-600">{ratios.dso.toFixed(0)} j</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500">DPO (fourn.)</span><span className="font-bold text-rose-600">{ratios.dpo.toFixed(0)} j</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500">DIO (stocks)</span><span className="font-bold text-amber-600">{ratios.dio.toFixed(0)} j</span></div>
+                      <div className="flex justify-between font-bold border-t border-slate-100 pt-1 mt-1">
+                        <span className="text-slate-700">BFR en jours</span>
+                        <span className={ratios.bfrDays > 60 ? 'text-red-600' : 'text-brand-700'}>{ratios.bfrDays.toFixed(0)} j de CA</span>
+                      </div>
+                    </div>
+                  )}
+                  {prevYearRecord && (
+                    <div className="border-t border-slate-100 pt-1 mt-1 text-slate-400">
+                      <div className="flex justify-between"><span>Trésorerie N-1</span><span>{formatCurrency(prevYearRecord.cashFlow.treasury)}</span></div>
+                      <div className="flex justify-between"><span>BFR N-1</span><span>{formatCurrency(prevYearRecord.bfr.total)}</span></div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ============================================= */}
       {/* ROW 1: CA + Tresorerie side by side           */}
       {/* ============================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -1038,6 +1271,43 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
       </div>
 
       {/* ============================================= */}
+      {/* ROW 2.5: Ratios Evolution (DSO/DPO/BFR jours) */}
+      {/* ============================================= */}
+      {ratiosChartData.some(d => d.DSO !== null || d.DPO !== null) && (
+        <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-indigo-600" />
+              Evolution des Ratios (jours)
+            </h3>
+            <div className="flex items-center gap-3 text-[10px]">
+              <span className="flex items-center gap-1"><div className="w-2 h-2 bg-cyan-500 rounded-full"></div> DSO</span>
+              <span className="flex items-center gap-1"><div className="w-2 h-2 bg-rose-500 rounded-full"></div> DPO</span>
+              <span className="flex items-center gap-1"><div className="w-2 h-2 bg-amber-500 rounded-full"></div> DIO</span>
+              <span className="flex items-center gap-1"><div className="w-3 h-0.5 bg-brand-900"></div> BFR j</span>
+            </div>
+          </div>
+          <div className="h-[220px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={ratiosChartData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} dy={5} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(val: any) => `${Number(val).toFixed(0)}j`} />
+                <Tooltip formatter={(value: any, name: string) => {
+                  const labels: Record<string, string> = { DSO: 'DSO (encaissement)', DPO: 'DPO (paiement)', DIO: 'DIO (stocks)', BFR_Jours: 'BFR en jours' };
+                  return [`${Number(value).toFixed(1)} jours`, labels[name] || name];
+                }} />
+                <Bar dataKey="DSO" fill="#06b6d4" radius={[3, 3, 0, 0]} barSize={12} name="DSO" />
+                <Bar dataKey="DPO" fill="#f43f5e" radius={[3, 3, 0, 0]} barSize={12} name="DPO" />
+                <Bar dataKey="DIO" fill="#f59e0b" radius={[3, 3, 0, 0]} barSize={12} name="DIO" />
+                <Line type="monotone" dataKey="BFR_Jours" stroke="#0f172a" strokeWidth={2.5} dot={{ r: 3, fill: '#0f172a' }} name="BFR_Jours" />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================= */}
       {/* ROW 3: Productivite + Activite side by side  */}
       {/* ============================================= */}
       {(displayData.some(d => d.expenses.hoursWorked > 0) || kpis.topActivities.length > 0) && (
@@ -1099,6 +1369,49 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ============================================= */}
+      {/* ROW 3.5: Profit Center Trends                 */}
+      {/* ============================================= */}
+      {profitCenterTrendsData.length > 0 && client.profitCenters && client.profitCenters.length > 0 && (
+        <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-purple-600" />
+              Tendances par Activité
+            </h3>
+            <div className="flex items-center gap-2 text-[10px] flex-wrap">
+              {client.profitCenters.slice(0, 5).map((pc, idx) => (
+                <span key={pc.id} className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS_ACTIVITIES[idx % COLORS_ACTIVITIES.length] }}></div>
+                  {pc.name}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="h-[250px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={profitCenterTrendsData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} dy={5} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(val: any) => { const v = Number(val); return !isNaN(v) && v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(val); }} />
+                <Tooltip formatter={(value: any, name: string) => [formatCurrency(Number(value)), name]} />
+                {client.profitCenters.slice(0, 5).map((pc, idx) => (
+                  <Line
+                    key={pc.id}
+                    type="monotone"
+                    dataKey={pc.name}
+                    stroke={COLORS_ACTIVITIES[idx % COLORS_ACTIVITIES.length]}
+                    strokeWidth={2}
+                    dot={{ r: 3, fill: COLORS_ACTIVITIES[idx % COLORS_ACTIVITIES.length] }}
+                    name={pc.name}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       )}
 

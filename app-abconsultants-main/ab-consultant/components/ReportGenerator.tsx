@@ -27,6 +27,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ client, data, isOpen,
 
   const totalCA = yearData.reduce((s, r) => s + r.revenue.total, 0);
   const totalObjective = yearData.reduce((s, r) => s + r.revenue.objective, 0);
+  const totalMargin = yearData.reduce((s, r) => s + (r.margin?.total || 0), 0);
   const avgMargin = yearData.length > 0
     ? yearData.reduce((s, r) => s + (r.margin?.rate || 0), 0) / yearData.length
     : 0;
@@ -34,6 +35,25 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ client, data, isOpen,
   const avgBfr = yearData.length > 0
     ? yearData.reduce((s, r) => s + r.bfr.total, 0) / yearData.length
     : 0;
+  const totalSalaries = yearData.reduce((s, r) => s + r.expenses.salaries, 0);
+  const totalHours = yearData.reduce((s, r) => s + r.expenses.hoursWorked, 0);
+
+  // Financial Ratios (based on last month of the year)
+  const lastRecord = yearData.length > 0 ? yearData[yearData.length - 1] : null;
+  const reportRatios = lastRecord ? (() => {
+    const ca = lastRecord.revenue.total;
+    const margin = lastRecord.margin?.total || 0;
+    const achats = Math.max(ca - margin, 0);
+    return {
+      dso: ca > 0 ? (lastRecord.bfr.receivables.clients / ca) * 30 : 0,
+      dpo: achats > 0 ? (lastRecord.bfr.debts.suppliers / achats) * 30 : 0,
+      dio: achats > 0 ? (lastRecord.bfr.stock.total / achats) * 30 : 0,
+      bfrDays: ca > 0 ? ((lastRecord.bfr.receivables.clients / ca) * 30) + (achats > 0 ? (lastRecord.bfr.stock.total / achats) * 30 : 0) - (achats > 0 ? (lastRecord.bfr.debts.suppliers / achats) * 30 : 0) : 0,
+      salaryRatio: ca > 0 ? (lastRecord.expenses.salaries / ca) * 100 : 0,
+      productivityPerHour: lastRecord.expenses.hoursWorked > 0 ? ca / lastRecord.expenses.hoursWorked : 0,
+      costPerHour: lastRecord.expenses.hoursWorked > 0 ? lastRecord.expenses.salaries / lastRecord.expenses.hoursWorked : 0,
+    };
+  })() : null;
 
   const handlePrint = () => {
     setIsGenerating(true);
@@ -160,6 +180,52 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ client, data, isOpen,
               </div>
             </div>
 
+            {/* Financial Ratios Section */}
+            {reportRatios && (
+              <div className="section">
+                <h3>Ratios Financiers <span style={{ fontSize: '11px', fontWeight: 400, color: '#94a3b8' }}>({lastRecord?.month} {selectedYear})</span></h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+                  <div className="kpi-card">
+                    <div className="kpi-label">DSO</div>
+                    <div className="kpi-value" style={{ color: '#0891b2', fontSize: '18px' }}>{reportRatios.dso.toFixed(0)} j</div>
+                    <div className="kpi-label" style={{ marginTop: '2px' }}>Délai encaissement</div>
+                  </div>
+                  <div className="kpi-card">
+                    <div className="kpi-label">DPO</div>
+                    <div className="kpi-value" style={{ color: '#be123c', fontSize: '18px' }}>{reportRatios.dpo.toFixed(0)} j</div>
+                    <div className="kpi-label" style={{ marginTop: '2px' }}>Délai paiement</div>
+                  </div>
+                  <div className="kpi-card">
+                    <div className="kpi-label">DIO</div>
+                    <div className="kpi-value" style={{ color: '#d97706', fontSize: '18px' }}>{reportRatios.dio.toFixed(0)} j</div>
+                    <div className="kpi-label" style={{ marginTop: '2px' }}>Rotation stocks</div>
+                  </div>
+                  <div className="kpi-card">
+                    <div className="kpi-label">BFR en jours</div>
+                    <div className="kpi-value" style={{ color: reportRatios.bfrDays > 60 ? '#dc2626' : '#0f172a', fontSize: '18px' }}>{reportRatios.bfrDays.toFixed(0)} j</div>
+                    <div className="kpi-label" style={{ marginTop: '2px' }}>de CA</div>
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginTop: '12px' }}>
+                  <div className="kpi-card">
+                    <div className="kpi-label">Masse Salariale</div>
+                    <div className="kpi-value" style={{ color: reportRatios.salaryRatio > 50 ? '#dc2626' : '#7c3aed', fontSize: '18px' }}>{reportRatios.salaryRatio.toFixed(1)}%</div>
+                    <div className="kpi-label" style={{ marginTop: '2px' }}>du CA</div>
+                  </div>
+                  <div className="kpi-card">
+                    <div className="kpi-label">CA / Heure</div>
+                    <div className="kpi-value" style={{ color: '#059669', fontSize: '18px' }}>{reportRatios.productivityPerHour.toFixed(0)} €</div>
+                    <div className="kpi-label" style={{ marginTop: '2px' }}>Productivité</div>
+                  </div>
+                  <div className="kpi-card">
+                    <div className="kpi-label">Coût / Heure</div>
+                    <div className="kpi-value" style={{ color: '#ea580c', fontSize: '18px' }}>{reportRatios.costPerHour.toFixed(0)} €</div>
+                    <div className="kpi-label" style={{ marginTop: '2px' }}>Masse salariale</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Monthly Detail Table */}
             <div className="section">
               <h3>Détail Mensuel</h3>
@@ -172,10 +238,12 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ client, data, isOpen,
                       <th>Mois</th>
                       <th style={{ textAlign: 'right' }}>CA HT</th>
                       <th style={{ textAlign: 'right' }}>Objectif</th>
+                      <th style={{ textAlign: 'right' }}>Perf.</th>
                       <th style={{ textAlign: 'right' }}>Marge %</th>
                       <th style={{ textAlign: 'right' }}>Trésorerie</th>
                       <th style={{ textAlign: 'right' }}>BFR</th>
-                      <th style={{ textAlign: 'right' }}>Masse Salariale</th>
+                      <th style={{ textAlign: 'right' }}>Masse Sal.</th>
+                      <th style={{ textAlign: 'right' }}>Heures</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -184,10 +252,14 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ client, data, isOpen,
                         <td style={{ fontWeight: 600 }}>{r.month}</td>
                         <td className="num">{formatCurrency(r.revenue.total)}</td>
                         <td className="num">{formatCurrency(r.revenue.objective)}</td>
+                        <td className={`num ${r.revenue.objective > 0 && r.revenue.total >= r.revenue.objective ? 'positive' : ''}`}>
+                          {r.revenue.objective > 0 ? ((r.revenue.total / r.revenue.objective) * 100).toFixed(0) + '%' : '-'}
+                        </td>
                         <td className="num">{(r.margin?.rate || 0).toFixed(1)}%</td>
                         <td className={`num ${r.cashFlow.treasury < 0 ? 'negative' : 'positive'}`}>{formatCurrency(r.cashFlow.treasury)}</td>
                         <td className="num">{formatCurrency(r.bfr.total)}</td>
                         <td className="num">{formatCurrency(r.expenses.salaries)}</td>
+                        <td className="num">{r.expenses.hoursWorked.toLocaleString('fr-FR')}</td>
                       </tr>
                     ))}
                     {/* Totals */}
@@ -195,10 +267,12 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ client, data, isOpen,
                       <td>TOTAL / MOY.</td>
                       <td className="num">{formatCurrency(totalCA)}</td>
                       <td className="num">{formatCurrency(totalObjective)}</td>
+                      <td className="num">{totalObjective > 0 ? ((totalCA / totalObjective) * 100).toFixed(0) + '%' : '-'}</td>
                       <td className="num">{avgMargin.toFixed(1)}%</td>
-                      <td className="num">{formatCurrency(lastTreasury)}</td>
+                      <td className={`num ${lastTreasury < 0 ? 'negative' : 'positive'}`}>{formatCurrency(lastTreasury)}</td>
                       <td className="num">{formatCurrency(avgBfr)}</td>
-                      <td className="num">{formatCurrency(yearData.reduce((s, r) => s + r.expenses.salaries, 0))}</td>
+                      <td className="num">{formatCurrency(totalSalaries)}</td>
+                      <td className="num">{totalHours.toLocaleString('fr-FR')}</td>
                     </tr>
                   </tbody>
                 </table>

@@ -557,7 +557,7 @@ const App: React.FC = () => {
 
             {/* VUE MESSAGERIE CLIENT */}
             {currentView === View.ClientMessages && userRole === 'client' && selectedClient && (
-                <ClientMessaging client={selectedClient} />
+                <ClientMessaging client={selectedClient} data={dashboardData} />
             )}
 
             {/* VUE CRM (Consultant) */}

@@ -123,16 +123,26 @@ const App: React.FC = () => {
         const userCompanies = clients.filter(c => c.owner.email.toLowerCase() === simulatedUserEmail.toLowerCase());
         if (userCompanies.length > 0) {
             const isCurrentValid = selectedClient && userCompanies.find(c => c.id === selectedClient.id);
-            if (!isCurrentValid) setSelectedClient(userCompanies[0]);
+            if (!isCurrentValid) {
+                setSelectedClient(userCompanies[0]);
+            } else if (selectedClient) {
+                // Sync data changes for client role too
+                const updated = userCompanies.find(c => c.id === selectedClient.id);
+                if (updated && JSON.stringify(updated) !== JSON.stringify(selectedClient)) {
+                    setSelectedClient(updated);
+                }
+            }
         }
         if ([View.Settings, View.Clients, View.Team, View.Messages, View.CRM].includes(currentView)) {
             setCurrentView(View.Dashboard);
         }
     } else {
-        // En mode consultant, on ne force plus la sélection du premier client.
-        // Si aucun client n'est sélectionné, App affichera le ConsultantDashboard.
-        if (!selectedClient && currentView !== View.Dashboard && currentView !== View.Messages && currentView !== View.Clients && currentView !== View.Team) {
-            // Pas d'auto-select
+        // En mode consultant : synchroniser selectedClient avec les données fraîches
+        if (selectedClient) {
+            const updated = clients.find(c => c.id === selectedClient.id);
+            if (updated && JSON.stringify(updated) !== JSON.stringify(selectedClient)) {
+                setSelectedClient(updated);
+            }
         }
     }
   }, [userRole, simulatedUserEmail, clients, selectedClient, currentView]);
@@ -256,10 +266,14 @@ const App: React.FC = () => {
           ...selectedClient,
           companyName: formData.get('companyName') as string,
           siret: formData.get('siret') as string,
+          companyPhone: formData.get('companyPhone') as string,
           legalForm: formData.get('legalForm') as string,
           fiscalYearEnd: formData.get('fiscalYearEnd') as string,
+          address: formData.get('address') as string,
+          zipCode: formData.get('zipCode') as string,
           city: formData.get('city') as string,
           managerName: formData.get('managerName') as string,
+          managerPhone: formData.get('managerPhone') as string,
       };
       await saveClient(updatedClient);
       await refreshClients();

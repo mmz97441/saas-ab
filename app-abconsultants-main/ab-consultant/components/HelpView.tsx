@@ -61,69 +61,120 @@ const CONSULTANT_FAQ: { q: string; a: string }[] = [
   },
 ];
 
-// ─── GUIDE DE SAISIE ──────────────────────────────────────
+// ─── DIDACTICIEL OFFICIEL AB CONSULTANTS ─────────────────
 const SAISIE_GUIDE = [
   {
-    section: "Chiffre d'Affaires",
+    section: "Activité",
+    partie: "PARTIE 1",
     icon: "💰",
     fields: [
-      { name: "CA Global HT", source: "Balance comptable, comptes 70x", tip: "Montant total hors taxes de vos ventes du mois" },
-      { name: "CA par activité", source: "Ventilation analytique ou estimation", tip: "Répartition du CA entre vos différentes activités (si centres de profit configurés)" },
-      { name: "Objectif mensuel", source: "Défini avec votre consultant en début d'exercice", tip: "Cible à atteindre pour le mois" },
-    ]
-  },
-  {
-    section: "Marge Commerciale",
-    icon: "📊",
-    fields: [
-      { name: "Marge globale (euros)", source: "CA - Achats consommés du mois", tip: "Si vous ne connaissez pas le montant exact, utilisez la marge théorique définie par votre consultant" },
-      { name: "Marge par activité", source: "Ventilation par centre de profit", tip: "Si non disponible, la marge théorique par activité sera appliquée" },
-    ]
-  },
-  {
-    section: "Charges de Personnel",
-    icon: "👥",
-    fields: [
-      { name: "Masse salariale", source: "Journal de paie — total brut chargé (charges patronales incluses)", tip: "Incluez toutes les charges sociales patronales" },
-      { name: "Heures travaillées", source: "Planning / pointeuse / logiciel RH", tip: "Total des heures pour l'ensemble des salariés" },
-      { name: "Heures supplémentaires", source: "Planning / pointeuse", tip: "Heures au-delà du contrat de travail" },
-    ]
-  },
-  {
-    section: "BFR — Créances",
-    icon: "📥",
-    fields: [
-      { name: "Créances clients", source: "Balance âgée — solde du compte 411", tip: "Toutes les factures émises non encore encaissées" },
-      { name: "Créances État", source: "Compte 44567 (TVA à récupérer) + acomptes IS", tip: "Remboursements TVA en attente, crédits d'impôt, etc." },
-      { name: "Créances sociales", source: "Comptes 43x", tip: "Trop-perçu URSSAF, remboursements mutuelles, etc." },
-      { name: "Autres créances", source: "Comptes 46x, avances et acomptes", tip: "Tout ce que l'on vous doit qui n'entre pas dans les catégories ci-dessus" },
-    ]
-  },
-  {
-    section: "BFR — Stocks",
-    icon: "📦",
-    fields: [
-      { name: "Stock marchandises", source: "Inventaire physique ou permanent", tip: "Valeur d'achat des marchandises en stock à la fin du mois" },
-      { name: "Stock en-cours", source: "Estimation des travaux/commandes en cours", tip: "Valeur des prestations démarrées mais non encore facturées" },
-    ]
-  },
-  {
-    section: "BFR — Dettes",
-    icon: "📤",
-    fields: [
-      { name: "Dettes fournisseurs", source: "Balance âgée — solde du compte 401", tip: "Toutes les factures reçues non encore payées" },
-      { name: "Dettes État", source: "Compte 4455 (TVA à payer) + IS à payer", tip: "TVA collectée non encore reversée, impôts à payer" },
-      { name: "Dettes sociales", source: "Comptes 43x côté créditeur", tip: "Cotisations URSSAF, retraite, prévoyance à payer" },
-      { name: "Dettes salariales", source: "Salaires nets à payer (compte 421)", tip: "Salaires du mois si non encore virés au moment de la saisie" },
-      { name: "Autres dettes", source: "Comptes 46x côté créditeur", tip: "Tout ce que vous devez qui n'entre pas dans les catégories ci-dessus" },
+      {
+        name: "Chiffre d'Affaires (CA)",
+        source: "Balance comptable — comptes 70x",
+        tip: "Le chiffre d'affaires correspond au montant des ventes hors taxes réalisées auprès des tiers, dans le cadre de l'activité de l'entreprise. Ce montant est net de tous rabais, remises et ristournes accordées."
+      },
     ]
   },
   {
     section: "Trésorerie",
+    partie: "PARTIE 2",
     icon: "🏦",
     fields: [
-      { name: "Soldes créditeurs", source: "Relevés bancaires — comptes positifs", tip: "Total de vos comptes bancaires en positif + placements court terme" },
-      { name: "Soldes débiteurs", source: "Relevés bancaires — découverts", tip: "Total de vos comptes bancaires en négatif (découverts)" },
+      {
+        name: "Situation de trésorerie",
+        source: "Relevés bancaires + caisse",
+        tip: "La situation de trésorerie est représentée par la différence entre la trésorerie positive (soldes créditeurs de banque, caisse, placements...) et la trésorerie négative (découvert bancaire, avance sur marchandises, etc.)."
+      },
+    ]
+  },
+  {
+    section: "BFR — Créances (Combien vous doivent vos partenaires ?)",
+    partie: "PARTIE 3A",
+    icon: "📥",
+    intro: "Il s'agit du total des CRÉANCES de l'entreprise au dernier jour de la période concernée.",
+    fields: [
+      {
+        name: "Créances clients",
+        source: "Balance âgée — solde du compte 411",
+        tip: "Les créances clients correspondent aux créances commerciales, y compris les effets à recevoir, les créances recouvrables, les clients douteux ainsi que les chèques à encaisser quelle que soit la date d'encaissement. En d'autres termes, ce sont les créances à moins d'un an."
+      },
+      {
+        name: "Créances État",
+        source: "Compte 44567 (TVA à récupérer) + acomptes IS",
+        tip: "Les créances vis-à-vis de l'État concernent principalement des remboursements d'impôts, de TVA et de taxes diverses."
+      },
+      {
+        name: "Créances organismes sociaux",
+        source: "Comptes 43x (CGSS, URSSAF, Pôle Emploi...)",
+        tip: "Ce poste comprend les créances vis-à-vis des organismes sociaux (CGSS, Pôle Emploi, AGIRC-ARRCO et prévoyance, Retraite complémentaire, Caisse congés payés du bâtiment, URSSAF, RSI...)."
+      },
+      {
+        name: "Créances salariés",
+        source: "Comptes 425 (avances et acomptes)",
+        tip: "Il s'agit du montant des sommes dues par les salariés à l'entreprise, notamment les avances sur salaires."
+      },
+      {
+        name: "Autres créances (Associés, etc.)",
+        source: "Comptes 46x, avances et acomptes",
+        tip: "Ce poste comprend les sommes dues par des tiers à la société (hors État, fournisseurs et salariés). Il peut s'agir, notamment, de « prêts » consentis par la société."
+      },
+    ]
+  },
+  {
+    section: "BFR — Dettes (Combien devez-vous à vos partenaires ?)",
+    partie: "PARTIE 3B",
+    icon: "📤",
+    intro: "Il s'agit du total des DETTES de l'entreprise au dernier jour de la période concernée.",
+    fields: [
+      {
+        name: "Dettes fournisseurs",
+        source: "Balance âgée — solde du compte 401",
+        tip: "Les dettes fournisseurs correspondent aux sommes dues à tous les fournisseurs de l'entreprise (frais généraux, marchandises et/ou matières premières, transitaires, sous-traitants, etc.). Elles ne tiennent pas compte, en revanche, des dettes vis-à-vis des fournisseurs d'immobilisations (investissements)."
+      },
+      {
+        name: "Dettes État",
+        source: "Compte 4455 (TVA à payer) + IS à payer",
+        tip: "Les dettes vis-à-vis de l'État concernent principalement les dettes relatives aux impôts (IS, contribution économique territoriale, CVAE) ou encore la TVA.\n\nATTENTION : ce poste doit être calculé au prorata lorsque le règlement de la TVA est effectué trimestriellement. Basez-vous sur le montant de votre TVA du trimestre précédent divisé par 3."
+      },
+      {
+        name: "Dettes organismes sociaux",
+        source: "Comptes 43x côté créditeur (CGSS, URSSAF...)",
+        tip: "Ce poste comprend les dettes auprès des organismes sociaux (CGSS, Pôle Emploi, AGIRC-ARRCO et prévoyance, Retraite complémentaire, Caisse congés payés du bâtiment, URSSAF, RSI).\n\nATTENTION : ce poste doit être calculé au prorata. Basez-vous sur le montant de vos cotisations sociales du trimestre précédent divisé par 3."
+      },
+      {
+        name: "Dettes salariés",
+        source: "Salaires nets à payer — compte 421",
+        tip: "Il s'agit du montant des sommes dues aux salariés de l'entreprise, notamment le dernier mois de salaire, quand celui-ci est réglé au début du mois suivant."
+      },
+    ]
+  },
+  {
+    section: "BFR — Stocks",
+    partie: "PARTIE 3C",
+    icon: "📦",
+    fields: [
+      {
+        name: "Valeur du stock",
+        source: "Inventaire physique ou estimation",
+        tip: "Il s'agit de la valeur du stock sous réserve d'un inventaire précis (stock réel et stock flottant)."
+      },
+    ]
+  },
+  {
+    section: "Charges de Personnel",
+    partie: "COMPLÉMENT",
+    icon: "👥",
+    fields: [
+      {
+        name: "Masse salariale",
+        source: "Journal de paie — total brut chargé (charges patronales incluses)",
+        tip: "Incluez toutes les charges sociales patronales."
+      },
+      {
+        name: "Heures travaillées",
+        source: "Planning / pointeuse / logiciel RH",
+        tip: "Total des heures pour l'ensemble des salariés."
+      },
     ]
   },
 ];
@@ -230,11 +281,20 @@ const HelpView: React.FC<HelpViewProps> = ({ userRole, onRestartTour }) => {
         </div>
       )}
 
-      {/* ─── GUIDE DE SAISIE TAB ────────────────────────── */}
+      {/* ─── GUIDE DE SAISIE (DIDACTICIEL OFFICIEL) TAB ── */}
       {activeTab === 'saisie' && (
         <div className="space-y-3">
+          {/* Header didacticiel */}
+          <div className="bg-brand-50 border border-brand-200 rounded-xl p-5">
+            <h3 className="font-bold text-brand-900 text-base mb-1">Didacticiel du Tableau de Bord</h3>
+            <p className="text-sm text-brand-700">Mission Conseil au Chef d'Entreprise</p>
+            <p className="text-xs text-brand-600 mt-2 leading-relaxed">
+              Le tableau de bord constitue un outil essentiel du suivi de votre activit&eacute;. Afin de pr&eacute;parer votre rendez-vous mensuel dans des conditions optimales, ce guide vous accompagne pas &agrave; pas pour compl&eacute;ter chaque rubrique.
+            </p>
+          </div>
+
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
-            <strong>Conseil :</strong> Préparez votre balance comptable mensuelle et vos relevés bancaires avant de commencer la saisie. Cela ne prend que 10-15 minutes une fois les documents sous les yeux.
+            <strong>Conseil :</strong> Pr&eacute;parez votre balance comptable mensuelle et vos relev&eacute;s bancaires avant de commencer la saisie.
           </div>
 
           {SAISIE_GUIDE.map((section, idx) => (
@@ -245,25 +305,38 @@ const HelpView: React.FC<HelpViewProps> = ({ userRole, onRestartTour }) => {
               >
                 <span className="flex items-center gap-3">
                   <span className="text-xl">{section.icon}</span>
-                  <span className="font-bold text-sm text-slate-800">{section.section}</span>
-                  <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{section.fields.length} champs</span>
+                  <div>
+                    <span className="font-bold text-sm text-slate-800">{section.section}</span>
+                    {'partie' in section && section.partie && (
+                      <span className="ml-2 text-[10px] font-bold text-brand-500 bg-brand-50 px-2 py-0.5 rounded-full border border-brand-100">{section.partie}</span>
+                    )}
+                  </div>
                 </span>
-                {expandedGuide === idx ? (
-                  <ChevronDown className="w-4 h-4 text-brand-500 shrink-0" />
-                ) : (
-                  <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
-                )}
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{section.fields.length} {section.fields.length > 1 ? 'champs' : 'champ'}</span>
+                  {expandedGuide === idx ? (
+                    <ChevronDown className="w-4 h-4 text-brand-500" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4 text-slate-400" />
+                  )}
+                </div>
               </button>
               {expandedGuide === idx && (
                 <div className="border-t border-slate-100">
+                  {/* Intro text if present */}
+                  {'intro' in section && section.intro && (
+                    <div className="px-4 py-3 bg-slate-50 text-sm text-slate-600 italic border-b border-slate-100">
+                      {section.intro}
+                    </div>
+                  )}
                   {section.fields.map((field, fIdx) => (
-                    <div key={fIdx} className={`px-4 py-3 ${fIdx > 0 ? 'border-t border-slate-50' : ''}`}>
+                    <div key={fIdx} className={`px-4 py-4 ${fIdx > 0 ? 'border-t border-slate-100' : ''}`}>
                       <div className="flex items-start gap-3">
                         <ArrowRight className="w-3.5 h-3.5 text-brand-400 mt-0.5 shrink-0" />
                         <div className="flex-1">
                           <p className="font-bold text-sm text-slate-800">{field.name}</p>
-                          <p className="text-xs text-slate-500 mt-0.5"><span className="font-medium text-slate-600">Source :</span> {field.source}</p>
-                          <p className="text-xs text-brand-600 mt-0.5">{field.tip}</p>
+                          <p className="text-xs text-slate-500 mt-1"><span className="font-medium text-slate-600">Source :</span> {field.source}</p>
+                          <p className="text-xs text-slate-700 mt-2 leading-relaxed whitespace-pre-line bg-slate-50 p-3 rounded-lg border border-slate-100">{field.tip}</p>
                         </div>
                       </div>
                     </div>
@@ -272,6 +345,11 @@ const HelpView: React.FC<HelpViewProps> = ({ userRole, onRestartTour }) => {
               )}
             </div>
           ))}
+
+          {/* Attribution propriété intellectuelle */}
+          <div className="text-[10px] text-slate-400 text-center leading-relaxed mt-4 px-4">
+            Le pr&eacute;sent didacticiel du tableau de bord de la mission Conseil au Chef d'Entreprise est la propri&eacute;t&eacute; exclusive de la Sarl AB CONSULTANTS qui entend faire valoir ses droits de propri&eacute;t&eacute; intellectuelle conform&eacute;ment aux dispositions des articles L 111-1 et L 123-1 du Code de la Propri&eacute;t&eacute; Intellectuelle.
+          </div>
         </div>
       )}
 

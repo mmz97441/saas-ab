@@ -121,7 +121,7 @@ export const getFinancialAdvice = async (
     ];
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-preview-05-20',
+      model: 'gemini-2.5-flash',
       contents: contents,
       config: {
           systemInstruction,
@@ -132,8 +132,10 @@ export const getFinancialAdvice = async (
     return response.text || "Analyse indisponible.";
 
   } catch (error: any) {
-      console.error("Gemini Error:", error);
-      return `❌ Service Indisponible (Erreur API).`;
+      console.error("Gemini Error:", error?.message || error, error?.status, error?.statusText);
+      if (error?.message?.includes('API key')) return "⛔ Clé API invalide ou manquante. Contactez votre consultant.";
+      if (error?.message?.includes('not found') || error?.message?.includes('404')) return "⛔ Modèle IA indisponible. Contactez votre consultant.";
+      return `❌ Service temporairement indisponible. Réessayez dans quelques instants.`;
   }
 };
 
@@ -155,7 +157,7 @@ export const generateConversationSummary = async (history: ChatMessage[], client
         `;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview', 
+            model: 'gemini-2.5-flash-lite',
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
             config: { temperature: 0.1 }
         });

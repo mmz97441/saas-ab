@@ -4,6 +4,7 @@ import { FinancialRecord, Month, ProfitCenter } from '../types';
 import { Save, Lock, Calendar, HelpCircle, ArrowUpCircle, ArrowDownCircle, Wallet, TrendingUp, TrendingDown, Landmark, ShoppingBag, Target, PieChart, Droplets, Users, Clock, Calculator, Scale, Briefcase, ArrowRight, Truck, Percent, Sigma, CheckCircle, History, AlertTriangle, ShieldAlert, Upload, FileText, RotateCcw, Send } from 'lucide-react';
 import { MONTH_ORDER } from '../services/dataService';
 import { useConfirmDialog } from '../contexts/ConfirmContext';
+import { InfoTooltip, GlossaryTooltip } from './GlossaryTooltip';
 
 const DEFINITIONS = {
   revenue: "Chiffre d'Affaires Hors Taxe facturé sur la période.",
@@ -59,11 +60,7 @@ const SmartNumberInput = ({
                     {Icon && <Icon className="w-3 h-3 text-slate-400" />}
                     {label}
                     {definition && (
-                        <div className="group relative">
-                            <div title={definition} className="cursor-help">
-                                 <HelpCircle className="w-3.5 h-3.5 text-slate-400 hover:text-brand-600 transition-colors" />
-                            </div>
-                        </div>
+                        <InfoTooltip text={definition} />
                     )}
                 </label>
             </div>
@@ -161,7 +158,7 @@ const SectionCard = ({ children, className = "" }: { children?: React.ReactNode,
     </div>
 );
 
-const SectionHeader = ({ number, title, icon: Icon, colorClass = "text-brand-700", bgClass = "bg-brand-100" }: any) => (
+const SectionHeader = ({ number, title, icon: Icon, colorClass = "text-brand-700", bgClass = "bg-brand-100", tooltip }: any) => (
     <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
         <div className={`w-8 h-8 rounded-lg ${bgClass} ${colorClass} flex items-center justify-center text-sm font-bold shadow-sm`}>
             {number}
@@ -169,6 +166,7 @@ const SectionHeader = ({ number, title, icon: Icon, colorClass = "text-brand-700
         <h3 className={`text-lg font-bold ${colorClass} flex items-center gap-2`}>
             <Icon className="w-5 h-5 opacity-80" />
             {title}
+            {tooltip && <InfoTooltip text={tooltip} />}
         </h3>
     </div>
 );
@@ -781,11 +779,11 @@ const EntryForm: React.FC<EntryFormProps> = ({
 
                 <div className="space-y-6">
                     <SectionCard>
-                        <SectionHeader number="1" title="Activité & Rentabilité" icon={ShoppingBag} />
+                        <SectionHeader number="1" title="Activité & Rentabilité" icon={ShoppingBag} tooltip="Saisissez ici votre Chiffre d'Affaires HT global et, si activé, votre marge commerciale. La colonne N-1 affiche les données de l'année précédente pour comparaison." />
                         {/* CONDITIONAL GRID COLUMNS BASED ON MARGIN VISIBILITY */}
                         <div className={`grid grid-cols-1 ${showCommercialMargin ? 'md:grid-cols-3' : 'md:grid-cols-1 md:w-1/2 md:mx-auto'} gap-6 mb-8 p-4 bg-slate-50 rounded-xl border border-slate-200`}>
                             <div className={`flex flex-col items-center ${showCommercialMargin ? 'border-b md:border-b-0 md:border-r border-slate-200 pb-4 md:pb-0' : ''}`}>
-                                <span className="text-xs font-bold text-slate-600 uppercase mb-1 flex items-center gap-1">CA Global HT <HelpCircle className="w-3.5 h-3.5 text-slate-400 cursor-help" /></span>
+                                <span className="text-xs font-bold text-slate-600 uppercase mb-1 flex items-center gap-1">CA Global HT <GlossaryTooltip term="ca" /></span>
                                 <SmartBigInput value={formData.revenue.total || 0} onChange={(val: number) => handleChange('revenue', 'total', val)} disabled={isLocked} colorClass="text-brand-700" borderColorClass="border-brand-200" />
                                 <div className="mt-2 text-center">
                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">N-1</span>
@@ -796,7 +794,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                             {showCommercialMargin && (
                                 <>
                                     <div className="flex flex-col items-center border-b md:border-b-0 md:border-r border-slate-200 pb-4 md:pb-0">
-                                        <span className="text-xs font-bold text-slate-600 uppercase mb-1 flex items-center gap-1">Marge Globale (€) <HelpCircle className="w-3.5 h-3.5 text-slate-400 cursor-help" /></span>
+                                        <span className="text-xs font-bold text-slate-600 uppercase mb-1 flex items-center gap-1">Marge Globale (€) <GlossaryTooltip term="marge" /></span>
                                         <SmartBigInput value={formData.margin?.total || 0} onChange={(val: number) => handleChange('margin', 'total', val)} disabled={isLocked} colorClass="text-purple-700" borderColorClass="border-purple-200" />
                                         <div className="mt-2 text-center">
                                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">N-1</span>
@@ -895,7 +893,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
 
                     {showFuelTracking && (
                         <SectionCard>
-                            <SectionHeader number="2" title="Carburant (Litrage)" icon={Droplets} colorClass="text-blue-700" bgClass="bg-blue-100" />
+                            <SectionHeader number="2" title="Carburant (Litrage)" icon={Droplets} colorClass="text-blue-700" bgClass="bg-blue-100" tooltip="Volumes de carburant consommés sur le mois. Le total est calculé automatiquement et comparé aux objectifs définis dans la configuration." />
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                                 <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
                                      <SmartNumberInput label="Gasoil (L)" value={formData.fuel?.details?.gasoil.volume} onChange={(v: number) => handleChange('fuel', 'gasoil', v, 'volume')} disabled={isLocked} suffix="L" n1Value={comparisonRecord?.fuel?.details?.gasoil.volume} className="border-slate-300 focus:ring-blue-500" />
@@ -910,7 +908,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                     )}
 
                     <SectionCard>
-                        <SectionHeader number={2 + (showFuelTracking ? 1 : 0)} title="Charges & Productivité" icon={Users} colorClass="text-orange-700" bgClass="bg-orange-100" />
+                        <SectionHeader number={2 + (showFuelTracking ? 1 : 0)} title="Charges & Productivité" icon={Users} colorClass="text-orange-700" bgClass="bg-orange-100" tooltip="Masse salariale totale (bruts + charges patronales + intérim) et heures travaillées. Le ratio salarial/CA est calculé automatiquement." />
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                             <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                                 <SmartNumberInput label="Masse Salariale Chargée" value={formData.expenses.salaries} onChange={(v: number) => handleChange('expenses', 'salaries', v)} disabled={isLocked} definition={DEFINITIONS.salaries} n1Value={comparisonRecord?.expenses.salaries} />
@@ -926,16 +924,16 @@ const EntryForm: React.FC<EntryFormProps> = ({
                     </SectionCard>
 
                     <SectionCard>
-                        <SectionHeader number={3 + (showFuelTracking ? 1 : 0)} title="BFR (Besoin en Fonds de Roulement)" icon={Scale} colorClass="text-cyan-700" bgClass="bg-cyan-100" />
+                        <SectionHeader number={3 + (showFuelTracking ? 1 : 0)} title="BFR (Besoin en Fonds de Roulement)" icon={Scale} colorClass="text-cyan-700" bgClass="bg-cyan-100" tooltip="Le BFR mesure l'argent immobilisé dans votre cycle d'exploitation. BFR = (Créances + Stocks) - Dettes courantes. Un BFR qui augmente consomme de la trésorerie." />
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
                              <div className="space-y-4">
-                                <div className="flex items-center gap-2 text-cyan-700 border-b border-cyan-100 pb-2"><div className="p-1.5 bg-cyan-100 rounded-lg"><ArrowUpCircle className="w-4 h-4" /></div><span className="font-bold text-sm uppercase tracking-wide">Actif Circulant</span></div>
+                                <div className="flex items-center gap-2 text-cyan-700 border-b border-cyan-100 pb-2"><div className="p-1.5 bg-cyan-100 rounded-lg"><ArrowUpCircle className="w-4 h-4" /></div><span className="font-bold text-sm uppercase tracking-wide">Actif Circulant</span><InfoTooltip text="Ce que l'on vous doit et ce que vous possédez en stock. Ces montants augmentent votre BFR." /></div>
                                 <SmartNumberInput label="Créances Clients" value={formData.bfr.receivables.clients} onChange={(v: number) => handleChange('bfr', 'receivables', v, 'clients')} disabled={isLocked} className="border-cyan-200 focus:ring-cyan-500 bg-cyan-50" />
                                 <SmartNumberInput label="Stocks Marchandises" value={formData.bfr.stock.goods} onChange={(v: number) => handleChange('bfr', 'stock', v, 'goods')} disabled={isLocked} className="border-cyan-200 focus:ring-cyan-500 bg-cyan-50" />
                                 <SmartNumberInput label="Autres Créances" value={formData.bfr.receivables.other} onChange={(v: number) => handleChange('bfr', 'receivables', v, 'other')} disabled={isLocked} className="border-cyan-200 focus:ring-cyan-500 bg-cyan-50" />
                              </div>
                              <div className="space-y-4 lg:border-l lg:border-r border-slate-100 lg:px-6">
-                                <div className="flex items-center gap-2 text-red-700 border-b border-red-100 pb-2"><div className="p-1.5 bg-red-100 rounded-lg"><ArrowDownCircle className="w-4 h-4" /></div><span className="font-bold text-sm uppercase tracking-wide">Dettes Exploitation</span></div>
+                                <div className="flex items-center gap-2 text-red-700 border-b border-red-100 pb-2"><div className="p-1.5 bg-red-100 rounded-lg"><ArrowDownCircle className="w-4 h-4" /></div><span className="font-bold text-sm uppercase tracking-wide">Dettes Exploitation</span><InfoTooltip text="Ce que vous devez à vos fournisseurs, à l'État et aux organismes sociaux. Ces montants réduisent votre BFR." /></div>
                                 <SmartNumberInput label="Fournisseurs" value={formData.bfr.debts.suppliers} onChange={(v: number) => handleChange('bfr', 'debts', v, 'suppliers')} disabled={isLocked} className="border-red-200 focus:ring-red-500 bg-red-50" />
                                 <SmartNumberInput label="Dettes Fiscales (État)" value={formData.bfr.debts.state} onChange={(v: number) => { handleChange('bfr', 'debts', v, 'state'); }} disabled={isLocked} className="border-red-200 focus:ring-red-500 bg-red-50" />
                                 <SmartNumberInput label="Dettes Sociales (URSSAF...)" value={formData.bfr.debts.social} onChange={(v: number) => { handleChange('bfr', 'debts', v, 'social'); }} disabled={isLocked} className="border-red-200 focus:ring-red-500 bg-red-50" />
@@ -948,15 +946,15 @@ const EntryForm: React.FC<EntryFormProps> = ({
                     </SectionCard>
 
                     <SectionCard className={isLocked ? "opacity-90 grayscale-[0.2]" : ""}>
-                        <SectionHeader number={4 + (showFuelTracking ? 1 : 0)} title="Situation de Trésorerie" icon={Landmark} colorClass="text-brand-700" bgClass="bg-brand-100" />
+                        <SectionHeader number={4 + (showFuelTracking ? 1 : 0)} title="Situation de Trésorerie" icon={Landmark} colorClass="text-brand-700" bgClass="bg-brand-100" tooltip="Trésorerie = Soldes créditeurs (comptes positifs, placements) - Soldes débiteurs (découverts, crédits court terme). Une trésorerie négative est un signal d'alerte." />
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
                             <div className="space-y-4">
-                                <div className="flex items-center gap-2 text-emerald-700 border-b border-emerald-100 pb-2"><div className="p-1.5 bg-emerald-100 rounded-lg"><TrendingUp className="w-4 h-4" /></div><span className="font-bold text-sm uppercase tracking-wide">Disponibilités</span></div>
+                                <div className="flex items-center gap-2 text-emerald-700 border-b border-emerald-100 pb-2"><div className="p-1.5 bg-emerald-100 rounded-lg"><TrendingUp className="w-4 h-4" /></div><span className="font-bold text-sm uppercase tracking-wide">Disponibilités</span><GlossaryTooltip term="soldes_crediteurs" /></div>
                                 <SmartNumberInput label="Soldes Créditeurs" value={formData.cashFlow.active} onChange={(val: number) => handleChange('cashFlow', 'active', val)} className="border-emerald-200 focus:ring-emerald-500 focus:border-emerald-500 bg-emerald-50 text-emerald-900 font-bold" disabled={isLocked} definition={DEFINITIONS.treasuryPositive} n1Value={comparisonRecord?.cashFlow.active} prefix={<span className="text-emerald-500 font-bold">+</span>} />
                                 <p className="text-[10px] text-slate-500 font-medium leading-tight">Comptes courants créditeurs, caisse espèces, livrets et placements disponibles.</p>
                             </div>
                             <div className="space-y-4 lg:border-l lg:border-r border-slate-100 lg:px-8">
-                                <div className="flex items-center gap-2 text-red-700 border-b border-red-100 pb-2"><div className="p-1.5 bg-red-100 rounded-lg"><TrendingDown className="w-4 h-4" /></div><span className="font-bold text-sm uppercase tracking-wide">Concours Bancaires</span></div>
+                                <div className="flex items-center gap-2 text-red-700 border-b border-red-100 pb-2"><div className="p-1.5 bg-red-100 rounded-lg"><TrendingDown className="w-4 h-4" /></div><span className="font-bold text-sm uppercase tracking-wide">Concours Bancaires</span><GlossaryTooltip term="soldes_debiteurs" /></div>
                                 <SmartNumberInput label="Soldes Débiteurs" value={formData.cashFlow.passive} onChange={(val: number) => handleChange('cashFlow', 'passive', val)} className="border-red-200 focus:ring-red-500 focus:border-red-500 bg-red-50 text-red-900 font-bold" disabled={isLocked} definition={DEFINITIONS.treasuryNegative} n1Value={comparisonRecord?.cashFlow.passive} prefix={<span className="text-red-500 font-bold">-</span>} />
                                 <p className="text-[10px] text-slate-500 font-medium leading-tight">Découverts autorisés ou non, facilités de caisse, emprunts court terme.</p>
                             </div>

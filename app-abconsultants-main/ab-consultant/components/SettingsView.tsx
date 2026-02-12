@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Settings, Building, Lock, ShoppingBag, Plus, Trash2, Save, Droplets, AlertTriangle, Power, MapPin, Phone, Percent, PieChart } from 'lucide-react';
 import { Client, ProfitCenter } from '../types';
 import { useConfirmDialog } from '../contexts/ConfirmContext';
+import { GlossaryTooltip } from './GlossaryTooltip';
 
 interface SettingsViewProps {
     client: Client;
@@ -182,7 +183,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="p-4 bg-purple-50 border-b border-purple-100 flex justify-between items-center">
                     <h3 className="font-bold text-purple-900 flex items-center gap-2">
-                        <PieChart className="w-4 h-4" /> Suivi Marge Commerciale
+                        <PieChart className="w-4 h-4" /> Suivi Marge Commerciale <GlossaryTooltip term="marge_commerciale" />
                     </h3>
                     <button
                         disabled={isSaving}
@@ -214,7 +215,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="p-4 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center">
                     <h3 className="font-bold text-indigo-900 flex items-center gap-2">
-                        <ShoppingBag className="w-4 h-4" /> Ventilation Analytique
+                        <ShoppingBag className="w-4 h-4" /> Ventilation Analytique <GlossaryTooltip term="ventilation" />
                     </h3>
                     <button
                         onClick={handleAddProfitCenter}
@@ -309,7 +310,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="p-4 bg-blue-50 border-b border-blue-100 flex justify-between items-center">
                     <h3 className="font-bold text-blue-900 flex items-center gap-2">
-                        <Droplets className="w-4 h-4" /> Suivi Carburant
+                        <Droplets className="w-4 h-4" /> Suivi Carburant <GlossaryTooltip term="carburant" />
                     </h3>
                     <button
                         disabled={isSaving}

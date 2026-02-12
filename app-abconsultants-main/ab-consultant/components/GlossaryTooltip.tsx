@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { HelpCircle, X } from 'lucide-react';
 
 const GLOSSARY: Record<string, { title: string; definition: string; formula?: string }> = {
@@ -46,7 +46,143 @@ const GLOSSARY: Record<string, { title: string; definition: string; formula?: st
   exercice: {
     title: "Exercice Fiscal",
     definition: "Période comptable de 12 mois qui ne correspond pas forcément à l'année civile. Par exemple, un exercice du 01/04 au 31/03 signifie que votre année financière va d'avril à mars.",
-  }
+  },
+  masse_salariale: {
+    title: "Masse Salariale Chargée",
+    definition: "Total des salaires bruts + charges patronales + intérim sur le mois. Représente le coût total du personnel pour l'entreprise.",
+    formula: "Masse Sal. = Salaires bruts + Charges patronales + Intérim"
+  },
+  heures: {
+    title: "Heures Travaillées",
+    definition: "Nombre total d'heures de travail sur le mois (heures normales + heures supplémentaires). Sert à calculer la productivité et le coût horaire.",
+  },
+  ratio_salarial: {
+    title: "Ratio Salarial / CA",
+    definition: "Pourcentage du chiffre d'affaires consacré à la masse salariale. Au-delà de 40%, ce ratio mérite attention. Varie selon le secteur d'activité.",
+    formula: "Ratio = (Masse Salariale / CA) × 100"
+  },
+  creances_clients: {
+    title: "Créances Clients",
+    definition: "Factures émises à vos clients, non encore encaissées. Un montant élevé peut indiquer des délais de paiement trop longs ou des impayés.",
+  },
+  stocks: {
+    title: "Stocks Marchandises",
+    definition: "Valeur des marchandises en stock à la fin du mois. Un stock trop important immobilise de la trésorerie.",
+  },
+  fournisseurs: {
+    title: "Dettes Fournisseurs",
+    definition: "Factures de vos fournisseurs non encore payées. Des délais de paiement plus longs améliorent votre BFR mais doivent rester raisonnables.",
+  },
+  dettes_fiscales: {
+    title: "Dettes Fiscales (État)",
+    definition: "TVA à reverser, impôts et taxes dus à l'État. Inclut la TVA collectée diminuée de la TVA déductible, l'IS, la CFE, etc.",
+  },
+  dettes_sociales: {
+    title: "Dettes Sociales (URSSAF...)",
+    definition: "Cotisations sociales dues aux organismes (URSSAF, caisses de retraite, mutuelle, prévoyance). Généralement payées le mois suivant.",
+  },
+  soldes_crediteurs: {
+    title: "Soldes Créditeurs",
+    definition: "Comptes courants créditeurs, caisse espèces, livrets et placements disponibles. C'est l'argent immédiatement mobilisable.",
+  },
+  soldes_debiteurs: {
+    title: "Soldes Débiteurs",
+    definition: "Découverts autorisés ou non, facilités de caisse, emprunts court terme. Représente l'endettement bancaire à court terme.",
+  },
+  ventilation: {
+    title: "Ventilation Analytique",
+    definition: "Répartition du chiffre d'affaires par famille d'activité (centres de profit). Permet d'identifier les activités les plus rentables.",
+  },
+  marge_commerciale: {
+    title: "Suivi Marge Commerciale",
+    definition: "Module permettant de calculer et suivre la marge brute (CA - Achats). Activez-le pour analyser la rentabilité par activité.",
+    formula: "Marge = Prix de vente HT - Coût d'achat HT"
+  },
+  carburant: {
+    title: "Suivi Carburant",
+    definition: "Module optionnel pour suivre la consommation de carburant (Gasoil, Sans Plomb, GNR) en litres par rapport aux objectifs mensuels.",
+  },
+  dso: {
+    title: "DSO - Délai Encaissement",
+    definition: "Nombre moyen de jours pour encaisser les factures clients. Plus ce délai est court, meilleure est votre trésorerie.",
+    formula: "DSO = (Créances Clients / CA) × 30 jours"
+  },
+  dpo: {
+    title: "DPO - Délai Paiement",
+    definition: "Nombre moyen de jours pour payer vos fournisseurs. Un DPO élevé améliore votre trésorerie mais doit respecter les délais légaux (60 jours max).",
+    formula: "DPO = (Dettes Fournisseurs / Achats) × 30 jours"
+  },
+  dio: {
+    title: "DIO - Rotation Stock",
+    definition: "Nombre moyen de jours de stock. Un DIO faible indique une bonne rotation des marchandises.",
+    formula: "DIO = (Stocks / Achats) × 30 jours"
+  },
+  bfr_jours: {
+    title: "BFR en Jours de CA",
+    definition: "Nombre de jours de chiffre d'affaires nécessaires pour financer le cycle d'exploitation. Plus ce chiffre est bas, moins votre activité mobilise de trésorerie.",
+    formula: "BFR jours = DSO + DIO - DPO"
+  },
+};
+
+// --- LIGHTWEIGHT HOVER TOOLTIP ("?" icon) ---
+// Use this for inline help indicators next to labels/fields
+export const InfoTooltip: React.FC<{ text: string; position?: 'top' | 'bottom' }> = ({ text, position = 'top' }) => {
+  const [show, setShow] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLSpanElement>(null);
+  const [adjustedPosition, setAdjustedPosition] = useState(position);
+
+  // Auto-adjust position if tooltip would overflow viewport
+  useEffect(() => {
+    if (show && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      if (position === 'top' && rect.top < 120) {
+        setAdjustedPosition('bottom');
+      } else if (position === 'bottom' && rect.bottom > window.innerHeight - 120) {
+        setAdjustedPosition('top');
+      } else {
+        setAdjustedPosition(position);
+      }
+    }
+  }, [show, position]);
+
+  return (
+    <span
+      ref={containerRef}
+      className="relative inline-flex items-center print:hidden"
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      <span className="cursor-help p-0.5">
+        <HelpCircle className="w-3.5 h-3.5 text-slate-400 hover:text-brand-500 transition-colors" />
+      </span>
+      {show && (
+        <div
+          ref={tooltipRef}
+          className={`absolute z-50 w-64 px-3 py-2.5 text-xs text-slate-700 bg-white border border-slate-200 rounded-lg shadow-lg leading-relaxed pointer-events-none animate-in fade-in zoom-in-95 duration-100 ${
+            adjustedPosition === 'top'
+              ? 'bottom-full mb-2 left-1/2 -translate-x-1/2'
+              : 'top-full mt-2 left-1/2 -translate-x-1/2'
+          }`}
+        >
+          {text}
+          <div className={`absolute left-1/2 -translate-x-1/2 w-2 h-2 bg-white border-slate-200 rotate-45 ${
+            adjustedPosition === 'top'
+              ? 'bottom-[-5px] border-b border-r'
+              : 'top-[-5px] border-t border-l'
+          }`} />
+        </div>
+      )}
+    </span>
+  );
+};
+
+// Shortcut: InfoTooltip from glossary key
+export const GlossaryTooltip: React.FC<{ term: string; position?: 'top' | 'bottom' }> = ({ term, position }) => {
+  const entry = GLOSSARY[term];
+  if (!entry) return null;
+  const text = entry.formula ? `${entry.definition} (${entry.formula})` : entry.definition;
+  return <InfoTooltip text={text} position={position} />;
 };
 
 // Inline glossary icon that triggers a popup

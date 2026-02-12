@@ -9,6 +9,7 @@ import { TrendingUp, TrendingDown, DollarSign, Users, MousePointerClick, Calenda
 import confetti from 'canvas-confetti';
 import { toShortMonth, getExpertComments, saveExpertComment } from '../services/dataService';
 import { ExpertComment } from '../types';
+import { GlossaryTooltip } from './GlossaryTooltip';
 
 interface DashboardProps {
   data: FinancialRecord[];
@@ -822,7 +823,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                     {kpis.revenuePerformance}% Obj
                 </div>
             </div>
-            <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-slate-400" title="CA HT facturé sur la période sélectionnée">Chiffre d'Affaires</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-slate-400 flex items-center gap-1">Chiffre d'Affaires <GlossaryTooltip term="ca" position="bottom" /></p>
             <h3 className="text-xl font-bold text-slate-800">
                 <AnimatedNumber value={kpis.revenue} />
             </h3>
@@ -844,7 +845,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                     <Percent className="w-4 h-4" />
                 </div>
             </div>
-            <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-slate-400" title="Marge commerciale brute en % du CA HT">Taux de Marge</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-slate-400 flex items-center gap-1">Taux de Marge <GlossaryTooltip term="marge" position="bottom" /></p>
             <h3 className="text-xl font-bold text-slate-800">
                 {kpis.globalMarginRate.toFixed(1)}%
             </h3>
@@ -865,7 +866,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                 </div>
                 {kpis.treasury < 0 && <div className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">ALERTE</div>}
              </div>
-             <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-slate-400" title="Soldes bancaires créditeurs - Soldes débiteurs et découverts">Trésorerie Nette</p>
+             <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-slate-400 flex items-center gap-1">Trésorerie Nette <GlossaryTooltip term="tresorerie" position="bottom" /></p>
              <h3 className={`text-xl font-bold ${kpis.treasury >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
                 <AnimatedNumber value={kpis.treasury} />
              </h3>
@@ -884,7 +885,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                     <Briefcase className="w-4 h-4" />
                 </div>
              </div>
-             <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-slate-400" title="Besoin en Fonds de Roulement : (Créances + Stocks) - Dettes courantes">BFR Moyen</p>
+             <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-slate-400 flex items-center gap-1">BFR Moyen <GlossaryTooltip term="bfr" position="bottom" /></p>
              <h3 className="text-xl font-bold text-cyan-800">
                 <AnimatedNumber value={kpis.bfr} />
              </h3>
@@ -914,38 +915,38 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
             )}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-            <div className="bg-slate-50 rounded-lg p-3 text-center" title="Days Sales Outstanding — Délai moyen d'encaissement clients">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1">DSO</p>
+            <div className="bg-slate-50 rounded-lg p-3 text-center">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-center gap-0.5">DSO <GlossaryTooltip term="dso" position="bottom" /></p>
               <p className="text-lg font-bold text-cyan-700">{ratios.dso.toFixed(0)}<span className="text-xs font-normal text-slate-400"> j</span></p>
               <p className="text-[9px] text-slate-400 mt-0.5">Délai encaissement</p>
             </div>
-            <div className="bg-slate-50 rounded-lg p-3 text-center" title="Days Payable Outstanding — Délai moyen de paiement fournisseurs">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1">DPO</p>
+            <div className="bg-slate-50 rounded-lg p-3 text-center">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-center gap-0.5">DPO <GlossaryTooltip term="dpo" position="bottom" /></p>
               <p className="text-lg font-bold text-rose-700">{ratios.dpo.toFixed(0)}<span className="text-xs font-normal text-slate-400"> j</span></p>
               <p className="text-[9px] text-slate-400 mt-0.5">Délai paiement</p>
             </div>
-            <div className="bg-slate-50 rounded-lg p-3 text-center" title="Days Inventory Outstanding — Durée moyenne de rotation des stocks">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1">DIO</p>
+            <div className="bg-slate-50 rounded-lg p-3 text-center">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-center gap-0.5">DIO <GlossaryTooltip term="dio" position="bottom" /></p>
               <p className="text-lg font-bold text-amber-700">{ratios.dio.toFixed(0)}<span className="text-xs font-normal text-slate-400"> j</span></p>
               <p className="text-[9px] text-slate-400 mt-0.5">Rotation stock</p>
             </div>
-            <div className={`rounded-lg p-3 text-center ${ratios.bfrDays > 60 ? 'bg-red-50' : 'bg-slate-50'}`} title="BFR exprimé en jours de CA — DSO + DIO - DPO">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1">BFR</p>
+            <div className={`rounded-lg p-3 text-center ${ratios.bfrDays > 60 ? 'bg-red-50' : 'bg-slate-50'}`}>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-center gap-0.5">BFR <GlossaryTooltip term="bfr_jours" position="bottom" /></p>
               <p className={`text-lg font-bold ${ratios.bfrDays > 60 ? 'text-red-700' : 'text-brand-700'}`}>{ratios.bfrDays.toFixed(0)}<span className="text-xs font-normal text-slate-400"> j</span></p>
               <p className="text-[9px] text-slate-400 mt-0.5">en jours de CA</p>
             </div>
-            <div className={`rounded-lg p-3 text-center ${ratios.salaryRatio > 50 ? 'bg-red-50' : 'bg-slate-50'}`} title="Masse salariale rapportée au chiffre d'affaires">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1">Masse Sal.</p>
+            <div className={`rounded-lg p-3 text-center ${ratios.salaryRatio > 50 ? 'bg-red-50' : 'bg-slate-50'}`}>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-center gap-0.5">Masse Sal. <GlossaryTooltip term="ratio_salarial" position="bottom" /></p>
               <p className={`text-lg font-bold ${ratios.salaryRatio > 50 ? 'text-red-700' : 'text-purple-700'}`}>{ratios.salaryRatio.toFixed(1)}<span className="text-xs font-normal text-slate-400">%</span></p>
               <p className="text-[9px] text-slate-400 mt-0.5">du CA</p>
             </div>
-            <div className="bg-slate-50 rounded-lg p-3 text-center" title="Chiffre d'affaires généré par heure travaillée">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1">CA / Heure</p>
+            <div className="bg-slate-50 rounded-lg p-3 text-center">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-center gap-0.5">CA / Heure <GlossaryTooltip term="productivite" position="bottom" /></p>
               <p className="text-lg font-bold text-emerald-700">{ratios.productivityPerHour.toFixed(0)}<span className="text-xs font-normal text-slate-400"> €</span></p>
               <p className="text-[9px] text-slate-400 mt-0.5">Productivité</p>
             </div>
-            <div className="bg-slate-50 rounded-lg p-3 text-center" title="Coût salarial par heure travaillée">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1">Coût / h</p>
+            <div className="bg-slate-50 rounded-lg p-3 text-center">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-center gap-0.5">Coût / h</p>
               <p className="text-lg font-bold text-orange-700">{ratios.costPerHour.toFixed(0)}<span className="text-xs font-normal text-slate-400"> €</span></p>
               <p className="text-[9px] text-slate-400 mt-0.5">Masse sal.</p>
             </div>

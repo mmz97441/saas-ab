@@ -27,7 +27,8 @@ export enum View {
   Messages = 'messages',
   Profile = 'profile',
   CRM = 'crm',
-  ClientMessages = 'clientMessages'
+  ClientMessages = 'clientMessages',
+  Help = 'help'
 }
 
 export interface ProfitCenter {

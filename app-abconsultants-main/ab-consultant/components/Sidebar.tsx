@@ -263,16 +263,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                         <span className="font-medium text-sm">{theme === 'dark' ? 'Mode clair' : 'Mode sombre'}</span>
                     </button>
 
-                    {/* HELP LINK (all users) */}
-                    <button
-                        onClick={() => {
-                            window.open(`mailto:contact@ab-consultants.fr?subject=Aide - ${userRole === 'client' ? 'Client' : 'Consultant'}`, '_blank');
-                        }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-brand-300 hover:bg-brand-800 hover:text-white transition-all duration-200 mt-1"
-                    >
-                        <HelpCircle className="w-5 h-5" />
-                        <span className="font-medium text-sm">Aide & Contact</span>
-                    </button>
+                    {/* HELP */}
+                    <NavItem view={View.Help} icon={HelpCircle} label="Aide & Guide" />
 
                     <button
                         onClick={onLogout}

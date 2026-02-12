@@ -18,6 +18,7 @@ import CRMView from './components/CRMView';
 import GlossaryPanel from './components/GlossaryTooltip';
 import OnboardingTour from './components/OnboardingTour';
 import ReportGenerator from './components/ReportGenerator';
+import HelpView from './components/HelpView';
 import { useConfirmDialog } from './contexts/ConfirmContext';
 
 import { FinancialRecord, Client, Month, ProfitCenter, Consultant, View } from './types';
@@ -460,6 +461,7 @@ const App: React.FC = () => {
                        currentView === View.Team ? 'Équipe' :
                        currentView === View.Clients ? 'Clients' :
                        currentView === View.Profile ? 'Mon Profil' :
+                       currentView === View.Help ? 'Aide & Guide' :
                        currentView === View.CRM ? 'CRM' :
                        currentView === View.ClientMessages ? 'Ma Messagerie' : ''}
                     </span>
@@ -532,6 +534,17 @@ const App: React.FC = () => {
             {/* VUE PROFIL */}
             {currentView === View.Profile && (
                 <ProfileView currentUserEmail={currentUserEmail} userRole={userRole} clientName={selectedClient?.companyName} />
+            )}
+
+            {/* VUE AIDE */}
+            {currentView === View.Help && (
+                <HelpView
+                  userRole={userRole}
+                  onRestartTour={() => {
+                    localStorage.removeItem('ab-onboarding-done');
+                    setShowOnboarding(true);
+                  }}
+                />
             )}
 
             {/* VUE MESSAGERIE CLIENT */}

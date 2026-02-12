@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { LayoutDashboard, FilePlus, Settings, Database, Users, Briefcase, Eye, EyeOff, LogOut, ChevronRight, ShieldCheck, UserCircle, ChevronDown, MessageSquare, PieChart, Search, HelpCircle, Moon, Sun, User, FileText } from 'lucide-react';
+import { LayoutDashboard, FilePlus, Settings, Database, Users, Briefcase, Eye, EyeOff, LogOut, ChevronRight, ShieldCheck, ChevronDown, MessageSquare, PieChart, Search, HelpCircle, Moon, Sun, User, FileText } from 'lucide-react';
 import { View, Client, APP_VERSION } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -14,7 +14,7 @@ interface SidebarProps {
     accessibleCompanies: Client[];
     isSuperAdmin: boolean;
     onNavigate: (view: View) => void;
-    onClientSelect: (client: Client | null) => void; // Update type to allow null
+    onClientSelect: (client: Client | null) => void;
     onToggleSimulation: () => void;
     onLogout: () => void;
 }
@@ -94,7 +94,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
     const { theme, toggleTheme } = useTheme();
 
-    // Calcul des notifications
+    // Calcul des notifications (only count > 0)
     const unreadCount = clients.filter(c => c.hasUnreadMessages).length;
 
     const NavItem = ({ view, icon: Icon, label, badge }: { view: View, icon: any, label: string, badge?: number }) => (
@@ -107,7 +107,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         >
             <div className="relative">
                 <Icon className={`w-5 h-5 ${currentView === view ? 'text-accent-500' : 'text-brand-400 group-hover:text-accent-500'}`} />
-                {badge && badge > 0 && (
+                {badge !== undefined && badge > 0 && (
                     <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-brand-900 animate-pulse">
                         {badge}
                     </span>
@@ -116,6 +116,10 @@ const Sidebar: React.FC<SidebarProps> = ({
             <span className="font-medium text-sm">{label}</span>
             {currentView === view && <ChevronRight className="w-4 h-4 ml-auto opacity-50" />}
         </button>
+    );
+
+    const SectionTitle = ({ children }: { children: React.ReactNode }) => (
+        <h3 className="text-[10px] font-bold text-brand-400 uppercase tracking-wider mb-3 px-2">{children}</h3>
     );
 
     return (
@@ -128,7 +132,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-brand-800 rounded-full opacity-50 blur-2xl"></div>
 
                 <div className="flex items-center gap-3 relative z-10">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br from-brand-700 to-brand-950 border border-brand-700`}>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br from-brand-700 to-brand-950 border border-brand-700">
                         <span className="font-extrabold text-white text-xl">{userRole === 'ab_consultant' ? 'AB' : (selectedClient ? selectedClient.companyName.substring(0, 2).toUpperCase() : 'C')}</span>
                     </div>
                     <div>
@@ -143,17 +147,19 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </div>
             </div>
 
-            <nav className="flex-1 px-4 pb-4 space-y-6 overflow-y-auto custom-scrollbar">
+            {/* Main scrollable nav */}
+            <nav className="flex-1 px-4 pb-2 space-y-1 overflow-y-auto custom-scrollbar">
 
-                {/* SECTION 1: ADMIN - Visible only to Consultant */}
+                {/* ══════════════════════════════════════════
+                    SECTION 1: PILOTAGE CABINET (Consultant only)
+                   ══════════════════════════════════════════ */}
                 {userRole === 'ab_consultant' && (
-                    <div className="animate-in slide-in-from-left-2">
-                        <h3 className="text-[10px] font-bold text-brand-400 uppercase tracking-wider mb-3 px-2">Pilotage Cabinet</h3>
-                        
-                        {/* BOUTON VUE D'ENSEMBLE (Nouveau) */}
-                         <button
+                    <div className="animate-in slide-in-from-left-2 mb-4">
+                        <SectionTitle>Pilotage Cabinet</SectionTitle>
+
+                        <button
                             onClick={() => { onClientSelect(null); onNavigate(View.Dashboard); }}
-                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group mb-2 ${!selectedClient && currentView === View.Dashboard
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group mb-1 ${!selectedClient && currentView === View.Dashboard
                                 ? 'bg-brand-700 text-white shadow-md ring-1 ring-white/10'
                                 : 'text-brand-200 hover:bg-brand-800 hover:text-white'
                             }`}
@@ -172,23 +178,21 @@ const Sidebar: React.FC<SidebarProps> = ({
                     </div>
                 )}
 
-                {/* SECTION 2: CLIENT CONTEXT */}
+                {/* ══════════════════════════════════════════
+                    SECTION 2: DOSSIER CLIENT
+                   ══════════════════════════════════════════ */}
                 {(selectedClient || userRole === 'client') && (
-                    <div className="animate-in slide-in-from-left-2 duration-300">
+                    <div className="animate-in slide-in-from-left-2 duration-300 mb-4">
                         {userRole === 'ab_consultant' && (
-                            <div className="flex items-center justify-between px-2 mb-3 mt-2">
-                                <h3 className="text-[10px] font-bold text-brand-400 uppercase tracking-wider">Espace Dossier</h3>
-                                {selectedClient && <span className="text-[10px] bg-brand-800 text-brand-300 px-1.5 py-0.5 rounded border border-brand-700">{selectedClient.id}</span>}
-                            </div>
+                            <SectionTitle>Dossier Client</SectionTitle>
                         )}
 
-                        {/* Client Card / Multi-Company Selector */}
                         {selectedClient && (
-                            <div className={`rounded-xl p-4 border border-brand-700/30 mb-3 shadow-inner ${userRole === 'ab_consultant' ? 'bg-brand-800/20' : 'bg-transparent border-0 p-0'}`}>
+                            <div className={`rounded-xl border border-brand-700/30 mb-1 shadow-inner ${userRole === 'ab_consultant' ? 'bg-brand-800/20 p-4' : 'bg-transparent border-0 p-0'}`}>
 
-                                {/* Consultant View: Static Info */}
+                                {/* Consultant View: Client Card */}
                                 {userRole === 'ab_consultant' && (
-                                    <div className="flex items-center gap-3 mb-4 pb-4 border-b border-brand-700/30">
+                                    <div className="flex items-center gap-3 mb-4 pb-3 border-b border-brand-700/30">
                                         <div className="w-10 h-10 rounded-full bg-white text-brand-900 flex items-center justify-center font-bold text-lg shadow-sm">
                                             {selectedClient.companyName.substring(0, 2).toUpperCase()}
                                         </div>
@@ -208,7 +212,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     />
                                 )}
 
-                                {/* Navigation Links */}
+                                {/* Dossier Navigation Links */}
                                 <div className="space-y-1">
                                     <NavItem view={View.Dashboard} icon={LayoutDashboard} label="Tableau de Bord" />
                                     <NavItem view={View.Entry} icon={FilePlus} label="Saisie Mensuelle" />
@@ -219,66 +223,74 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     {userRole === 'ab_consultant' && (
                                         <NavItem view={View.CRM} icon={FileText} label="CRM / Suivi" />
                                     )}
+                                    {userRole === 'ab_consultant' && (
+                                        <NavItem view={View.Settings} icon={Settings} label="Configuration" />
+                                    )}
                                 </div>
+
+                                {/* Aperçu Mode Client — inside dossier context */}
+                                {userRole === 'ab_consultant' && (
+                                    <button
+                                        onClick={onToggleSimulation}
+                                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-brand-400 hover:bg-brand-700/50 hover:text-white transition-all duration-200 mt-2 text-xs"
+                                    >
+                                        <Eye className="w-4 h-4" />
+                                        <span className="font-medium">Aperçu mode client</span>
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
                 )}
 
-                {/* SECTION 3: SYSTEM */}
-                <div className="mt-4 pt-4 border-t border-brand-800/50 animate-in slide-in-from-left-2">
-                    {userRole === 'ab_consultant' && selectedClient && (
-                        <NavItem view={View.Settings} icon={Settings} label="Configuration Dossier" />
-                    )}
-
-                    {userRole === 'ab_consultant' && (
+                {/* Quitter l'aperçu — visible in simulation mode */}
+                {userRole === 'client' && isSuperAdmin && (
+                    <div className="mb-4">
                         <button
                             onClick={onToggleSimulation}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-brand-300 hover:bg-brand-800 hover:text-white transition-all duration-200 mt-2"
-                        >
-                            <Eye className="w-5 h-5" />
-                            <span className="font-medium text-sm">Aperçu Mode Client</span>
-                        </button>
-                    )}
-
-                    {userRole === 'client' && isSuperAdmin && (
-                        <button
-                            onClick={onToggleSimulation}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-accent-400 hover:bg-brand-800 hover:text-accent-300 transition-all duration-200 mt-2 font-bold bg-brand-950/30"
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-accent-400 hover:bg-brand-800 hover:text-accent-300 transition-all duration-200 font-bold bg-brand-950/30"
                         >
                             <EyeOff className="w-5 h-5" />
                             <span className="font-medium text-sm">Quitter l'aperçu</span>
                         </button>
-                    )}
-
-                    {/* Profile */}
-                    <NavItem view={View.Profile} icon={User} label="Mon Profil" />
-
-                    {/* Dark Mode Toggle */}
-                    <button
-                        onClick={toggleTheme}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-brand-300 hover:bg-brand-800 hover:text-white transition-all duration-200 mt-1"
-                    >
-                        {theme === 'dark' ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5" />}
-                        <span className="font-medium text-sm">{theme === 'dark' ? 'Mode clair' : 'Mode sombre'}</span>
-                    </button>
-
-                    {/* HELP */}
-                    <NavItem view={View.Help} icon={HelpCircle} label="Aide & Guide" />
-
-                    <button
-                        onClick={onLogout}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-300 hover:bg-red-900/30 hover:text-red-200 transition-all duration-200 mt-4"
-                    >
-                        <LogOut className="w-5 h-5" />
-                        <span className="font-medium text-sm">Déconnexion</span>
-                    </button>
-                </div>
-
+                    </div>
+                )}
             </nav>
-            
+
+            {/* ══════════════════════════════════════════
+                SECTION 3: MON COMPTE (pinned bottom)
+               ══════════════════════════════════════════ */}
+            <div className="px-4 pt-3 pb-2 border-t border-brand-800/50 shrink-0">
+                <h3 className="text-[10px] font-bold text-brand-400 uppercase tracking-wider mb-2 px-2">Mon Compte</h3>
+
+                <NavItem view={View.Profile} icon={User} label="Mon Profil" />
+                <NavItem view={View.Help} icon={HelpCircle} label="Aide & Guide" />
+
+                {/* Dark mode — compact inline toggle */}
+                <button
+                    onClick={toggleTheme}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-brand-300 hover:bg-brand-800 hover:text-white transition-all duration-200 group"
+                >
+                    {theme === 'dark' ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-brand-400 group-hover:text-accent-500" />}
+                    <span className="font-medium text-sm">{theme === 'dark' ? 'Mode clair' : 'Mode sombre'}</span>
+                    {/* Toggle switch visual */}
+                    <div className={`ml-auto w-8 h-4.5 rounded-full flex items-center px-0.5 transition-colors ${theme === 'dark' ? 'bg-accent-500' : 'bg-brand-700'}`}>
+                        <div className={`w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-transform ${theme === 'dark' ? 'translate-x-3.5' : 'translate-x-0'}`}></div>
+                    </div>
+                </button>
+
+                {/* Déconnexion */}
+                <button
+                    onClick={onLogout}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-400/70 hover:bg-red-900/20 hover:text-red-300 transition-all duration-200 mt-1"
+                >
+                    <LogOut className="w-5 h-5" />
+                    <span className="font-medium text-sm">Déconnexion</span>
+                </button>
+            </div>
+
             {/* FOOTER VERSION */}
-            <div className="p-4 text-center border-t border-brand-800/30">
+            <div className="p-3 text-center border-t border-brand-800/30 shrink-0">
                 <p className="text-[10px] text-brand-500 font-mono opacity-60">v{APP_VERSION}</p>
             </div>
         </aside>

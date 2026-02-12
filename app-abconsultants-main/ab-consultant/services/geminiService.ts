@@ -31,9 +31,10 @@ export const getFinancialAdvice = async (
     const ai = new GoogleGenAI({ apiKey });
 
     // CONTEXTE FINANCIER ENRICHI
+    const MONTH_ORDER = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
     const sortedRecords = [...records].sort((a, b) => {
         if (a.year !== b.year) return a.year - b.year;
-        return 0;
+        return MONTH_ORDER.indexOf(a.month) - MONTH_ORDER.indexOf(b.month);
     });
     const lastRecord = sortedRecords[sortedRecords.length - 1];
 

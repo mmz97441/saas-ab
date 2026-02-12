@@ -312,8 +312,10 @@ const App: React.FC = () => {
 
   const handleToggleFuelModule = async () => {
     if (userRole !== 'ab_consultant' || !selectedClient) return;
-    await saveClient({ ...selectedClient, settings: { ...selectedClient.settings!, showFuelTracking: !selectedClient.settings?.showFuelTracking }});
+    const wasActive = selectedClient.settings?.showFuelTracking;
+    await saveClient({ ...selectedClient, settings: { ...selectedClient.settings!, showFuelTracking: !wasActive }});
     await refreshClients();
+    showNotification(wasActive ? "Module Carburant désactivé." : "Module Carburant activé.", 'info');
   };
 
   const handleToggleCommercialMargin = async () => {

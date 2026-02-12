@@ -6,13 +6,13 @@ import { useConfirmDialog } from '../contexts/ConfirmContext';
 
 interface SettingsViewProps {
     client: Client;
-    onUpdateClientSettings: (e: React.FormEvent<HTMLFormElement>) => void;
-    onUpdateProfitCenters: (pcs: ProfitCenter[]) => void;
-    onUpdateFuelObjectives: (objectives: { gasoil: number, sansPlomb: number, gnr: number }) => void;
+    onUpdateClientSettings: (e: React.FormEvent<HTMLFormElement>) => void | Promise<void>;
+    onUpdateProfitCenters: (pcs: ProfitCenter[]) => void | Promise<void>;
+    onUpdateFuelObjectives: (objectives: { gasoil: number, sansPlomb: number, gnr: number }) => void | Promise<void>;
     onUpdateClientStatus: (client: Client, newStatus: 'active' | 'inactive') => void;
     onResetDatabase: () => void;
-    onToggleFuelModule: () => void;
-    onToggleCommercialMargin: () => void;
+    onToggleFuelModule: () => void | Promise<void>;
+    onToggleCommercialMargin: () => void | Promise<void>;
 }
 
 const SettingsView: React.FC<SettingsViewProps> = ({
@@ -27,6 +27,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
 }) => {
     const confirm = useConfirmDialog();
     const [isEditingSettings, setIsEditingSettings] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [settingsProfitCenters, setSettingsProfitCenters] = useState<ProfitCenter[]>(client.profitCenters || []);
     const [settingsFuelObjectives, setSettingsFuelObjectives] = useState(client.settings?.fuelObjectives || { gasoil: 0, sansPlomb: 0, gnr: 0 });
 
@@ -55,9 +56,15 @@ const SettingsView: React.FC<SettingsViewProps> = ({
     // Handler Wrappers
     const handleSaveClientForm = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        if (isSaving) return;
         const ok = await confirm({ title: 'Modifier les informations ?', message: 'Les informations administratives du dossier seront mises à jour.', confirmLabel: 'Enregistrer' });
         if (!ok) return;
-        onUpdateClientSettings(e);
+        setIsSaving(true);
+        try {
+            await onUpdateClientSettings(e);
+        } finally {
+            setIsSaving(false);
+        }
         setIsEditingSettings(false);
     };
 
@@ -175,11 +182,15 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                         <PieChart className="w-4 h-4" /> Suivi Marge Commerciale
                     </h3>
                     <button
+                        disabled={isSaving}
                         onClick={async () => {
+                            if (isSaving) return;
                             const ok = await confirm({ title: client.settings?.showCommercialMargin ? 'Désactiver la marge ?' : 'Activer la marge ?', message: client.settings?.showCommercialMargin ? 'Le suivi de la marge commerciale sera désactivé.' : 'La marge commerciale sera calculée et analysée dans les rapports.', variant: 'info', confirmLabel: client.settings?.showCommercialMargin ? 'Désactiver' : 'Activer' });
-                            if (ok) onToggleCommercialMargin();
+                            if (!ok) return;
+                            setIsSaving(true);
+                            try { await onToggleCommercialMargin(); } finally { setIsSaving(false); }
                         }}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${client.settings?.showCommercialMargin ? 'bg-purple-600' : 'bg-slate-200'}`}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${client.settings?.showCommercialMargin ? 'bg-purple-600' : 'bg-slate-200'}`}
                     >
                         <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${client.settings?.showCommercialMargin ? 'translate-x-6' : 'translate-x-1'}`} />
                     </button>
@@ -275,13 +286,17 @@ const SettingsView: React.FC<SettingsViewProps> = ({
 
                     <div className="mt-6 flex justify-end">
                         <button
+                            disabled={isSaving}
                             onClick={async () => {
+                                if (isSaving) return;
                                 const ok = await confirm({ title: 'Enregistrer la structure ?', message: 'La ventilation analytique sera mise à jour pour ce dossier.', variant: 'success', confirmLabel: 'Enregistrer' });
-                                if (ok) onUpdateProfitCenters(settingsProfitCenters);
+                                if (!ok) return;
+                                setIsSaving(true);
+                                try { await onUpdateProfitCenters(settingsProfitCenters); } finally { setIsSaving(false); }
                             }}
-                            className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 font-bold shadow-sm transition flex items-center gap-2"
+                            className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 font-bold shadow-sm transition flex items-center gap-2 disabled:opacity-50"
                         >
-                            <Save className="w-4 h-4" /> Enregistrer la structure analytique
+                            <Save className="w-4 h-4" /> {isSaving ? 'Enregistrement...' : 'Enregistrer la structure analytique'}
                         </button>
                     </div>
                 </div>
@@ -294,11 +309,15 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                         <Droplets className="w-4 h-4" /> Suivi Carburant
                     </h3>
                     <button
+                        disabled={isSaving}
                         onClick={async () => {
+                            if (isSaving) return;
                             const ok = await confirm({ title: client.settings?.showFuelTracking ? 'Désactiver le carburant ?' : 'Activer le carburant ?', message: client.settings?.showFuelTracking ? 'Le module de suivi carburant sera désactivé.' : 'Le suivi de consommation carburant sera activé pour ce dossier.', variant: 'info', confirmLabel: client.settings?.showFuelTracking ? 'Désactiver' : 'Activer' });
-                            if (ok) onToggleFuelModule();
+                            if (!ok) return;
+                            setIsSaving(true);
+                            try { await onToggleFuelModule(); } finally { setIsSaving(false); }
                         }}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${client.settings?.showFuelTracking ? 'bg-blue-600' : 'bg-slate-200'}`}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${client.settings?.showFuelTracking ? 'bg-blue-600' : 'bg-slate-200'}`}
                     >
                         <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${client.settings?.showFuelTracking ? 'translate-x-6' : 'translate-x-1'}`} />
                     </button>

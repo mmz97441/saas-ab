@@ -253,21 +253,25 @@ export const getClients = async (filterByEmail?: string | null): Promise<Client[
                 id: doc.id,
                 companyName: data.companyName || "Entreprise sans nom",
                 siret: data.siret || "",
+                legalForm: data.legalForm || "",
+                fiscalYearEnd: data.fiscalYearEnd || "",
                 address: data.address || "",
                 zipCode: data.zipCode || "",
                 city: data.city || "",
                 companyPhone: data.companyPhone || "",
                 managerName: data.managerName || "",
                 managerPhone: data.managerPhone || "",
+                sector: data.sector || "",
                 owner: {
                     name: ownerData.name || data.managerName || 'Dirigeant',
-                    email: ownerData.email || ''
+                    email: ownerData.email || '',
+                    phone: ownerData.phone || ''
                 },
-                status: data.status || 'active', 
+                status: data.status || 'active',
                 joinedDate: data.joinedDate || new Date().toISOString(),
                 assignedConsultantEmail: data.assignedConsultantEmail || "",
-                settings: data.settings || { 
-                    showCommercialMargin: true, 
+                settings: data.settings || {
+                    showCommercialMargin: true,
                     showFuelTracking: false,
                     fuelObjectives: { gasoil: 0, sansPlomb: 0, gnr: 0 }
                 },
@@ -284,7 +288,7 @@ export const getClients = async (filterByEmail?: string | null): Promise<Client[
 };
 
 export const saveClient = async (client: Client): Promise<void> => {
-    await setDoc(doc(db, COLL_CLIENTS, client.id), client);
+    await setDoc(doc(db, COLL_CLIENTS, client.id), client, { merge: true });
 };
 
 export const updateClientStatus = async (clientId: string, newStatus: 'active' | 'inactive'): Promise<void> => {

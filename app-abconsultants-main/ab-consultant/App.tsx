@@ -29,10 +29,32 @@ import { SUPER_ADMIN_EMAIL } from './config';
 
 type UserRole = 'ab_consultant' | 'client';
 
+// ── HASH ROUTING ────────────────────────────────────────────
+const VIEW_TO_HASH: Record<View, string> = {
+  [View.Dashboard]: 'tableau-de-bord',
+  [View.Entry]: 'saisie',
+  [View.History]: 'historique',
+  [View.Settings]: 'configuration',
+  [View.Clients]: 'clients',
+  [View.Team]: 'equipe',
+  [View.Messages]: 'messagerie',
+  [View.Profile]: 'profil',
+  [View.CRM]: 'crm',
+  [View.ClientMessages]: 'ma-messagerie',
+  [View.Help]: 'aide',
+};
+const HASH_TO_VIEW: Record<string, View> = {};
+Object.entries(VIEW_TO_HASH).forEach(([view, hash]) => { HASH_TO_VIEW[hash] = view as View; });
+
+const getViewFromHash = (): View => {
+  const hash = window.location.hash.replace('#', '');
+  return HASH_TO_VIEW[hash] || View.Dashboard;
+};
+
 const App: React.FC = () => {
   const [isAuthCheckLoading, setIsAuthCheckLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentView, setCurrentView] = useState<View>(View.Dashboard);
+  const [currentView, setCurrentView] = useState<View>(getViewFromHash);
   const [data, setData] = useState<FinancialRecord[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -108,6 +130,24 @@ const App: React.FC = () => {
         setIsAuthCheckLoading(false);
     });
     return () => unsubscribe();
+  }, []);
+
+  // ── HASH ROUTING: sync view → URL hash ──
+  useEffect(() => {
+    const hash = VIEW_TO_HASH[currentView] || 'tableau-de-bord';
+    if (window.location.hash !== `#${hash}`) {
+      window.location.hash = hash;
+    }
+  }, [currentView]);
+
+  // ── HASH ROUTING: sync URL hash → view (back/forward) ──
+  useEffect(() => {
+    const handleHashChange = () => {
+      const view = getViewFromHash();
+      setCurrentView(view);
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
   useEffect(() => {

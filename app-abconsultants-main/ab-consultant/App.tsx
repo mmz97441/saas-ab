@@ -298,10 +298,8 @@ const App: React.FC = () => {
       showNotification(clientData.id ? "Dossier modifié." : "Dossier créé avec succès.", 'success');
   };
 
-  const handleUpdateClientSettings = async (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
+  const handleUpdateClientSettings = async (formData: FormData) => {
       if (userRole !== 'ab_consultant' || !selectedClient) return;
-      const formData = new FormData(e.currentTarget);
       const updatedClient: Client = {
           ...selectedClient,
           companyName: formData.get('companyName') as string,

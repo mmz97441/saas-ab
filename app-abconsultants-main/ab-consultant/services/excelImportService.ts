@@ -107,6 +107,7 @@ export interface ParsedSheet {
   headers: string[];
   rows: any[][];
   rawData: any[][];
+  fmtData: any[][]; // formatted strings (raw: false) – used for month header detection
 }
 
 export interface SheetMapping {
@@ -162,30 +163,37 @@ function findHeaderRowIndex(rawData: any[][]): number {
 }
 
 // Read an Excel file and return parsed sheets
+// Uses a dual-read strategy: raw:false (formatted strings) for month header detection,
+// and default raw values for numeric data accuracy.
 export function readExcelFile(file: File): Promise<ParsedSheet[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+        const workbook = XLSX.read(data, { type: 'array' });
 
         const sheets: ParsedSheet[] = workbook.SheetNames.map(name => {
-          const sheet = workbook.Sheets[name];
-          const rawData: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+          const ws = workbook.Sheets[name];
 
-          // Dynamically find the header row (the one with month names)
-          const headerRowIdx = findHeaderRowIndex(rawData);
+          // raw values (numbers stay as numbers) – used for data rows
+          const rawData: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-          // Convert headers to display strings (handles Date objects and Excel date serials)
-          const headers = rawData.length > headerRowIdx
-            ? rawData[headerRowIdx].map((h: any) => cellToHeaderString(h))
+          // formatted strings (Excel's display text, e.g. "janvier-25") – used for header detection
+          const fmtData: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
+
+          // Find the header row using formatted text (most reliable for month detection)
+          const headerRowIdx = findHeaderRowIndex(fmtData);
+
+          // Headers come from formatted data so "janvier-25" is a readable string
+          const headers = fmtData.length > headerRowIdx
+            ? fmtData[headerRowIdx].map((h: any) => String(h ?? '').trim())
             : [];
 
-          // Data rows start after the header row
+          // Data rows use raw values for numeric accuracy
           const rows = rawData.slice(headerRowIdx + 1);
 
-          return { name, headers, rows, rawData };
+          return { name, headers, rows, rawData, fmtData };
         });
 
         resolve(sheets);
@@ -408,11 +416,38 @@ export function parseFuelSheet(
   volumes: Map<string, { gasoil: number; sansPlomb: number; gnr: number; total: number }>;
   objectives: Map<string, { gasoil: number; sansPlomb: number; gnr: number; total: number }>;
 } {
-  const monthCols = detectMonthColumns(sheet.headers);
+  let monthCols = detectMonthColumns(sheet.headers);
+  let dataRows = sheet.rows;
+  let effectiveHeaders = sheet.headers;
+
+  // Fallback: if headers don't have months, re-scan fmtData (formatted strings)
+  if (monthCols.length < 3 && sheet.fmtData) {
+    const maxScan = Math.min(sheet.fmtData.length, 50);
+    let bestRow = -1;
+    let bestCount = 0;
+    for (let i = 0; i < maxScan; i++) {
+      const row = sheet.fmtData[i];
+      if (!row || !Array.isArray(row)) continue;
+      let count = 0;
+      for (const cell of row) {
+        if (parseMonth(cell)) count++;
+      }
+      if (count > bestCount) {
+        bestCount = count;
+        bestRow = i;
+      }
+    }
+    if (bestCount >= 3 && bestRow >= 0) {
+      effectiveHeaders = sheet.fmtData[bestRow].map((h: any) => String(h ?? '').trim());
+      monthCols = detectMonthColumns(effectiveHeaders);
+      dataRows = sheet.rawData.slice(bestRow + 1);
+    }
+  }
+
   if (monthCols.length === 0) return { volumes: new Map(), objectives: new Map() };
 
   // Find the label column (first non-month column, usually index 0)
-  const labelColIndex = sheet.headers.findIndex((h, i) => !monthCols.some(mc => mc.colIndex === i));
+  const labelColIndex = effectiveHeaders.findIndex((h, i) => !monthCols.some(mc => mc.colIndex === i));
   const effectiveLabelCol = labelColIndex >= 0 ? labelColIndex : 0;
 
   const volumes = new Map<string, { gasoil: number; sansPlomb: number; gnr: number; total: number }>();
@@ -427,7 +462,7 @@ export function parseFuelSheet(
   // Track the last fuel type seen so "Objectifs ENGEN" rows bind to it
   let lastFuelType: 'gasoil' | 'sansPlomb' | 'gnr' | null = null;
 
-  for (const row of sheet.rows) {
+  for (const row of dataRows) {
     const label = String(row[effectiveLabelCol] || '').trim();
     if (!label) continue;
 
@@ -528,14 +563,14 @@ export function parseAnalyseActiviteSheet(
   let dataRows = sheet.rows;
   let effectiveHeaders = sheet.headers;
 
-  // Fallback: if headers don't have months, re-scan rawData to find the real header row
-  // This handles cases where findHeaderRowIndex's scan limit was too low
-  if (monthCols.length < 3 && sheet.rawData) {
-    const maxScan = Math.min(sheet.rawData.length, 50);
+  // Fallback: if headers don't have months, re-scan fmtData (formatted strings) to find the real header row
+  // fmtData uses raw:false which gives Excel's display text – most reliable for month detection
+  if (monthCols.length < 3 && sheet.fmtData) {
+    const maxScan = Math.min(sheet.fmtData.length, 50);
     let bestRow = -1;
     let bestCount = 0;
     for (let i = 0; i < maxScan; i++) {
-      const row = sheet.rawData[i];
+      const row = sheet.fmtData[i];
       if (!row || !Array.isArray(row)) continue;
       let count = 0;
       for (const cell of row) {
@@ -547,8 +582,9 @@ export function parseAnalyseActiviteSheet(
       }
     }
     if (bestCount >= 3 && bestRow >= 0) {
-      effectiveHeaders = sheet.rawData[bestRow].map((h: any) => cellToHeaderString(h));
+      effectiveHeaders = sheet.fmtData[bestRow].map((h: any) => String(h ?? '').trim());
       monthCols = detectMonthColumns(effectiveHeaders);
+      // Data rows use rawData for numeric accuracy
       dataRows = sheet.rawData.slice(bestRow + 1);
     }
   }

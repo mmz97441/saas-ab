@@ -53,18 +53,19 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-200">
+      <div role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title" className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="p-6 pb-4 flex items-start gap-4">
           <div className={`p-3 rounded-xl ${styles.icon} shrink-0`}>
             <AlertTriangle className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+            <h3 id="confirm-modal-title" className="text-lg font-bold text-slate-900">{title}</h3>
             <p className="text-sm text-slate-600 mt-1 whitespace-pre-line">{message}</p>
           </div>
           <button
             onClick={onCancel}
+            aria-label="Fermer"
             className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition shrink-0"
           >
             <X className="w-4 h-4" />

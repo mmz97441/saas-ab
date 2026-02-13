@@ -8,6 +8,7 @@ import { TrendingUp, TrendingDown, DollarSign, Users, MousePointerClick, Calenda
 // @ts-ignore
 import confetti from 'canvas-confetti';
 import { toShortMonth, getExpertComments, saveExpertComment } from '../services/dataService';
+import { calculateRatios } from '../utils/ratios';
 import { ExpertComment } from '../types';
 import { GlossaryTooltip } from './GlossaryTooltip';
 
@@ -200,40 +201,15 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
   // Financial Ratios (based on snapshot record — last month of displayed period)
   const ratios = useMemo(() => {
     if (!snapshotRecord) return null;
-
-    const ca = snapshotRecord.revenue.total;
-    const margin = snapshotRecord.margin?.total || 0;
-    const achats = Math.max(ca - margin, 0);
-    const salaries = snapshotRecord.expenses.salaries;
-    const hours = snapshotRecord.expenses.hoursWorked;
-
-    const hasCa = ca > 0;
-    const hasAchats = achats > 0;
-    const hasSalaries = salaries > 0;
-    const hasHours = hours > 0;
-    const hasReceivables = snapshotRecord.bfr.receivables.clients > 0;
-    const hasDebtsSuppliers = snapshotRecord.bfr.debts.suppliers > 0;
-    const hasStock = snapshotRecord.bfr.stock.total > 0;
-
-    const dso = hasCa ? (snapshotRecord.bfr.receivables.clients / ca) * 30 : 0;
-    const dpo = hasAchats ? (snapshotRecord.bfr.debts.suppliers / achats) * 30 : 0;
-    const dio = hasAchats ? (snapshotRecord.bfr.stock.total / achats) * 30 : 0;
-    const bfrDays = dso + dio - dpo;
-    const salaryRatio = hasCa ? (salaries / ca) * 100 : 0;
-    const productivityPerHour = hasHours ? ca / hours : 0;
-    const costPerHour = hasHours ? salaries / hours : 0;
-
-    // "inactive" = pas de données source pour calculer ce ratio
-    const dsoInactive = !hasCa || !hasReceivables;
-    const dpoInactive = !hasAchats || !hasDebtsSuppliers;
-    const dioInactive = !hasAchats || !hasStock;
-    const bfrDaysInactive = dsoInactive && dpoInactive && dioInactive;
-    const salaryInactive = !hasCa || !hasSalaries;
-    const productivityInactive = !hasCa || !hasHours;
-    const costInactive = !hasSalaries || !hasHours;
-
-    return { dso, dpo, dio, bfrDays, salaryRatio, productivityPerHour, costPerHour,
-             dsoInactive, dpoInactive, dioInactive, bfrDaysInactive, salaryInactive, productivityInactive, costInactive };
+    return calculateRatios({
+      ca: snapshotRecord.revenue.total,
+      marginTotal: snapshotRecord.margin?.total || 0,
+      salaries: snapshotRecord.expenses.salaries,
+      hoursWorked: snapshotRecord.expenses.hoursWorked,
+      receivablesClients: snapshotRecord.bfr.receivables.clients,
+      debtsSuppliers: snapshotRecord.bfr.debts.suppliers,
+      stockTotal: snapshotRecord.bfr.stock.total,
+    });
   }, [snapshotRecord]);
 
   useEffect(() => {

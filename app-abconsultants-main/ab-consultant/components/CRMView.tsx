@@ -162,7 +162,7 @@ const CRMView: React.FC<CRMViewProps> = ({ client, currentUserEmail, currentUser
         <div className="bg-white rounded-xl border border-brand-200 shadow-lg p-5 animate-in slide-in-from-top-2 duration-200">
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-bold text-slate-700">{editingNote ? 'Modifier' : 'Nouvelle entrée'}</h3>
-            <button onClick={resetForm} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+            <button onClick={resetForm} aria-label="Fermer le formulaire" className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
           </div>
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="flex flex-wrap gap-2">

@@ -74,7 +74,7 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ onComplete, userRole })
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-900/60 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+      <div role="dialog" aria-modal="true" aria-labelledby="onboarding-title" className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-300">
         {/* Progress */}
         <div className="flex gap-1 p-3 bg-brand-50">
           {steps.map((_, i) => (
@@ -87,7 +87,7 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ onComplete, userRole })
           <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-brand-50 flex items-center justify-center">
             <Icon className="w-8 h-8 text-brand-600" />
           </div>
-          <h2 className="text-xl font-bold text-brand-900 mb-3">{step.title}</h2>
+          <h2 id="onboarding-title" className="text-xl font-bold text-brand-900 mb-3">{step.title}</h2>
           <p className="text-sm text-slate-600 leading-relaxed mb-4">{step.description}</p>
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
             <strong>Astuce :</strong> {step.tip}

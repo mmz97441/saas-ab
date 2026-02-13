@@ -167,19 +167,19 @@ Expertise & Stratégie Financière`;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-brand-100 flex flex-col max-h-[90vh]">
+            <div role="dialog" aria-modal="true" aria-labelledby="client-modal-title" className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-brand-100 flex flex-col max-h-[90vh]">
                 
                 {/* Header */}
                 <div className="bg-brand-50 p-6 border-b border-brand-100 flex justify-between items-center shrink-0">
                     <div>
-                        <h2 className="text-xl font-bold text-brand-900">
+                        <h2 id="client-modal-title" className="text-xl font-bold text-brand-900">
                             {showInviteStep ? 'Dossier Créé avec Succès !' : (initialData ? 'Modifier le Dossier' : 'Nouveau Dossier Client')}
                         </h2>
                         <p className="text-sm text-brand-500">
                             {showInviteStep ? 'Prochaine étape : Inviter le client à activer son accès.' : 'Informations administratives et configuration d\'accès.'}
                         </p>
                     </div>
-                    <button onClick={onClose} className="p-2 bg-white rounded-full text-brand-400 hover:text-brand-700 hover:bg-brand-100 transition">
+                    <button onClick={onClose} aria-label="Fermer" className="p-2 bg-white rounded-full text-brand-400 hover:text-brand-700 hover:bg-brand-100 transition">
                         <X className="w-5 h-5" />
                     </button>
                 </div>

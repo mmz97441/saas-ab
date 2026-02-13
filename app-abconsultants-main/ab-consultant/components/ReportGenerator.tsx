@@ -112,12 +112,12 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ client, data, isOpen,
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-900/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+      <div role="dialog" aria-modal="true" aria-labelledby="report-modal-title" className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
         {/* Modal Header */}
         <div className="p-5 border-b border-slate-200 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <FileText className="w-5 h-5 text-brand-600" />
-            <h2 className="text-lg font-bold text-slate-800">Rapport Mensuel</h2>
+            <h2 id="report-modal-title" className="text-lg font-bold text-slate-800">Rapport Mensuel</h2>
           </div>
           <div className="flex items-center gap-3">
             <select
@@ -135,7 +135,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ client, data, isOpen,
               {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
               Générer PDF
             </button>
-            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg transition">
+            <button onClick={onClose} aria-label="Fermer" className="p-2 hover:bg-slate-100 rounded-lg transition">
               <X className="w-5 h-5 text-slate-400" />
             </button>
           </div>

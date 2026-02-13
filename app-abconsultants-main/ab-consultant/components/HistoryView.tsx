@@ -173,7 +173,7 @@ const HistoryView: React.FC<HistoryViewProps> = ({
             <div className="md:hidden space-y-3">
                 {filteredHistoryData.length > 0 ? (
                     filteredHistoryData.map(record => (
-                        <div key={record.id} onClick={() => onEdit(record)} className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 active:bg-slate-50 transition cursor-pointer">
+                        <div key={record.id} role="button" tabIndex={0} onClick={() => onEdit(record)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onEdit(record); }}} className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 active:bg-slate-50 transition cursor-pointer">
                             <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-lg bg-brand-50 text-brand-600 flex flex-col items-center justify-center border border-brand-100">

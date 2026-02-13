@@ -1,24 +1,26 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, Suspense, lazy } from 'react';
 import { Menu, X, UserCircle, CheckCircle, Eye, EyeOff, Users, Plus, Edit2, Trash2, Search, Briefcase, Phone, Mail, MapPin, Archive, Send, Power, Loader2, UserPlus, Crown, ShieldCheck, ChevronRight, Home, Bell } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import EntryForm from './components/EntryForm';
-import LoginScreen from './components/LoginScreen'; 
+import LoginScreen from './components/LoginScreen';
 import AIChatWidget from './components/AIChatWidget';
 import Sidebar from './components/Sidebar';
-import HistoryView from './components/HistoryView';
-import SettingsView from './components/SettingsView';
-import ConsultantMessaging from './components/ConsultantMessaging'; 
-import ConsultantDashboard from './components/ConsultantDashboard'; // Import Nouveau
 import ClientModal from './components/ClientModal';
-import TeamManagement from './components/TeamManagement';
-import ProfileView from './components/ProfileView';
-import ClientMessaging from './components/ClientMessaging';
-import CRMView from './components/CRMView';
 import GlossaryPanel from './components/GlossaryTooltip';
-import OnboardingTour from './components/OnboardingTour';
-import ReportGenerator from './components/ReportGenerator';
-import HelpView from './components/HelpView';
+
+// Code-splitting : vues secondaires chargées à la demande
+const HistoryView = lazy(() => import('./components/HistoryView'));
+const SettingsView = lazy(() => import('./components/SettingsView'));
+const ConsultantMessaging = lazy(() => import('./components/ConsultantMessaging'));
+const ConsultantDashboard = lazy(() => import('./components/ConsultantDashboard'));
+const TeamManagement = lazy(() => import('./components/TeamManagement'));
+const ProfileView = lazy(() => import('./components/ProfileView'));
+const ClientMessaging = lazy(() => import('./components/ClientMessaging'));
+const CRMView = lazy(() => import('./components/CRMView'));
+const OnboardingTour = lazy(() => import('./components/OnboardingTour'));
+const ReportGenerator = lazy(() => import('./components/ReportGenerator'));
+const HelpView = lazy(() => import('./components/HelpView'));
 import { useConfirmDialog } from './contexts/ConfirmContext';
 
 import { FinancialRecord, Client, Month, ProfitCenter, Consultant, View } from './types';
@@ -501,6 +503,7 @@ const App: React.FC = () => {
          </div>
          
          <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24 lg:pb-8">
+          <Suspense fallback={<div className="flex items-center justify-center py-24"><Loader2 className="w-6 h-6 animate-spin text-brand-400"/></div>}>
 
             {/* BREADCRUMB NAVIGATION */}
             {!isPresentationMode && (
@@ -717,21 +720,24 @@ const App: React.FC = () => {
                     </div>
                  </div>
             )}
+          </Suspense>
          </div>
       </main>
-      
+
       {/* REPORT GENERATOR */}
-      {selectedClient && (
-        <ReportGenerator client={selectedClient} data={data} isOpen={showReportGenerator} onClose={() => setShowReportGenerator(false)} />
-      )}
+      <Suspense fallback={null}>
+        {selectedClient && (
+          <ReportGenerator client={selectedClient} data={data} isOpen={showReportGenerator} onClose={() => setShowReportGenerator(false)} />
+        )}
+
+        {/* ONBOARDING TOUR */}
+        {showOnboarding && isAuthenticated && (
+          <OnboardingTour userRole={userRole} onComplete={() => setShowOnboarding(false)} />
+        )}
+      </Suspense>
 
       {/* GLOSSAIRE FINANCIER */}
       <GlossaryPanel isOpen={showGlossary} onClose={() => setShowGlossary(false)} />
-
-      {/* ONBOARDING TOUR */}
-      {showOnboarding && isAuthenticated && (
-        <OnboardingTour userRole={userRole} onComplete={() => setShowOnboarding(false)} />
-      )}
 
       {statusModal.isOpen && statusModal.client && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-900/50 backdrop-blur-sm">

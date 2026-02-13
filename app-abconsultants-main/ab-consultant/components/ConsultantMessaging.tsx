@@ -96,7 +96,7 @@ const ConsultantMessaging: React.FC<ConsultantMessagingProps> = ({ clients, onMa
                             className="w-full pl-8 pr-8 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-2 focus:ring-brand-500 outline-none"
                         />
                         {chatSearch && (
-                            <button onClick={() => setChatSearch('')} className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600">
+                            <button onClick={() => setChatSearch('')} aria-label="Effacer la recherche" className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600">
                                 <X className="w-3.5 h-3.5" />
                             </button>
                         )}
@@ -143,7 +143,7 @@ const ConsultantMessaging: React.FC<ConsultantMessagingProps> = ({ clients, onMa
                         <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
                             <div className="flex items-center gap-3">
                                 {/* Mobile back button */}
-                                <button onClick={() => setSelectedClientId(null)} className="md:hidden p-1.5 hover:bg-slate-100 rounded-lg transition">
+                                <button onClick={() => setSelectedClientId(null)} aria-label="Retour aux conversations" className="md:hidden p-1.5 hover:bg-slate-100 rounded-lg transition">
                                     <ArrowLeft className="w-5 h-5 text-slate-600" />
                                 </button>
                                 <span className="font-bold text-slate-700">

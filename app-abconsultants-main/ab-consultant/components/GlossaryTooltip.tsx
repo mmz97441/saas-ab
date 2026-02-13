@@ -203,11 +203,11 @@ export const GlossaryTerm: React.FC<{ term: keyof typeof GLOSSARY; children?: Re
       </button>
       {isOpen && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div className="fixed inset-0 z-40" role="presentation" aria-hidden="true" onClick={() => setIsOpen(false)} />
           <div className="absolute z-50 bottom-full left-0 mb-2 w-72 bg-white border border-slate-200 rounded-xl shadow-xl p-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex justify-between items-start mb-2">
               <h4 className="font-bold text-sm text-brand-900">{entry.title}</h4>
-              <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setIsOpen(false)} aria-label="Fermer" className="text-slate-400 hover:text-slate-600">
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -230,12 +230,12 @@ const GlossaryPanel: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isO
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-900/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div role="dialog" aria-modal="true" aria-labelledby="glossary-panel-title" className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-brand-50">
-          <h2 className="text-lg font-bold text-brand-900 flex items-center gap-2">
+          <h2 id="glossary-panel-title" className="text-lg font-bold text-brand-900 flex items-center gap-2">
             <HelpCircle className="w-5 h-5 text-brand-500" /> Glossaire Financier
           </h2>
-          <button onClick={onClose} className="p-1.5 hover:bg-brand-100 rounded-lg transition">
+          <button onClick={onClose} aria-label="Fermer le glossaire" className="p-1.5 hover:bg-brand-100 rounded-lg transition">
             <X className="w-5 h-5 text-slate-500" />
           </button>
         </div>

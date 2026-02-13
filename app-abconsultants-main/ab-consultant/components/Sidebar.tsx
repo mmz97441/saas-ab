@@ -148,7 +148,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             {/* Main scrollable nav */}
-            <nav className="flex-1 px-4 pb-2 space-y-1 overflow-y-auto custom-scrollbar">
+            <nav aria-label="Navigation principale" className="flex-1 px-4 pb-2 space-y-1 overflow-y-auto custom-scrollbar">
 
                 {/* ══════════════════════════════════════════
                     SECTION 1: PILOTAGE CABINET (Consultant only)

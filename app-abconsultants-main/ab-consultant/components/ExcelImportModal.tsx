@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { X, Upload, FileSpreadsheet, CheckCircle, AlertTriangle, ChevronRight, ChevronDown, Eye, Layers, Fuel, ShoppingBag, XCircle, Plus, ArrowRight, Loader2 } from 'lucide-react';
+import { X, Upload, FileSpreadsheet, CheckCircle, AlertTriangle, ChevronRight, ChevronDown, Eye, Layers, Fuel, ShoppingBag, XCircle, Plus, ArrowRight, Loader2, ClipboardList } from 'lucide-react';
 import { ProfitCenter, FinancialRecord, Month } from '../types';
 import {
   ParsedSheet,
@@ -238,8 +238,9 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                         </button>
 
                         {/* Sheet icon */}
-                        <div className={`p-1.5 rounded-lg ${mapping?.type === 'revenue_by_family' ? 'bg-emerald-100 text-emerald-600' : mapping?.type === 'fuel_volumes' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
-                          {mapping?.type === 'revenue_by_family' ? <ShoppingBag className="w-4 h-4" /> :
+                        <div className={`p-1.5 rounded-lg ${mapping?.type === 'analyse_activite' ? 'bg-purple-100 text-purple-600' : mapping?.type === 'revenue_by_family' ? 'bg-emerald-100 text-emerald-600' : mapping?.type === 'fuel_volumes' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
+                          {mapping?.type === 'analyse_activite' ? <ClipboardList className="w-4 h-4" /> :
+                           mapping?.type === 'revenue_by_family' ? <ShoppingBag className="w-4 h-4" /> :
                            mapping?.type === 'fuel_volumes' ? <Fuel className="w-4 h-4" /> :
                            <Layers className="w-4 h-4" />}
                         </div>
@@ -258,7 +259,9 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                           value={mapping?.type || 'ignore'}
                           onChange={(e) => updateMapping(sheet.name, e.target.value as SheetMapping['type'])}
                           className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition ${
-                            mapping?.type === 'revenue_by_family'
+                            mapping?.type === 'analyse_activite'
+                              ? 'border-purple-300 bg-purple-50 text-purple-700'
+                              : mapping?.type === 'revenue_by_family'
                               ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
                               : mapping?.type === 'fuel_volumes'
                               ? 'border-blue-300 bg-blue-50 text-blue-700'
@@ -266,6 +269,7 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                           }`}
                         >
                           <option value="ignore">Ignorer</option>
+                          <option value="analyse_activite">Feuille de Saisie</option>
                           <option value="revenue_by_family">CA par Famille</option>
                           <option value="fuel_volumes">Volumes Carburant</option>
                         </select>
@@ -315,12 +319,20 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="p-4 bg-brand-50 rounded-xl border border-brand-200 text-center">
                   <div className="text-2xl font-bold text-brand-700">{previewData.summary.monthCount}</div>
-                  <div className="text-xs font-bold text-brand-600">mois importés</div>
+                  <div className="text-xs font-bold text-brand-600">mois importes</div>
                 </div>
-                <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200 text-center">
-                  <div className="text-2xl font-bold text-emerald-700">{previewData.summary.familyCount}</div>
-                  <div className="text-xs font-bold text-emerald-600">familles de produits</div>
-                </div>
+                {previewData.summary.hasAnalyseActivite && (
+                  <div className="p-4 bg-purple-50 rounded-xl border border-purple-200 text-center">
+                    <div className="text-2xl font-bold text-purple-700"><ClipboardList className="w-6 h-6 mx-auto" /></div>
+                    <div className="text-xs font-bold text-purple-600">Donnees completes</div>
+                  </div>
+                )}
+                {previewData.summary.familyCount > 0 && (
+                  <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200 text-center">
+                    <div className="text-2xl font-bold text-emerald-700">{previewData.summary.familyCount}</div>
+                    <div className="text-xs font-bold text-emerald-600">familles de produits</div>
+                  </div>
+                )}
                 {previewData.summary.newFamilyCount > 0 && (
                   <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 text-center">
                     <div className="text-2xl font-bold text-amber-700 flex items-center justify-center gap-1">
@@ -372,7 +384,13 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                       <tr className="bg-slate-100">
                         <th className="px-3 py-2 text-left font-bold text-slate-600 border-b border-slate-200">Mois</th>
                         <th className="px-3 py-2 text-right font-bold text-slate-600 border-b border-slate-200">CA Total</th>
-                        {previewData.allProfitCenters.slice(0, 6).map(pc => (
+                        {previewData.summary.hasAnalyseActivite && (
+                          <>
+                            <th className="px-3 py-2 text-right font-bold text-purple-600 border-b border-slate-200">Marge</th>
+                            <th className="px-3 py-2 text-right font-bold text-purple-600 border-b border-slate-200">Salaires</th>
+                          </>
+                        )}
+                        {previewData.allProfitCenters.slice(0, 4).map(pc => (
                           <th key={pc.id} className="px-3 py-2 text-right font-bold text-slate-600 border-b border-slate-200 whitespace-nowrap">
                             {pc.name}
                             {previewData.newProfitCenters.some(np => np.id === pc.id) && (
@@ -398,9 +416,19 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                             <tr key={record.month} className="hover:bg-slate-50 transition">
                               <td className="px-3 py-2 font-bold text-slate-800 border-b border-slate-100">{record.month}</td>
                               <td className="px-3 py-2 text-right font-mono font-bold text-brand-700 border-b border-slate-100">
-                                {formatNum(record.revenue.total)} €
+                                {formatNum(record.revenue.total)} {record.revenue.total > 0 ? '€' : '-'}
                               </td>
-                              {previewData.allProfitCenters.slice(0, 6).map(pc => (
+                              {previewData.summary.hasAnalyseActivite && (
+                                <>
+                                  <td className="px-3 py-2 text-right font-mono text-purple-600 border-b border-slate-100">
+                                    {record.margin?.total ? `${formatNum(record.margin.total)} €` : '-'}
+                                  </td>
+                                  <td className="px-3 py-2 text-right font-mono text-purple-600 border-b border-slate-100">
+                                    {record.expenses.salaries ? `${formatNum(record.expenses.salaries)} €` : '-'}
+                                  </td>
+                                </>
+                              )}
+                              {previewData.allProfitCenters.slice(0, 4).map(pc => (
                                 <td key={pc.id} className="px-3 py-2 text-right font-mono text-slate-600 border-b border-slate-100">
                                   {record.revenue.breakdown?.[pc.id] ? formatNum(record.revenue.breakdown[pc.id]) : '-'}
                                 </td>

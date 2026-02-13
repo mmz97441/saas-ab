@@ -915,40 +915,40 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
             )}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-            <div className="bg-slate-50 rounded-lg p-3 text-center">
+            <div className={`rounded-lg p-3 text-center ${ratios.dso === 0 ? 'bg-slate-50/50 opacity-40' : 'bg-slate-50'}`}>
               <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-center gap-0.5">DSO <GlossaryTooltip term="dso" position="bottom" /></p>
-              <p className="text-lg font-bold text-cyan-700">{ratios.dso.toFixed(0)}<span className="text-xs font-normal text-slate-400"> j</span></p>
-              <p className="text-[9px] text-slate-400 mt-0.5">Délai encaissement</p>
+              <p className={`text-lg font-bold ${ratios.dso === 0 ? 'text-slate-300' : 'text-cyan-700'}`}>{ratios.dso.toFixed(0)}<span className="text-xs font-normal text-slate-400"> j</span></p>
+              <p className="text-[9px] text-slate-400 mt-0.5">{ratios.dso === 0 ? 'Aucune donnée' : 'Délai encaissement'}</p>
             </div>
-            <div className="bg-slate-50 rounded-lg p-3 text-center">
+            <div className={`rounded-lg p-3 text-center ${ratios.dpo === 0 ? 'bg-slate-50/50 opacity-40' : 'bg-slate-50'}`}>
               <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-center gap-0.5">DPO <GlossaryTooltip term="dpo" position="bottom" /></p>
-              <p className="text-lg font-bold text-rose-700">{ratios.dpo.toFixed(0)}<span className="text-xs font-normal text-slate-400"> j</span></p>
-              <p className="text-[9px] text-slate-400 mt-0.5">Délai paiement</p>
+              <p className={`text-lg font-bold ${ratios.dpo === 0 ? 'text-slate-300' : 'text-rose-700'}`}>{ratios.dpo.toFixed(0)}<span className="text-xs font-normal text-slate-400"> j</span></p>
+              <p className="text-[9px] text-slate-400 mt-0.5">{ratios.dpo === 0 ? 'Aucune donnée' : 'Délai paiement'}</p>
             </div>
-            <div className="bg-slate-50 rounded-lg p-3 text-center">
+            <div className={`rounded-lg p-3 text-center ${ratios.dio === 0 ? 'bg-slate-50/50 opacity-40' : 'bg-slate-50'}`}>
               <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-center gap-0.5">DIO <GlossaryTooltip term="dio" position="bottom" /></p>
-              <p className="text-lg font-bold text-amber-700">{ratios.dio.toFixed(0)}<span className="text-xs font-normal text-slate-400"> j</span></p>
-              <p className="text-[9px] text-slate-400 mt-0.5">Rotation stock</p>
+              <p className={`text-lg font-bold ${ratios.dio === 0 ? 'text-slate-300' : 'text-amber-700'}`}>{ratios.dio.toFixed(0)}<span className="text-xs font-normal text-slate-400"> j</span></p>
+              <p className="text-[9px] text-slate-400 mt-0.5">{ratios.dio === 0 ? 'Aucune donnée' : 'Rotation stock'}</p>
             </div>
-            <div className={`rounded-lg p-3 text-center ${ratios.bfrDays > 60 ? 'bg-red-50' : 'bg-slate-50'}`}>
+            <div className={`rounded-lg p-3 text-center ${ratios.bfrDays === 0 ? 'bg-slate-50/50 opacity-40' : ratios.bfrDays > 60 ? 'bg-red-50' : 'bg-slate-50'}`}>
               <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-center gap-0.5">BFR <GlossaryTooltip term="bfr_jours" position="bottom" /></p>
-              <p className={`text-lg font-bold ${ratios.bfrDays > 60 ? 'text-red-700' : 'text-brand-700'}`}>{ratios.bfrDays.toFixed(0)}<span className="text-xs font-normal text-slate-400"> j</span></p>
-              <p className="text-[9px] text-slate-400 mt-0.5">en jours de CA</p>
+              <p className={`text-lg font-bold ${ratios.bfrDays === 0 ? 'text-slate-300' : ratios.bfrDays > 60 ? 'text-red-700' : 'text-brand-700'}`}>{ratios.bfrDays.toFixed(0)}<span className="text-xs font-normal text-slate-400"> j</span></p>
+              <p className="text-[9px] text-slate-400 mt-0.5">{ratios.bfrDays === 0 ? 'Aucune donnée' : 'en jours de CA'}</p>
             </div>
-            <div className={`rounded-lg p-3 text-center ${ratios.salaryRatio > 50 ? 'bg-red-50' : 'bg-slate-50'}`}>
+            <div className={`rounded-lg p-3 text-center ${ratios.salaryRatio === 0 ? 'bg-slate-50/50 opacity-40' : ratios.salaryRatio > 50 ? 'bg-red-50' : 'bg-slate-50'}`}>
               <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-center gap-0.5">Masse Sal. <GlossaryTooltip term="ratio_salarial" position="bottom" /></p>
-              <p className={`text-lg font-bold ${ratios.salaryRatio > 50 ? 'text-red-700' : 'text-purple-700'}`}>{ratios.salaryRatio.toFixed(1)}<span className="text-xs font-normal text-slate-400">%</span></p>
-              <p className="text-[9px] text-slate-400 mt-0.5">du CA</p>
+              <p className={`text-lg font-bold ${ratios.salaryRatio === 0 ? 'text-slate-300' : ratios.salaryRatio > 50 ? 'text-red-700' : 'text-purple-700'}`}>{ratios.salaryRatio.toFixed(1)}<span className="text-xs font-normal text-slate-400">%</span></p>
+              <p className="text-[9px] text-slate-400 mt-0.5">{ratios.salaryRatio === 0 ? 'Aucune donnée' : 'du CA'}</p>
             </div>
-            <div className="bg-slate-50 rounded-lg p-3 text-center">
+            <div className={`rounded-lg p-3 text-center ${ratios.productivityPerHour === 0 ? 'bg-slate-50/50 opacity-40' : 'bg-slate-50'}`}>
               <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-center gap-0.5">CA / Heure <GlossaryTooltip term="productivite" position="bottom" /></p>
-              <p className="text-lg font-bold text-emerald-700">{ratios.productivityPerHour.toFixed(0)}<span className="text-xs font-normal text-slate-400"> €</span></p>
-              <p className="text-[9px] text-slate-400 mt-0.5">Productivité</p>
+              <p className={`text-lg font-bold ${ratios.productivityPerHour === 0 ? 'text-slate-300' : 'text-emerald-700'}`}>{ratios.productivityPerHour.toFixed(0)}<span className="text-xs font-normal text-slate-400"> €</span></p>
+              <p className="text-[9px] text-slate-400 mt-0.5">{ratios.productivityPerHour === 0 ? 'Aucune donnée' : 'Productivité'}</p>
             </div>
-            <div className="bg-slate-50 rounded-lg p-3 text-center">
+            <div className={`rounded-lg p-3 text-center ${ratios.costPerHour === 0 ? 'bg-slate-50/50 opacity-40' : 'bg-slate-50'}`}>
               <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-center gap-0.5">Coût / h</p>
-              <p className="text-lg font-bold text-orange-700">{ratios.costPerHour.toFixed(0)}<span className="text-xs font-normal text-slate-400"> €</span></p>
-              <p className="text-[9px] text-slate-400 mt-0.5">Masse sal.</p>
+              <p className={`text-lg font-bold ${ratios.costPerHour === 0 ? 'text-slate-300' : 'text-orange-700'}`}>{ratios.costPerHour.toFixed(0)}<span className="text-xs font-normal text-slate-400"> €</span></p>
+              <p className="text-[9px] text-slate-400 mt-0.5">{ratios.costPerHour === 0 ? 'Aucune donnée' : 'Masse sal.'}</p>
             </div>
           </div>
         </div>

@@ -108,7 +108,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
     if (client?.id) {
       getExpertComments(client.id).then(setCommentHistory).catch(() => {});
     }
-  }, [client?.id, commentText]);
+  }, [client?.id]);
 
   // Determine if Fuel Card should be shown based on Client Settings
   const showFuelCard = client.settings?.showFuelTracking ?? false;
@@ -357,11 +357,12 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
 
     // --- N-1 COMPARISONS ---
     const n1Data = data.filter(d => d.year === selectedYear - 1);
-    const n1Filtered = selectedMonths.length > 0
+    const n1Filtered = (selectedMonths.length > 0
       ? n1Data.filter(d => selectedMonths.includes(d.month))
       : defaultMonthsUpToM1 !== null
         ? n1Data.filter(d => (defaultMonthsUpToM1 as string[]).includes(d.month))
-        : n1Data;
+        : n1Data
+    ).sort((a, b) => fiscalMonthOrder.indexOf(a.month) - fiscalMonthOrder.indexOf(b.month));
     const n1Revenue = n1Filtered.reduce((acc, curr) => acc + curr.revenue.total, 0);
     const n1Treasury = n1Filtered.length > 0 ? n1Filtered[n1Filtered.length - 1].cashFlow.treasury : null;
     const n1Bfr = n1Filtered.length > 0 ? n1Filtered.reduce((acc, curr) => acc + curr.bfr.total, 0) / n1Filtered.length : null;

@@ -355,8 +355,9 @@ export const getRecordsByClient = async (clientId: string): Promise<FinancialRec
                 },
                 
                 margin: {
-                    rate: data.margin?.rate || 0, 
-                    total: data.margin?.total || 0, 
+                    rate: data.margin?.rate || 0,
+                    total: data.margin?.total || 0,
+                    theoretical: data.margin?.theoretical || 0,
                     breakdown: data.margin?.breakdown || {}
                 },
                 
@@ -457,7 +458,7 @@ export const getExpertComments = async (clientId: string): Promise<ExpertComment
 
 export const saveExpertComment = async (comment: Omit<ExpertComment, 'id' | 'createdAt'> & { clientId: string }): Promise<void> => {
     const commentId = `${comment.clientId}_${comment.year}_${comment.month}`;
-    await setDoc(doc(db, COLL_EXPERT_COMMENTS, commentId), { ...comment, createdAt: serverTimestamp() });
+    await setDoc(doc(db, COLL_EXPERT_COMMENTS, commentId), { ...comment, createdAt: serverTimestamp() }, { merge: true });
 };
 
 // --- EMAIL NOTIFICATION ---

@@ -189,16 +189,21 @@ const App: React.FC = () => {
 
   const refreshClients = async (roleOverride?: UserRole, emailOverride?: string) => {
       setIsLoadingData(true);
-      const role = roleOverride || userRole;
-      const email = emailOverride || currentUserEmail || simulatedUserEmail;
-      
-      // SÉCURITÉ : Si c'est un client, on passe son email pour filtrer CÔTÉ SERVEUR
-      // Si c'est un consultant, on passe null pour tout récupérer
-      const filterEmail = role === 'client' ? email : null;
-      
-      const list = await getClients(filterEmail);
-      setClients(list);
-      setIsLoadingData(false);
+      try {
+          const role = roleOverride || userRole;
+          const email = emailOverride || currentUserEmail || simulatedUserEmail;
+
+          // SÉCURITÉ : Si c'est un client, on passe son email pour filtrer CÔTÉ SERVEUR
+          // Si c'est un consultant, on passe null pour tout récupérer
+          const filterEmail = role === 'client' ? email : null;
+
+          const list = await getClients(filterEmail);
+          setClients(list);
+      } catch (error) {
+          console.error("Erreur chargement clients", error);
+      } finally {
+          setIsLoadingData(false);
+      }
   };
 
   const handleLoginSuccess = () => refreshClients();
@@ -241,9 +246,14 @@ const App: React.FC = () => {
   const refreshRecords = async () => {
     if (selectedClient) {
         setIsLoadingData(true);
-        const records = await getRecordsByClient(selectedClient.id);
-        setData(records);
-        setIsLoadingData(false);
+        try {
+            const records = await getRecordsByClient(selectedClient.id);
+            setData(records);
+        } catch (error) {
+            console.error("Erreur chargement records", error);
+        } finally {
+            setIsLoadingData(false);
+        }
     } else { setData([]); }
   };
 

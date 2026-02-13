@@ -68,6 +68,7 @@ export type WorkflowStatus = 'draft' | 'submitted' | 'reviewing' | 'validated' |
 // Expert Comment with history
 export interface ExpertComment {
   id: string;
+  clientId: string;
   text: string;
   authorEmail: string;
   authorName: string;
@@ -117,10 +118,11 @@ export interface Client {
 export interface ChatMessage {
   id: string;
   text: string;
-  sender: 'user' | 'ai' | 'consultant'; 
-  timestamp: any; 
-  isExpertHandoff?: boolean; 
-  isSystemSummary?: boolean; 
+  sender: 'user' | 'ai' | 'consultant';
+  timestamp: any;
+  isExpertHandoff?: boolean;
+  isSystemSummary?: boolean;
+  authorId?: string;
 }
 
 export interface FinancialRecord {

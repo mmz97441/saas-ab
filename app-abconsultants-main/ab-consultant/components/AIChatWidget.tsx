@@ -5,8 +5,6 @@ import { Client, FinancialRecord, ChatMessage } from '../types';
 import { getFinancialAdvice, generateConversationSummary } from '../services/geminiService';
 import { useConfirmDialog } from '../contexts/ConfirmContext';
 import { sendMessage, subscribeToChat, sendConsultantAlertEmail } from '../services/dataService';
-import { db, auth } from '../firebase';
-import { collection, writeBatch, getDocs, deleteDoc } from "firebase/firestore";
 
 interface AIChatWidgetProps {
   client: Client;
@@ -187,7 +185,8 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
 
           const summary = await generateConversationSummary(visibleMessages, client.companyName);
           await sendMessage(client.id, summary, 'ai', false, true);
-          await sendConsultantAlertEmail(client, "Demande de relais (Chat)", `Le client <strong>${client.companyName}</strong> demande de l'aide.<br/><br/><strong>Dernier résumé IA :</strong><br/><pre>${summary}</pre>`);
+          const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          await sendConsultantAlertEmail(client, "Demande de relais (Chat)", `Le client <strong>${esc(client.companyName)}</strong> demande de l'aide.<br/><br/><strong>Dernier résumé IA :</strong><br/><pre>${esc(summary)}</pre>`);
 
       } catch (e) {
           console.error("Handoff error", e);

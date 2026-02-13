@@ -31,9 +31,10 @@ export const onRecordPublish = functions.firestore
       const ownerEmail = client.owner?.email;
       if (!ownerEmail) return;
 
-      const companyName = client.companyName || 'Votre entreprise';
-      const month = after.month || '';
-      const year = after.year || '';
+      const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      const companyName = escHtml(client.companyName || 'Votre entreprise');
+      const month = escHtml(String(after.month || ''));
+      const year = String(after.year || '');
 
       // Use Firebase Mail Extension (collection-based trigger)
       await db.collection('mail').add({
@@ -109,7 +110,7 @@ export const onConsultantMessage = functions.firestore
               <div style="background: white; padding: 32px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
                 <h2 style="color: #0f172a; margin-top: 0;">Vous avez un nouveau message</h2>
                 <div style="background: #f8fafc; border-left: 4px solid #0f172a; padding: 16px; border-radius: 0 8px 8px 0; margin: 16px 0;">
-                  <p style="color: #334155; margin: 0; line-height: 1.6;">${(message.text || '').substring(0, 200)}${(message.text || '').length > 200 ? '...' : ''}</p>
+                  <p style="color: #334155; margin: 0; line-height: 1.6;">${((message.text || '').substring(0, 200)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}${(message.text || '').length > 200 ? '...' : ''}</p>
                 </div>
                 <div style="text-align: center; margin: 24px 0;">
                   <a href="https://app-ab-consultant.web.app"

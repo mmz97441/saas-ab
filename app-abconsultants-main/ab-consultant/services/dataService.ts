@@ -143,7 +143,8 @@ export const subscribeToChat = (clientId: string, callback: (messages: ChatMessa
                 sender: data.sender,
                 isExpertHandoff: data.isExpertHandoff,
                 isSystemSummary: data.isSystemSummary,
-                timestamp: data.timestamp
+                timestamp: data.timestamp,
+                authorId: data.authorId,
             } as ChatMessage;
         });
         callback(msgs);
@@ -456,7 +457,7 @@ export const getExpertComments = async (clientId: string): Promise<ExpertComment
     }
 };
 
-export const saveExpertComment = async (comment: Omit<ExpertComment, 'id' | 'createdAt'> & { clientId: string }): Promise<void> => {
+export const saveExpertComment = async (comment: Omit<ExpertComment, 'id' | 'createdAt'>): Promise<void> => {
     const commentId = `${comment.clientId}_${comment.year}_${comment.month}`;
     await setDoc(doc(db, COLL_EXPERT_COMMENTS, commentId), { ...comment, createdAt: serverTimestamp() }, { merge: true });
 };

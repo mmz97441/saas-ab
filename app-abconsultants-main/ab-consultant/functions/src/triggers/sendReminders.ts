@@ -98,8 +98,9 @@ export const sendDataReminders = functions.pubsub
 
         if (!recordsSnap.empty) continue; // Already submitted, skip
 
-        const companyName = client.companyName || 'Votre entreprise';
-        const managerName = client.managerName || '';
+        const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const companyName = escHtml(client.companyName || 'Votre entreprise');
+        const managerName = escHtml(client.managerName || '');
 
         const messages: Record<string, string> = {
           gentle: `Le mois de ${targetMonth} est ouvert. Pensez à saisir vos données mensuelles pour que votre consultant puisse préparer votre analyse.`,

@@ -8,7 +8,7 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 const auth = admin.auth();
 
-const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || 'nice.guillaume@gmail.com';
+const SUPER_ADMIN_EMAIL = (process.env.SUPER_ADMIN_EMAIL || '').toLowerCase().trim();
 
 /**
  * Callable Function: Rafraîchir les Custom Claims d'un utilisateur.

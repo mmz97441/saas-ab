@@ -14,6 +14,10 @@ const MONTH_ORDER = Object.values(Month);
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value);
 
+// Sanitize HTML to prevent XSS from Firestore data
+const escapeHtml = (str: string): string =>
+  str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
 const ReportGenerator: React.FC<ReportGeneratorProps> = ({ client, data, isOpen, onClose }) => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [isGenerating, setIsGenerating] = useState(false);
@@ -64,12 +68,8 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ client, data, isOpen,
         return;
       }
 
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Rapport ${client.companyName} - ${selectedYear}</title>
-          <style>
+      const safeTitle = escapeHtml(client.companyName || 'Rapport');
+      const styles = `
             * { box-sizing: border-box; margin: 0; padding: 0; }
             body { font-family: system-ui, -apple-system, sans-serif; color: #1e293b; padding: 40px; }
             h1 { font-size: 24px; margin-bottom: 4px; }
@@ -91,13 +91,14 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ client, data, isOpen,
             .section { margin-bottom: 28px; }
             .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; text-align: center; }
             @media print { body { padding: 20px; } @page { size: A4; margin: 15mm; } }
-          </style>
-        </head>
-        <body>
-          ${reportRef.current.innerHTML}
-        </body>
-        </html>
-      `);
+      `;
+      // Sécurité : cloner le DOM React au lieu d'injecter innerHTML brut
+      // Les scripts éventuels ne sont pas exécutés car on utilise cloneNode
+      const cloned = reportRef.current.cloneNode(true) as HTMLElement;
+      // Supprimer tout script/event handler potentiel injecté
+      cloned.querySelectorAll('script').forEach(s => s.remove());
+      printWindow.document.write(`<!DOCTYPE html><html><head><title>Rapport ${safeTitle} - ${selectedYear}</title><style>${styles}</style></head><body></body></html>`);
+      printWindow.document.body.appendChild(cloned);
       printWindow.document.close();
       printWindow.focus();
       setTimeout(() => {

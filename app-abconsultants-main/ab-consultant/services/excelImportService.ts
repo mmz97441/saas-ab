@@ -17,29 +17,80 @@ const MONTH_MAP: Record<string, Month> = {
   'décembre': Month.Dec, 'decembre': Month.Dec, 'déc': Month.Dec, 'dec': Month.Dec,
 };
 
-// Try to parse a cell as a month
-// Handles: "Janvier", "janv.", "janvier-25", "janvier-2025", "01", etc.
-function parseMonth(raw: string): Month | null {
-  if (!raw) return null;
-  let cleaned = raw.toLowerCase().trim().replace(/\./g, '');
+const MONTHS_BY_INDEX: Month[] = [
+  Month.Jan, Month.Feb, Month.Mar, Month.Apr, Month.May, Month.Jun,
+  Month.Jul, Month.Aug, Month.Sep, Month.Oct, Month.Nov, Month.Dec,
+];
+
+// Try to parse a cell value as a month
+// Handles: text ("Janvier", "janv.", "janvier-25"), Date objects, Excel date serial numbers
+function parseMonth(raw: any): Month | null {
+  if (raw === undefined || raw === null || raw === '') return null;
+
+  // Handle Date objects (from cellDates: true or JS Dates)
+  if (raw instanceof Date && !isNaN(raw.getTime())) {
+    return MONTHS_BY_INDEX[raw.getMonth()];
+  }
+
+  // Handle Excel date serial numbers (numbers between ~1 and ~60000)
+  // Excel: Jan 1, 1900 = 1. Typical range for 2020-2030: ~43831-~47848
+  if (typeof raw === 'number' && raw > 28 && raw < 60000) {
+    // Convert Excel serial to JS Date
+    // Excel epoch is Jan 0, 1900 (with the Lotus 123 leap year bug)
+    const excelEpoch = new Date(1899, 11, 30); // Dec 30, 1899
+    const date = new Date(excelEpoch.getTime() + raw * 86400000);
+    if (!isNaN(date.getTime())) {
+      return MONTHS_BY_INDEX[date.getMonth()];
+    }
+  }
+
+  // Handle strings
+  let cleaned = String(raw).toLowerCase().trim().replace(/\./g, '');
   // Strip year suffix: "janvier-25" → "janvier", "février-2025" → "février"
   cleaned = cleaned.replace(/[-\/]\d{2,4}$/, '');
-  // Numeric month (1-12)
+  // Numeric month (1-12) in string form
   const num = parseInt(cleaned);
   if (!isNaN(num) && num >= 1 && num <= 12) {
-    return Object.values(Month)[num - 1];
+    return MONTHS_BY_INDEX[num - 1];
   }
   return MONTH_MAP[cleaned] || null;
 }
 
-// Extract year from a month-year header like "janvier-25" or "mars-2025"
-function extractYearFromHeader(raw: string): number | null {
-  const match = raw.match(/[-\/](\d{2,4})$/);
+// Extract year from a cell value (month-year header like "janvier-25", Date, or serial)
+function extractYearFromCell(raw: any): number | null {
+  if (raw instanceof Date && !isNaN(raw.getTime())) {
+    return raw.getFullYear();
+  }
+  if (typeof raw === 'number' && raw > 28 && raw < 60000) {
+    const excelEpoch = new Date(1899, 11, 30);
+    const date = new Date(excelEpoch.getTime() + raw * 86400000);
+    if (!isNaN(date.getTime())) return date.getFullYear();
+  }
+  const match = String(raw).match(/[-\/](\d{2,4})$/);
   if (!match) return null;
   const y = parseInt(match[1]);
   if (y >= 2000) return y;
   if (y >= 20 && y <= 99) return 2000 + y;
   return null;
+}
+
+// Convert a cell to a display-friendly header string
+function cellToHeaderString(cell: any): string {
+  if (cell instanceof Date && !isNaN(cell.getTime())) {
+    const months = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+                    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+    return `${months[cell.getMonth()]}-${String(cell.getFullYear()).slice(2)}`;
+  }
+  if (typeof cell === 'number' && cell > 28 && cell < 60000) {
+    const excelEpoch = new Date(1899, 11, 30);
+    const date = new Date(excelEpoch.getTime() + cell * 86400000);
+    if (!isNaN(date.getTime())) {
+      const months = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+                      'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+      return `${months[date.getMonth()]}-${String(date.getFullYear()).slice(2)}`;
+    }
+  }
+  return String(cell ?? '').trim();
 }
 
 // Parse numeric value from cell
@@ -97,7 +148,7 @@ function findHeaderRowIndex(rawData: any[][]): number {
     if (!row || !Array.isArray(row)) continue;
     let monthCount = 0;
     for (const cell of row) {
-      if (parseMonth(String(cell || '').trim())) {
+      if (parseMonth(cell)) {
         monthCount++;
       }
     }
@@ -117,7 +168,7 @@ export function readExcelFile(file: File): Promise<ParsedSheet[]> {
     reader.onload = (e) => {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
 
         const sheets: ParsedSheet[] = workbook.SheetNames.map(name => {
           const sheet = workbook.Sheets[name];
@@ -126,8 +177,9 @@ export function readExcelFile(file: File): Promise<ParsedSheet[]> {
           // Dynamically find the header row (the one with month names)
           const headerRowIdx = findHeaderRowIndex(rawData);
 
+          // Convert headers to display strings (handles Date objects and Excel date serials)
           const headers = rawData.length > headerRowIdx
-            ? rawData[headerRowIdx].map((h: any) => String(h).trim())
+            ? rawData[headerRowIdx].map((h: any) => cellToHeaderString(h))
             : [];
 
           // Data rows start after the header row
@@ -162,9 +214,9 @@ function detectMonthColumns(headers: string[]): { colIndex: number; month: Month
 function detectYear(sheet: ParsedSheet): number {
   const currentYear = new Date().getFullYear();
 
-  // Check headers for "mois-YY" pattern first (e.g. "janvier-25")
+  // Check headers for year (handles "janvier-25", Date objects, serials)
   for (const h of sheet.headers) {
-    const y = extractYearFromHeader(String(h));
+    const y = extractYearFromCell(h);
     if (y) return y;
   }
 
@@ -487,7 +539,7 @@ export function parseAnalyseActiviteSheet(
       if (!row || !Array.isArray(row)) continue;
       let count = 0;
       for (const cell of row) {
-        if (parseMonth(String(cell || '').trim())) count++;
+        if (parseMonth(cell)) count++;
       }
       if (count > bestCount) {
         bestCount = count;
@@ -495,7 +547,7 @@ export function parseAnalyseActiviteSheet(
       }
     }
     if (bestCount >= 3 && bestRow >= 0) {
-      effectiveHeaders = sheet.rawData[bestRow].map((h: any) => String(h).trim());
+      effectiveHeaders = sheet.rawData[bestRow].map((h: any) => cellToHeaderString(h));
       monthCols = detectMonthColumns(effectiveHeaders);
       dataRows = sheet.rawData.slice(bestRow + 1);
     }

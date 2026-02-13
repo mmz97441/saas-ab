@@ -86,9 +86,9 @@ export interface ExcelImportResult {
 }
 
 // Find the row index that contains month names (the actual header row)
-// Scans up to the first 15 rows to find a row with at least 3 month names
+// Scans up to the first 30 rows to find a row with at least 3 month names
 function findHeaderRowIndex(rawData: any[][]): number {
-  const maxScan = Math.min(rawData.length, 15);
+  const maxScan = Math.min(rawData.length, 30);
   let bestRow = 0;
   let bestCount = 0;
 
@@ -203,6 +203,13 @@ function matchesFuelType(label: string, aliases: string[]): boolean {
 
 // Check if a sheet looks like revenue by family, fuel volumes, or analyse activite
 export function detectSheetType(sheet: ParsedSheet): 'revenue_by_family' | 'fuel_volumes' | 'analyse_activite' | 'unknown' {
+  const sheetNameLower = sheet.name.toLowerCase();
+
+  // Check sheet name hints FIRST (before month detection, because some sheets
+  // may have month headers that aren't perfectly detected)
+  if (sheetNameLower.includes('saisie') || sheetNameLower.includes('analyse activit')) return 'analyse_activite';
+  if (sheetNameLower.includes('volume') && sheetNameLower.includes('carburant')) return 'fuel_volumes';
+
   const monthCols = detectMonthColumns(sheet.headers);
   if (monthCols.length < 3) return 'unknown'; // Need at least 3 months to be confident
 
@@ -220,16 +227,12 @@ export function detectSheetType(sheet: ParsedSheet): 'revenue_by_family' | 'fuel
   const hasMargeAndCA = rowLabels.some(l => l.includes('marge')) && rowLabels.some(l => l.includes('marchandise') || l.includes('ca '));
   if (analyseMatches.length >= 1 && hasMargeAndCA) return 'analyse_activite';
 
-  // Check for sheet name hints
-  const sheetNameLower = sheet.name.toLowerCase();
-  if (sheetNameLower.includes('saisie') || sheetNameLower.includes('analyse activit')) return 'analyse_activite';
-
   // Check row labels for fuel-related keywords
   const fuelKeywords = [...FUEL_GASOIL_ALIASES, ...FUEL_SP_ALIASES, ...FUEL_GNR_ALIASES];
   const fuelMatches = rowLabels.filter(l => fuelKeywords.some(k => l.includes(k)));
   if (fuelMatches.length >= 2) return 'fuel_volumes';
 
-  // If sheet name hints at fuel/volume
+  // If sheet name hints at fuel/carburant
   if (sheetNameLower.includes('carburant') || sheetNameLower.includes('volume')) return 'fuel_volumes';
 
   // If it has month columns and row-based data, it's likely revenue by family
@@ -469,10 +472,38 @@ export function parseAnalyseActiviteSheet(
   sheet: ParsedSheet,
   year: number
 ): Map<string, AnalyseMonthData> {
-  const monthCols = detectMonthColumns(sheet.headers);
+  let monthCols = detectMonthColumns(sheet.headers);
+  let dataRows = sheet.rows;
+  let effectiveHeaders = sheet.headers;
+
+  // Fallback: if headers don't have months, re-scan rawData to find the real header row
+  // This handles cases where findHeaderRowIndex's scan limit was too low
+  if (monthCols.length < 3 && sheet.rawData) {
+    const maxScan = Math.min(sheet.rawData.length, 50);
+    let bestRow = -1;
+    let bestCount = 0;
+    for (let i = 0; i < maxScan; i++) {
+      const row = sheet.rawData[i];
+      if (!row || !Array.isArray(row)) continue;
+      let count = 0;
+      for (const cell of row) {
+        if (parseMonth(String(cell || '').trim())) count++;
+      }
+      if (count > bestCount) {
+        bestCount = count;
+        bestRow = i;
+      }
+    }
+    if (bestCount >= 3 && bestRow >= 0) {
+      effectiveHeaders = sheet.rawData[bestRow].map((h: any) => String(h).trim());
+      monthCols = detectMonthColumns(effectiveHeaders);
+      dataRows = sheet.rawData.slice(bestRow + 1);
+    }
+  }
+
   if (monthCols.length === 0) return new Map();
 
-  const labelColIndex = sheet.headers.findIndex((h, i) => !monthCols.some(mc => mc.colIndex === i));
+  const labelColIndex = effectiveHeaders.findIndex((h: string, i: number) => !monthCols.some(mc => mc.colIndex === i));
   const effectiveLabelCol = labelColIndex >= 0 ? labelColIndex : 0;
 
   // Initialize result for each month
@@ -497,7 +528,7 @@ export function parseAnalyseActiviteSheet(
     return vals;
   };
 
-  for (const row of sheet.rows) {
+  for (const row of dataRows) {
     const label = String(row[effectiveLabelCol] || '').trim();
     if (!label) continue;
     const ll = label.toLowerCase();

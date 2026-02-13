@@ -207,15 +207,33 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
     const salaries = snapshotRecord.expenses.salaries;
     const hours = snapshotRecord.expenses.hoursWorked;
 
-    const dso = ca > 0 ? (snapshotRecord.bfr.receivables.clients / ca) * 30 : 0;
-    const dpo = achats > 0 ? (snapshotRecord.bfr.debts.suppliers / achats) * 30 : 0;
-    const dio = achats > 0 ? (snapshotRecord.bfr.stock.total / achats) * 30 : 0;
-    const bfrDays = dso + dio - dpo;
-    const salaryRatio = ca > 0 ? (salaries / ca) * 100 : 0;
-    const productivityPerHour = hours > 0 ? ca / hours : 0;
-    const costPerHour = hours > 0 ? salaries / hours : 0;
+    const hasCa = ca > 0;
+    const hasAchats = achats > 0;
+    const hasSalaries = salaries > 0;
+    const hasHours = hours > 0;
+    const hasReceivables = snapshotRecord.bfr.receivables.clients > 0;
+    const hasDebtsSuppliers = snapshotRecord.bfr.debts.suppliers > 0;
+    const hasStock = snapshotRecord.bfr.stock.total > 0;
 
-    return { dso, dpo, dio, bfrDays, salaryRatio, productivityPerHour, costPerHour };
+    const dso = hasCa ? (snapshotRecord.bfr.receivables.clients / ca) * 30 : 0;
+    const dpo = hasAchats ? (snapshotRecord.bfr.debts.suppliers / achats) * 30 : 0;
+    const dio = hasAchats ? (snapshotRecord.bfr.stock.total / achats) * 30 : 0;
+    const bfrDays = dso + dio - dpo;
+    const salaryRatio = hasCa ? (salaries / ca) * 100 : 0;
+    const productivityPerHour = hasHours ? ca / hours : 0;
+    const costPerHour = hasHours ? salaries / hours : 0;
+
+    // "inactive" = pas de données source pour calculer ce ratio
+    const dsoInactive = !hasCa || !hasReceivables;
+    const dpoInactive = !hasAchats || !hasDebtsSuppliers;
+    const dioInactive = !hasAchats || !hasStock;
+    const bfrDaysInactive = dsoInactive && dpoInactive && dioInactive;
+    const salaryInactive = !hasCa || !hasSalaries;
+    const productivityInactive = !hasCa || !hasHours;
+    const costInactive = !hasSalaries || !hasHours;
+
+    return { dso, dpo, dio, bfrDays, salaryRatio, productivityPerHour, costPerHour,
+             dsoInactive, dpoInactive, dioInactive, bfrDaysInactive, salaryInactive, productivityInactive, costInactive };
   }, [snapshotRecord]);
 
   useEffect(() => {
@@ -915,40 +933,40 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
             )}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-            <div className={`rounded-lg p-3 text-center ${ratios.dso === 0 ? 'bg-slate-50/50 opacity-40' : 'bg-slate-50'}`}>
+            <div className={`rounded-lg p-3 text-center ${ratios.dsoInactive ? 'bg-slate-50/50 opacity-40' : 'bg-slate-50'}`}>
               <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-center gap-0.5">DSO <GlossaryTooltip term="dso" position="bottom" /></p>
-              <p className={`text-lg font-bold ${ratios.dso === 0 ? 'text-slate-300' : 'text-cyan-700'}`}>{ratios.dso.toFixed(0)}<span className="text-xs font-normal text-slate-400"> j</span></p>
-              <p className="text-[9px] text-slate-400 mt-0.5">{ratios.dso === 0 ? 'Aucune donnée' : 'Délai encaissement'}</p>
+              <p className={`text-lg font-bold ${ratios.dsoInactive ? 'text-slate-300' : 'text-cyan-700'}`}>{ratios.dso.toFixed(0)}<span className="text-xs font-normal text-slate-400"> j</span></p>
+              <p className="text-[9px] text-slate-400 mt-0.5">{ratios.dsoInactive ? 'Aucune donnée' : 'Délai encaissement'}</p>
             </div>
-            <div className={`rounded-lg p-3 text-center ${ratios.dpo === 0 ? 'bg-slate-50/50 opacity-40' : 'bg-slate-50'}`}>
+            <div className={`rounded-lg p-3 text-center ${ratios.dpoInactive ? 'bg-slate-50/50 opacity-40' : 'bg-slate-50'}`}>
               <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-center gap-0.5">DPO <GlossaryTooltip term="dpo" position="bottom" /></p>
-              <p className={`text-lg font-bold ${ratios.dpo === 0 ? 'text-slate-300' : 'text-rose-700'}`}>{ratios.dpo.toFixed(0)}<span className="text-xs font-normal text-slate-400"> j</span></p>
-              <p className="text-[9px] text-slate-400 mt-0.5">{ratios.dpo === 0 ? 'Aucune donnée' : 'Délai paiement'}</p>
+              <p className={`text-lg font-bold ${ratios.dpoInactive ? 'text-slate-300' : 'text-rose-700'}`}>{ratios.dpo.toFixed(0)}<span className="text-xs font-normal text-slate-400"> j</span></p>
+              <p className="text-[9px] text-slate-400 mt-0.5">{ratios.dpoInactive ? 'Aucune donnée' : 'Délai paiement'}</p>
             </div>
-            <div className={`rounded-lg p-3 text-center ${ratios.dio === 0 ? 'bg-slate-50/50 opacity-40' : 'bg-slate-50'}`}>
+            <div className={`rounded-lg p-3 text-center ${ratios.dioInactive ? 'bg-slate-50/50 opacity-40' : 'bg-slate-50'}`}>
               <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-center gap-0.5">DIO <GlossaryTooltip term="dio" position="bottom" /></p>
-              <p className={`text-lg font-bold ${ratios.dio === 0 ? 'text-slate-300' : 'text-amber-700'}`}>{ratios.dio.toFixed(0)}<span className="text-xs font-normal text-slate-400"> j</span></p>
-              <p className="text-[9px] text-slate-400 mt-0.5">{ratios.dio === 0 ? 'Aucune donnée' : 'Rotation stock'}</p>
+              <p className={`text-lg font-bold ${ratios.dioInactive ? 'text-slate-300' : 'text-amber-700'}`}>{ratios.dio.toFixed(0)}<span className="text-xs font-normal text-slate-400"> j</span></p>
+              <p className="text-[9px] text-slate-400 mt-0.5">{ratios.dioInactive ? 'Aucune donnée' : 'Rotation stock'}</p>
             </div>
-            <div className={`rounded-lg p-3 text-center ${ratios.bfrDays === 0 ? 'bg-slate-50/50 opacity-40' : ratios.bfrDays > 60 ? 'bg-red-50' : 'bg-slate-50'}`}>
+            <div className={`rounded-lg p-3 text-center ${ratios.bfrDaysInactive ? 'bg-slate-50/50 opacity-40' : ratios.bfrDays > 60 ? 'bg-red-50' : 'bg-slate-50'}`}>
               <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-center gap-0.5">BFR <GlossaryTooltip term="bfr_jours" position="bottom" /></p>
-              <p className={`text-lg font-bold ${ratios.bfrDays === 0 ? 'text-slate-300' : ratios.bfrDays > 60 ? 'text-red-700' : 'text-brand-700'}`}>{ratios.bfrDays.toFixed(0)}<span className="text-xs font-normal text-slate-400"> j</span></p>
-              <p className="text-[9px] text-slate-400 mt-0.5">{ratios.bfrDays === 0 ? 'Aucune donnée' : 'en jours de CA'}</p>
+              <p className={`text-lg font-bold ${ratios.bfrDaysInactive ? 'text-slate-300' : ratios.bfrDays > 60 ? 'text-red-700' : 'text-brand-700'}`}>{ratios.bfrDays.toFixed(0)}<span className="text-xs font-normal text-slate-400"> j</span></p>
+              <p className="text-[9px] text-slate-400 mt-0.5">{ratios.bfrDaysInactive ? 'Aucune donnée' : 'en jours de CA'}</p>
             </div>
-            <div className={`rounded-lg p-3 text-center ${ratios.salaryRatio === 0 ? 'bg-slate-50/50 opacity-40' : ratios.salaryRatio > 50 ? 'bg-red-50' : 'bg-slate-50'}`}>
+            <div className={`rounded-lg p-3 text-center ${ratios.salaryInactive ? 'bg-slate-50/50 opacity-40' : ratios.salaryRatio > 50 ? 'bg-red-50' : 'bg-slate-50'}`}>
               <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-center gap-0.5">Masse Sal. <GlossaryTooltip term="ratio_salarial" position="bottom" /></p>
-              <p className={`text-lg font-bold ${ratios.salaryRatio === 0 ? 'text-slate-300' : ratios.salaryRatio > 50 ? 'text-red-700' : 'text-purple-700'}`}>{ratios.salaryRatio.toFixed(1)}<span className="text-xs font-normal text-slate-400">%</span></p>
-              <p className="text-[9px] text-slate-400 mt-0.5">{ratios.salaryRatio === 0 ? 'Aucune donnée' : 'du CA'}</p>
+              <p className={`text-lg font-bold ${ratios.salaryInactive ? 'text-slate-300' : ratios.salaryRatio > 50 ? 'text-red-700' : 'text-purple-700'}`}>{ratios.salaryRatio.toFixed(1)}<span className="text-xs font-normal text-slate-400">%</span></p>
+              <p className="text-[9px] text-slate-400 mt-0.5">{ratios.salaryInactive ? 'Aucune donnée' : 'du CA'}</p>
             </div>
-            <div className={`rounded-lg p-3 text-center ${ratios.productivityPerHour === 0 ? 'bg-slate-50/50 opacity-40' : 'bg-slate-50'}`}>
+            <div className={`rounded-lg p-3 text-center ${ratios.productivityInactive ? 'bg-slate-50/50 opacity-40' : 'bg-slate-50'}`}>
               <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-center gap-0.5">CA / Heure <GlossaryTooltip term="productivite" position="bottom" /></p>
-              <p className={`text-lg font-bold ${ratios.productivityPerHour === 0 ? 'text-slate-300' : 'text-emerald-700'}`}>{ratios.productivityPerHour.toFixed(0)}<span className="text-xs font-normal text-slate-400"> €</span></p>
-              <p className="text-[9px] text-slate-400 mt-0.5">{ratios.productivityPerHour === 0 ? 'Aucune donnée' : 'Productivité'}</p>
+              <p className={`text-lg font-bold ${ratios.productivityInactive ? 'text-slate-300' : 'text-emerald-700'}`}>{ratios.productivityPerHour.toFixed(0)}<span className="text-xs font-normal text-slate-400"> €</span></p>
+              <p className="text-[9px] text-slate-400 mt-0.5">{ratios.productivityInactive ? 'Aucune donnée' : 'Productivité'}</p>
             </div>
-            <div className={`rounded-lg p-3 text-center ${ratios.costPerHour === 0 ? 'bg-slate-50/50 opacity-40' : 'bg-slate-50'}`}>
+            <div className={`rounded-lg p-3 text-center ${ratios.costInactive ? 'bg-slate-50/50 opacity-40' : 'bg-slate-50'}`}>
               <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-center gap-0.5">Coût / h</p>
-              <p className={`text-lg font-bold ${ratios.costPerHour === 0 ? 'text-slate-300' : 'text-orange-700'}`}>{ratios.costPerHour.toFixed(0)}<span className="text-xs font-normal text-slate-400"> €</span></p>
-              <p className="text-[9px] text-slate-400 mt-0.5">{ratios.costPerHour === 0 ? 'Aucune donnée' : 'Masse sal.'}</p>
+              <p className={`text-lg font-bold ${ratios.costInactive ? 'text-slate-300' : 'text-orange-700'}`}>{ratios.costPerHour.toFixed(0)}<span className="text-xs font-normal text-slate-400"> €</span></p>
+              <p className="text-[9px] text-slate-400 mt-0.5">{ratios.costInactive ? 'Aucune donnée' : 'Masse sal.'}</p>
             </div>
           </div>
         </div>

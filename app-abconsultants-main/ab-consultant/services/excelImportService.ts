@@ -72,6 +72,31 @@ export interface ExcelImportResult {
   sheets: ParsedSheet[];
 }
 
+// Find the row index that contains month names (the actual header row)
+// Scans up to the first 15 rows to find a row with at least 3 month names
+function findHeaderRowIndex(rawData: any[][]): number {
+  const maxScan = Math.min(rawData.length, 15);
+  let bestRow = 0;
+  let bestCount = 0;
+
+  for (let i = 0; i < maxScan; i++) {
+    const row = rawData[i];
+    if (!row || !Array.isArray(row)) continue;
+    let monthCount = 0;
+    for (const cell of row) {
+      if (parseMonth(String(cell || '').trim())) {
+        monthCount++;
+      }
+    }
+    if (monthCount > bestCount) {
+      bestCount = monthCount;
+      bestRow = i;
+    }
+  }
+
+  return bestCount >= 3 ? bestRow : 0;
+}
+
 // Read an Excel file and return parsed sheets
 export function readExcelFile(file: File): Promise<ParsedSheet[]> {
   return new Promise((resolve, reject) => {
@@ -85,13 +110,15 @@ export function readExcelFile(file: File): Promise<ParsedSheet[]> {
           const sheet = workbook.Sheets[name];
           const rawData: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
-          // First row as headers
-          const headers = rawData.length > 0
-            ? rawData[0].map((h: any) => String(h).trim())
+          // Dynamically find the header row (the one with month names)
+          const headerRowIdx = findHeaderRowIndex(rawData);
+
+          const headers = rawData.length > headerRowIdx
+            ? rawData[headerRowIdx].map((h: any) => String(h).trim())
             : [];
 
-          // Remaining rows as data
-          const rows = rawData.slice(1);
+          // Data rows start after the header row
+          const rows = rawData.slice(headerRowIdx + 1);
 
           return { name, headers, rows, rawData };
         });
@@ -159,17 +186,16 @@ export function detectSheetType(sheet: ParsedSheet): 'revenue_by_family' | 'fuel
   const monthCols = detectMonthColumns(sheet.headers);
   if (monthCols.length < 3) return 'unknown'; // Need at least 3 months to be confident
 
+  // Find the label column (first non-month column)
+  const labelColIndex = sheet.headers.findIndex((h, i) => !monthCols.some(mc => mc.colIndex === i));
+  const effectiveLabelCol = labelColIndex >= 0 ? labelColIndex : 0;
+
   // Check row labels for fuel-related keywords
-  const rowLabels = sheet.rows.map(r => String(r[0] || '').toLowerCase().trim());
+  const rowLabels = sheet.rows.map(r => String(r[effectiveLabelCol] || '').toLowerCase().trim());
   const fuelKeywords = [...FUEL_GASOIL_ALIASES, ...FUEL_SP_ALIASES, ...FUEL_GNR_ALIASES];
   const fuelMatches = rowLabels.filter(l => fuelKeywords.some(k => l.includes(k)));
 
   if (fuelMatches.length >= 2) return 'fuel_volumes';
-
-  // Check row labels for general activity/CA keywords
-  const hasCAKeywords = rowLabels.some(l =>
-    l.includes('ca ') || l.includes('chiffre') || l.includes('total') || l.includes('marge')
-  );
 
   // If it has month columns and row-based data, it's likely revenue by family
   if (monthCols.length >= 3) return 'revenue_by_family';
@@ -178,11 +204,14 @@ export function detectSheetType(sheet: ParsedSheet): 'revenue_by_family' | 'fuel
 }
 
 // Parse a revenue-by-family sheet
-// Expected format:
+// Handles complex structures with section headers (CA HT, MARGE, etc.)
+// Expected format (simple or with sections):
 // [label_col] | Janvier | Février | Mars | ...
+// CA HT       |         |         |       <- optional section header
 // Boutique    | 12000   | 13000   | 11000 | ...
 // Carburant   | 50000   | 52000   | 48000 | ...
 // TOTAL       | 62000   | 65000   | 59000 | ...
+// MARGE       |         |         |       <- section we skip
 export function parseRevenueSheet(
   sheet: ParsedSheet,
   year: number
@@ -202,32 +231,72 @@ export function parseRevenueSheet(
   const totalAliases = ['total', 'total général', 'total general', 'total ca', 'total ht', 'sous-total', 'sous total'];
   const marginAliases = ['marge', 'taux de marge', 'taux marge'];
 
+  // Section tracking: detect section headers and only collect families in CA section
+  const caSectionKeywords = ['ca', 'ca ht', 'ca ttc', 'chiffre', 'recette', 'vente', 'activite', 'activité', 'produit'];
+  const nonCaSectionKeywords = ['marge', 'taux', 'charge', 'frais', 'resultat', 'résultat', 'etp', 'effectif', 'salaire', 'masse salariale', 'bfr', 'trésorerie', 'tresorerie'];
+
+  // 'ca' = we're in a CA/revenue section (collect families)
+  // 'other' = we're in a non-CA section (skip families)
+  // 'unknown' = no section detected yet (collect families by default)
+  let currentSection: 'ca' | 'other' | 'unknown' = 'unknown';
+  let firstTotalSeen = false;
+
   for (const row of sheet.rows) {
     const label = String(row[effectiveLabelCol] || '').trim();
     if (!label) continue;
 
     const labelLower = label.toLowerCase();
 
-    // Check if this is a total row
-    const isTotal = totalAliases.some(a => labelLower === a || labelLower.startsWith(a));
-    // Skip margin rows (we handle them separately if needed)
+    // Check if this row has numeric data
+    const numericValues = monthCols.filter(mc => parseNum(row[mc.colIndex]) !== 0).length;
+    const hasNumericData = numericValues > 0;
+
+    // Detect section headers: rows with a label but no/very little numeric data
+    if (!hasNumericData || numericValues <= 1) {
+      const isCASection = caSectionKeywords.some(k => labelLower.includes(k));
+      const isOtherSection = nonCaSectionKeywords.some(k => labelLower.includes(k));
+      if (isCASection && !isOtherSection) {
+        currentSection = 'ca';
+        continue;
+      }
+      if (isOtherSection) {
+        currentSection = 'other';
+        continue;
+      }
+    }
+
+    // Skip margin rows regardless of section
     const isMargin = marginAliases.some(a => labelLower.includes(a));
     if (isMargin) continue;
 
+    // Check if this is a total row
+    const isTotal = totalAliases.some(a => labelLower === a || labelLower.startsWith(a));
+
     if (isTotal) {
-      // Store total row for validation
-      totalRow = new Map();
-      for (const mc of monthCols) {
-        totalRow.set(mc.month, parseNum(row[mc.colIndex]));
+      // Only capture the first total row (CA total) for validation
+      if (!firstTotalSeen && (currentSection === 'ca' || currentSection === 'unknown')) {
+        totalRow = new Map();
+        for (const mc of monthCols) {
+          totalRow.set(mc.month, parseNum(row[mc.colIndex]));
+        }
+        firstTotalSeen = true;
+      }
+      // After the first total, switch to 'other' section (subsequent data is likely margin, etc.)
+      if (currentSection === 'unknown') {
+        currentSection = 'other';
       }
       continue;
     }
 
-    // Check if this row has at least one numeric value
-    const hasNumericData = monthCols.some(mc => parseNum(row[mc.colIndex]) !== 0);
+    // Only collect families from CA section or unknown section (before first total)
+    if (currentSection === 'other') continue;
+
     if (!hasNumericData) continue;
 
-    families.push(label);
+    // Avoid duplicate family names (same family can appear in different sections)
+    if (!families.includes(label)) {
+      families.push(label);
+    }
 
     for (const mc of monthCols) {
       if (!monthlyData.has(mc.month)) {
@@ -248,6 +317,10 @@ export function parseFuelSheet(
   const monthCols = detectMonthColumns(sheet.headers);
   if (monthCols.length === 0) return new Map();
 
+  // Find the label column (first non-month column, usually index 0)
+  const labelColIndex = sheet.headers.findIndex((h, i) => !monthCols.some(mc => mc.colIndex === i));
+  const effectiveLabelCol = labelColIndex >= 0 ? labelColIndex : 0;
+
   const result = new Map<string, { gasoil: number; sansPlomb: number; gnr: number; total: number }>();
 
   // Initialize all months
@@ -256,7 +329,7 @@ export function parseFuelSheet(
   }
 
   for (const row of sheet.rows) {
-    const label = String(row[0] || '').trim();
+    const label = String(row[effectiveLabelCol] || '').trim();
     if (!label) continue;
 
     for (const mc of monthCols) {

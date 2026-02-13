@@ -12,6 +12,7 @@ import ConsultantMessaging from './components/ConsultantMessaging';
 import ConsultantDashboard from './components/ConsultantDashboard'; // Import Nouveau
 import ClientModal from './components/ClientModal';
 import TeamManagement from './components/TeamManagement';
+import ExcelImportModal from './components/ExcelImportModal';
 import { useConfirmDialog } from './contexts/ConfirmContext';
 
 import { FinancialRecord, Client, Month, ProfitCenter, Consultant, View } from './types';
@@ -43,6 +44,7 @@ const App: React.FC = () => {
   const [statusModal, setStatusModal] = useState<{isOpen: boolean, client: Client | null}>({ isOpen: false, client: null });
   
   const [editingRecord, setEditingRecord] = useState<FinancialRecord | null>(null);
+  const [isExcelImportOpen, setIsExcelImportOpen] = useState(false);
   const [notification, setNotification] = useState<{message: string, type: 'success' | 'error' | 'info'} | null>(null);
   const [isPresentationMode, setIsPresentationMode] = useState(false);
   const [newDataBanner, setNewDataBanner] = useState(false);
@@ -261,6 +263,34 @@ const App: React.FC = () => {
       await saveClient({ ...selectedClient, profitCenters: pcs });
       await refreshClients();
       showNotification("Activités mises à jour.", 'success');
+  };
+
+  const handleExcelImport = async (records: FinancialRecord[], newProfitCenters: ProfitCenter[], allProfitCenters: ProfitCenter[]) => {
+    if (!selectedClient) return;
+    try {
+      // Step 1: If there are new profit centers, update the client first
+      if (newProfitCenters.length > 0) {
+        await saveClient({ ...selectedClient, profitCenters: allProfitCenters });
+        await refreshClients();
+      }
+
+      // Step 2: Save all records
+      for (const record of records) {
+        await saveRecord({ ...record, clientId: selectedClient.id });
+      }
+
+      await refreshRecords();
+      setIsExcelImportOpen(false);
+
+      const parts = [`${records.length} mois importes`];
+      if (newProfitCenters.length > 0) {
+        parts.push(`${newProfitCenters.length} familles creees`);
+      }
+      showNotification(`Import Excel reussi : ${parts.join(', ')}.`, 'success');
+    } catch (err: any) {
+      console.error('Excel import error:', err);
+      showNotification(err?.message || 'Erreur lors de l\'import Excel.', 'error');
+    }
   };
 
   const handleUpdateFuelObjectives = async (objs: any) => {
@@ -486,7 +516,7 @@ const App: React.FC = () => {
             )}
 
             {currentView === View.Entry && selectedClient && (
-                <EntryForm clientId={selectedClient.id} initialData={editingRecord} existingRecords={data} profitCenters={selectedClient.profitCenters || []} showCommercialMargin={selectedClient.settings?.showCommercialMargin ?? true} showFuelTracking={selectedClient.settings?.showFuelTracking ?? false} onSave={handleSaveRecord} onCancel={() => { setEditingRecord(null); setCurrentView(View.History); }} userRole={userRole} defaultFuelObjectives={selectedClient.settings?.fuelObjectives} clientStatus={selectedClient.status}/>
+                <EntryForm clientId={selectedClient.id} initialData={editingRecord} existingRecords={data} profitCenters={selectedClient.profitCenters || []} showCommercialMargin={selectedClient.settings?.showCommercialMargin ?? true} showFuelTracking={selectedClient.settings?.showFuelTracking ?? false} onSave={handleSaveRecord} onCancel={() => { setEditingRecord(null); setCurrentView(View.History); }} userRole={userRole} defaultFuelObjectives={selectedClient.settings?.fuelObjectives} clientStatus={selectedClient.status} onImportExcel={() => setIsExcelImportOpen(true)}/>
             )}
 
             {currentView === View.History && selectedClient && (
@@ -500,7 +530,7 @@ const App: React.FC = () => {
                         console.error('Export CSV error:', err);
                         showNotification(err?.message || 'Erreur lors de l\'export CSV.', 'error');
                     }
-                }} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onValidate={toggleValidation} onPublish={togglePublication} onLockToggle={toggleClientLock}/>
+                }} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onValidate={toggleValidation} onPublish={togglePublication} onLockToggle={toggleClientLock} onImportExcel={() => setIsExcelImportOpen(true)}/>
             )}
 
             {currentView === View.Settings && userRole === 'ab_consultant' && selectedClient && (
@@ -608,6 +638,18 @@ const App: React.FC = () => {
          </div>
       </main>
       
+      {selectedClient && (
+        <ExcelImportModal
+          isOpen={isExcelImportOpen}
+          onClose={() => setIsExcelImportOpen(false)}
+          onImport={handleExcelImport}
+          clientId={selectedClient.id}
+          existingRecords={data}
+          existingProfitCenters={selectedClient.profitCenters || []}
+          year={new Date().getFullYear()}
+        />
+      )}
+
       {statusModal.isOpen && statusModal.client && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-900/50 backdrop-blur-sm">
                 <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 text-center">

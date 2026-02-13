@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { FinancialRecord, Month, ProfitCenter } from '../types';
-import { Save, Lock, Calendar, HelpCircle, ArrowUpCircle, ArrowDownCircle, Wallet, TrendingUp, TrendingDown, Landmark, ShoppingBag, Target, PieChart, Droplets, Users, Clock, Calculator, Scale, Briefcase, ArrowRight, Truck, Percent, Sigma, CheckCircle, History, AlertTriangle, ShieldAlert, Upload, FileText, RotateCcw, Send } from 'lucide-react';
+import { Save, Lock, Calendar, HelpCircle, ArrowUpCircle, ArrowDownCircle, Wallet, TrendingUp, TrendingDown, Landmark, ShoppingBag, Target, PieChart, Droplets, Users, Clock, Calculator, Scale, Briefcase, ArrowRight, Truck, Percent, Sigma, CheckCircle, History, AlertTriangle, ShieldAlert, Upload, FileText, RotateCcw, Send, FileSpreadsheet } from 'lucide-react';
 import { MONTH_ORDER } from '../services/dataService';
 import { useConfirmDialog } from '../contexts/ConfirmContext';
 
@@ -198,6 +198,7 @@ interface EntryFormProps {
   userRole: 'ab_consultant' | 'client';
   defaultFuelObjectives?: { gasoil: number; sansPlomb: number; gnr: number };
   clientStatus?: 'active' | 'inactive';
+  onImportExcel?: () => void;
 }
 
 const EntryForm: React.FC<EntryFormProps> = ({
@@ -211,7 +212,8 @@ const EntryForm: React.FC<EntryFormProps> = ({
   showFuelTracking,
   userRole,
   defaultFuelObjectives,
-  clientStatus = 'active'
+  clientStatus = 'active',
+  onImportExcel
 }) => {
     
     const confirm = useConfirmDialog();
@@ -611,15 +613,26 @@ const EntryForm: React.FC<EntryFormProps> = ({
                             <CheckCircle className="w-3 h-3 text-emerald-400" /> Brouillon sauvé
                         </span>
                     )}
-                    {/* CSV IMPORT BUTTON */}
+                    {/* IMPORT BUTTONS */}
                     {!isLocked && (
-                        <button 
-                            onClick={() => fileInputRef.current?.click()} 
-                            className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 text-slate-600 rounded-lg hover:bg-slate-50 hover:text-brand-600 transition font-medium text-sm shadow-sm"
-                            title="Importer via CSV client (Année;Mois;CA;Salaires;BFR;Tréso)"
-                        >
-                            <Upload className="w-4 h-4" /> <span className="hidden sm:inline">Importer CSV</span>
-                        </button>
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 text-slate-600 rounded-lg hover:bg-slate-50 hover:text-brand-600 transition font-medium text-sm shadow-sm rounded-r-none border-r-0"
+                                title="Importer via CSV client (Année;Mois;CA;Salaires;BFR;Tréso)"
+                            >
+                                <Upload className="w-4 h-4" /> <span className="hidden sm:inline">CSV</span>
+                            </button>
+                            {onImportExcel && (
+                                <button
+                                    onClick={onImportExcel}
+                                    className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-300 text-emerald-700 rounded-lg hover:bg-emerald-100 transition font-medium text-sm shadow-sm rounded-l-none"
+                                    title="Importer via Excel multi-feuilles (.xlsx)"
+                                >
+                                    <FileSpreadsheet className="w-4 h-4" /> <span className="hidden sm:inline">Excel</span>
+                                </button>
+                            )}
+                        </div>
                     )}
 
                     <button onClick={onCancel} className="px-4 py-2 text-slate-600 hover:bg-white border border-transparent hover:border-slate-300 rounded-lg transition font-medium">

@@ -30,23 +30,68 @@ export const getFinancialAdvice = async (
 
     const ai = new GoogleGenAI({ apiKey });
 
-    // CONTEXTE FINANCIER ENRICHI
+    // CONTEXTE FINANCIER ENRICHI — toutes les données disponibles
+    const MONTH_ORDER = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
     const sortedRecords = [...records].sort((a, b) => {
         if (a.year !== b.year) return a.year - b.year;
-        return 0;
+        return MONTH_ORDER.indexOf(a.month) - MONTH_ORDER.indexOf(b.month);
     });
     const lastRecord = sortedRecords[sortedRecords.length - 1];
 
+    // Regrouper par année avec totaux et détail mensuel
+    const byYear: Record<number, FinancialRecord[]> = {};
+    for (const r of sortedRecords) {
+      if (!byYear[r.year]) byYear[r.year] = [];
+      byYear[r.year].push(r);
+    }
+
+    const syntheseAnnuelle = Object.entries(byYear).map(([year, recs]) => {
+      const totalCA = recs.reduce((s, r) => s + r.revenue.total, 0);
+      const totalObj = recs.reduce((s, r) => s + r.revenue.objective, 0);
+      const totalMargin = recs.reduce((s, r) => s + (r.margin?.total || 0), 0);
+      const totalSalaries = recs.reduce((s, r) => s + r.expenses.salaries, 0);
+      const totalHours = recs.reduce((s, r) => s + r.expenses.hoursWorked, 0);
+      const lastRec = recs[recs.length - 1];
+      return {
+        annee: Number(year),
+        nb_mois: recs.length,
+        mois_disponibles: recs.map(r => r.month),
+        ca_total: Math.round(totalCA),
+        objectif_total: Math.round(totalObj),
+        performance_obj: totalObj > 0 ? `${((totalCA / totalObj) * 100).toFixed(1)}%` : 'N/A',
+        marge_totale: Math.round(totalMargin),
+        taux_marge: totalCA > 0 ? `${((totalMargin / totalCA) * 100).toFixed(1)}%` : '0%',
+        masse_salariale: Math.round(totalSalaries),
+        heures_travaillees: Math.round(totalHours),
+        ca_par_heure: totalHours > 0 ? Math.round(totalCA / totalHours) : 0,
+        tresorerie_dernier_mois: lastRec ? Math.round(lastRec.cashFlow.treasury) : 0,
+        bfr_dernier_mois: lastRec ? Math.round(lastRec.bfr.total) : 0,
+        detail_mensuel: recs.map(r => ({
+          mois: r.month,
+          ca: Math.round(r.revenue.total),
+          objectif: Math.round(r.revenue.objective),
+          marge: Math.round(r.margin?.total || 0),
+          tresorerie: Math.round(r.cashFlow.treasury),
+          bfr: Math.round(r.bfr.total),
+          salaires: Math.round(r.expenses.salaries),
+          heures: Math.round(r.expenses.hoursWorked),
+        }))
+      };
+    });
+
     const contextData = {
-      profile: { 
-          entreprise: client.companyName, 
-          dirigeant: client.managerName, 
+      profile: {
+          entreprise: client.companyName,
+          dirigeant: client.managerName,
           secteur: client.sector || "Non spécifié",
           forme_juridique: client.legalForm || "Non spécifié"
       },
+      donnees_financieres: syntheseAnnuelle,
       situation_actuelle: lastRecord ? {
-          tresorerie_nette: lastRecord.cashFlow.treasury,
-          ca_mensuel: lastRecord.revenue.total,
+          dernier_mois: `${lastRecord.month} ${lastRecord.year}`,
+          tresorerie_nette: Math.round(lastRecord.cashFlow.treasury),
+          ca_mensuel: Math.round(lastRecord.revenue.total),
+          bfr: Math.round(lastRecord.bfr.total),
           alertes: {
               treso_negative: lastRecord.cashFlow.treasury < 0
           }
@@ -74,7 +119,14 @@ export const getFinancialAdvice = async (
     - **FISCALITÉ** : Optimisation (CGI), Intégration fiscale, TVA, Holding, Transmission (Dutreil).
     - **RESTRUCTURING** : Mandat ad hoc, Conciliation, Sauvegarde, RJ/LJ. (Ton : Protecteur et Lucide).
 
-    DONNÉES CLIENT : ${JSON.stringify(contextData)}
+    DONNÉES CLIENT (COMPLÈTES — tu as accès à TOUTES les données financières mois par mois) :
+    ${JSON.stringify(contextData)}
+
+    RÈGLE ABSOLUE SUR LES DONNÉES :
+    - Tu disposes des données financières COMPLÈTES ci-dessus : CA, marge, trésorerie, BFR, salaires, heures pour CHAQUE mois de CHAQUE année.
+    - Quand on te demande un chiffre annuel (ex: "CA 2025"), CALCULE le total à partir du détail mensuel fourni. Ne dis JAMAIS que tu n'as pas la donnée si elle est dans le contexte.
+    - Quand on te demande une évolution N vs N-1, compare les synthèses annuelles.
+    - Cite les chiffres précis issus des données, pas des approximations.
 
     MÉTHODOLOGIE D'INTERACTION "DIAGNOSTIC & ACTION" :
 

@@ -227,6 +227,34 @@ function detectMonthColumns(headers: string[]): { colIndex: number; month: Month
   return result;
 }
 
+// Find the label column: the non-month column (before the first month) that has the most non-empty text values.
+// Handles sheets where col A is empty but labels are in col B (e.g. VOLUME CARBURANT, FEUILLE DE SAISIE).
+function findLabelColumn(headers: string[], monthCols: { colIndex: number; month: Month }[], dataRows: any[][]): number {
+  if (monthCols.length === 0) return 0;
+
+  const firstMonthCol = Math.min(...monthCols.map(mc => mc.colIndex));
+  if (firstMonthCol === 0) return 0; // months start at col 0, no label column
+
+  // For each column before the first month, count non-empty text values in data rows
+  const sampleRows = dataRows.slice(0, 20);
+  let bestCol = 0;
+  let bestCount = 0;
+
+  for (let col = 0; col < firstMonthCol; col++) {
+    let count = 0;
+    for (const row of sampleRows) {
+      const val = String(row[col] ?? '').trim();
+      if (val.length > 0) count++;
+    }
+    if (count > bestCount) {
+      bestCount = count;
+      bestCol = col;
+    }
+  }
+
+  return bestCol;
+}
+
 // Detect year from sheet data - look for a year pattern in headers (e.g. "janvier-25", "2025", etc.)
 function detectYear(sheet: ParsedSheet): number {
   const currentYear = new Date().getFullYear();
@@ -282,9 +310,8 @@ export function detectSheetType(sheet: ParsedSheet): 'revenue_by_family' | 'fuel
   const monthCols = detectMonthColumns(sheet.headers);
   if (monthCols.length < 3) return 'unknown'; // Need at least 3 months to be confident
 
-  // Find the label column (first non-month column)
-  const labelColIndex = sheet.headers.findIndex((h, i) => !monthCols.some(mc => mc.colIndex === i));
-  const effectiveLabelCol = labelColIndex >= 0 ? labelColIndex : 0;
+  // Find the label column (the non-month column with the most text data)
+  const effectiveLabelCol = findLabelColumn(sheet.headers, monthCols, sheet.rows);
 
   // Check row labels
   const rowLabels = sheet.rows.map(r => String(r[effectiveLabelCol] || '').toLowerCase().trim());
@@ -326,9 +353,8 @@ export function parseRevenueSheet(
   const monthCols = detectMonthColumns(sheet.headers);
   if (monthCols.length === 0) return { families: [], monthlyData: new Map(), totalRow: null };
 
-  // Find the label column (first non-month column, usually index 0)
-  const labelColIndex = sheet.headers.findIndex((h, i) => !monthCols.some(mc => mc.colIndex === i));
-  const effectiveLabelCol = labelColIndex >= 0 ? labelColIndex : 0;
+  // Find the label column (the non-month column with the most text data)
+  const effectiveLabelCol = findLabelColumn(sheet.headers, monthCols, sheet.rows);
 
   const families: string[] = [];
   const monthlyData = new Map<string, Map<string, number>>(); // month -> (family -> value)
@@ -458,9 +484,8 @@ export function parseFuelSheet(
 
   if (monthCols.length === 0) return { volumes: new Map(), objectives: new Map() };
 
-  // Find the label column (first non-month column, usually index 0)
-  const labelColIndex = effectiveHeaders.findIndex((h, i) => !monthCols.some(mc => mc.colIndex === i));
-  const effectiveLabelCol = labelColIndex >= 0 ? labelColIndex : 0;
+  // Find the label column (the non-month column with the most text data)
+  const effectiveLabelCol = findLabelColumn(effectiveHeaders, monthCols, dataRows);
 
   const volumes = new Map<string, { gasoil: number; sansPlomb: number; gnr: number; total: number }>();
   const objectives = new Map<string, { gasoil: number; sansPlomb: number; gnr: number; total: number }>();
@@ -620,8 +645,7 @@ export function parseAnalyseActiviteSheet(
     return new Map();
   }
 
-  const labelColIndex = effectiveHeaders.findIndex((h: string, i: number) => !monthCols.some(mc => mc.colIndex === i));
-  const effectiveLabelCol = labelColIndex >= 0 ? labelColIndex : 0;
+  const effectiveLabelCol = findLabelColumn(effectiveHeaders, monthCols, dataRows);
 
   // Initialize result for each month
   const result = new Map<string, AnalyseMonthData>();

@@ -71,14 +71,18 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
       setSheets(parsed);
 
       // Auto-detect mappings
-      const autoMappings: SheetMapping[] = parsed.map(sheet => ({
+      const detectionResults = parsed.map(sheet => ({
         sheetName: sheet.name,
-        type: detectSheetType(sheet),
-      })).map(m => ({
-        ...m,
-        type: m.type === 'unknown' ? 'ignore' : m.type,
+        detectedType: detectSheetType(sheet),
+      }));
+      console.log('[AutoDetect] Detection results:', detectionResults);
+
+      const autoMappings: SheetMapping[] = detectionResults.map(d => ({
+        sheetName: d.sheetName,
+        type: d.detectedType === 'unknown' ? 'ignore' : d.detectedType,
       })) as SheetMapping[];
 
+      console.log('[AutoDetect] Final mappings:', autoMappings.map(m => `${m.sheetName} → ${m.type}`));
       setMappings(autoMappings);
       setStep('mapping');
     } catch (err: any) {

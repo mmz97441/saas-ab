@@ -193,6 +193,15 @@ export function readExcelFile(file: File): Promise<ParsedSheet[]> {
           // Data rows use raw values for numeric accuracy
           const rows = rawData.slice(headerRowIdx + 1);
 
+          // DEBUG: log what we see for each sheet
+          console.log(`[ExcelImport] Sheet "${name}":`);
+          console.log(`  headerRowIdx: ${headerRowIdx}`);
+          console.log(`  fmtData first 5 rows:`, fmtData.slice(0, 5));
+          console.log(`  rawData first 5 rows:`, rawData.slice(0, 5));
+          console.log(`  headers (from fmtData):`, headers);
+          const monthsFound = headers.filter((h: string) => parseMonth(h) !== null);
+          console.log(`  months detected in headers:`, monthsFound, `(${monthsFound.length} total)`);
+
           return { name, headers, rows, rawData, fmtData };
         });
 
@@ -420,6 +429,9 @@ export function parseFuelSheet(
   let dataRows = sheet.rows;
   let effectiveHeaders = sheet.headers;
 
+  console.log(`[parseFuelSheet] Initial monthCols from headers:`, monthCols.length);
+  console.log(`[parseFuelSheet] Headers:`, sheet.headers);
+
   // Fallback: if headers don't have months, re-scan fmtData (formatted strings)
   if (monthCols.length < 3 && sheet.fmtData) {
     const maxScan = Math.min(sheet.fmtData.length, 50);
@@ -563,6 +575,9 @@ export function parseAnalyseActiviteSheet(
   let dataRows = sheet.rows;
   let effectiveHeaders = sheet.headers;
 
+  console.log(`[parseAnalyseActivite] Initial monthCols from headers:`, monthCols.length, monthCols);
+  console.log(`[parseAnalyseActivite] Headers:`, sheet.headers);
+
   // Fallback: if headers don't have months, re-scan fmtData (formatted strings) to find the real header row
   // fmtData uses raw:false which gives Excel's display text – most reliable for month detection
   if (monthCols.length < 3 && sheet.fmtData) {
@@ -586,10 +601,24 @@ export function parseAnalyseActiviteSheet(
       monthCols = detectMonthColumns(effectiveHeaders);
       // Data rows use rawData for numeric accuracy
       dataRows = sheet.rawData.slice(bestRow + 1);
+      console.log(`[parseAnalyseActivite] Fallback found header row ${bestRow} with ${bestCount} months`);
+      console.log(`[parseAnalyseActivite] Fallback headers:`, effectiveHeaders);
+      console.log(`[parseAnalyseActivite] Fallback monthCols:`, monthCols.length);
+    } else {
+      console.log(`[parseAnalyseActivite] Fallback FAILED. Best: row ${bestRow}, count ${bestCount}`);
+      // Log the first 10 rows of fmtData to see what's there
+      if (sheet.fmtData) {
+        for (let i = 0; i < Math.min(sheet.fmtData.length, 10); i++) {
+          console.log(`[parseAnalyseActivite] fmtData row ${i}:`, sheet.fmtData[i]);
+        }
+      }
     }
   }
 
-  if (monthCols.length === 0) return new Map();
+  if (monthCols.length === 0) {
+    console.log(`[parseAnalyseActivite] RETURNING EMPTY - no months found`);
+    return new Map();
+  }
 
   const labelColIndex = effectiveHeaders.findIndex((h: string, i: number) => !monthCols.some(mc => mc.colIndex === i));
   const effectiveLabelCol = labelColIndex >= 0 ? labelColIndex : 0;

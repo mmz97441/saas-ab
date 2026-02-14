@@ -212,6 +212,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
          treasuryVariation: null,
          bfrVariation: null,
          marginVariation: null,
+         dso: 0, dpo: 0, dio: 0, bfrDays: 0, masseSalarialeRate: 0, caPerHour: 0, costPerHour: 0,
        };
     }
 
@@ -286,6 +287,18 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
 
     const globalMarginRate = totalRevenue > 0 ? (totalMargin / totalRevenue) * 100 : 0;
 
+    // --- RATIOS FINANCIERS ---
+    const totalSalaries = displayData.reduce((acc, curr) => acc + curr.expenses.salaries, 0);
+    const avgMonthlyRevenue = displayData.length > 0 ? totalRevenue / displayData.length : 0;
+    const lastRec = snapshotRecord;
+    const dso = avgMonthlyRevenue > 0 && lastRec ? (lastRec.bfr.receivables.clients / avgMonthlyRevenue) * 30 : 0;
+    const dpo = avgMonthlyRevenue > 0 && lastRec ? (lastRec.bfr.debts.suppliers / avgMonthlyRevenue) * 30 : 0;
+    const dio = avgMonthlyRevenue > 0 && lastRec ? (lastRec.bfr.stock.total / avgMonthlyRevenue) * 30 : 0;
+    const bfrDays = avgMonthlyRevenue > 0 ? (avgBfr / avgMonthlyRevenue) * 30 : 0;
+    const masseSalarialeRate = totalRevenue > 0 ? (totalSalaries / totalRevenue) * 100 : 0;
+    const caPerHour = totalHours > 0 ? totalRevenue / totalHours : 0;
+    const costPerHour = totalHours > 0 ? totalSalaries / totalHours : 0;
+
     // --- N-1 COMPARISONS ---
     const n1Data = data.filter(d => d.year === selectedYear - 1);
     const n1Filtered = selectedMonths.length > 0
@@ -328,6 +341,13 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
       treasuryVariation,
       bfrVariation,
       marginVariation,
+      dso,
+      dpo,
+      dio,
+      bfrDays,
+      masseSalarialeRate,
+      caPerHour,
+      costPerHour,
     };
   }, [displayData, snapshotRecord, yearData, client.profitCenters, selectedMonths, defaultMonthsUpToM1, data, selectedYear]);
 
@@ -396,6 +416,10 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
         Fuel_SP: recordN ? recordN.fuel?.details?.sansPlomb.volume : null,
         Fuel_GNR: recordN ? recordN.fuel?.details?.gnr.volume : null,
         Fuel_Total_N1: recordN1 ? recordN1.fuel?.volume : null,
+        // Ratios (en jours)
+        DSO: recordN && recordN.revenue.total > 0 ? (recordN.bfr.receivables.clients / recordN.revenue.total) * 30 : null,
+        DPO: recordN && recordN.revenue.total > 0 ? (recordN.bfr.debts.suppliers / recordN.revenue.total) * 30 : null,
+        DIO: recordN && recordN.revenue.total > 0 ? (recordN.bfr.stock.total / recordN.revenue.total) * 30 : null,
       };
     });
 
@@ -586,6 +610,20 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
       BFR_Net: d.BFR ?? 0,
     }));
   }, [chartData]);
+
+  // --- ACTIVITY TREND DATA ---
+  const activityTrendData = useMemo(() => {
+    if (!kpis.topActivities.length) return [];
+    const actIds = kpis.topActivities.map(a => a.id);
+    return chartData.map(d => {
+      const record = data.find(r => r.year === selectedYear && r.month === d.fullMonth);
+      const point: Record<string, any> = { name: d.name, fullMonth: d.fullMonth };
+      actIds.forEach(id => {
+        point[id] = record?.revenue.breakdown?.[id] || 0;
+      });
+      return point;
+    });
+  }, [chartData, data, selectedYear, kpis.topActivities]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -788,6 +826,33 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
              )}
          </div>
       </div>
+
+      {/* RATIOS FINANCIERS BADGES */}
+      {kpis.revenue > 0 && (
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-brand-100">
+          <h3 className="text-xs font-bold text-brand-900 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <Activity className="w-4 h-4 text-indigo-500" />
+            Ratios Financiers
+          </h3>
+          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+            {[
+              { label: 'DSO', value: `${kpis.dso.toFixed(0)}j`, sub: 'Délai clients', color: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
+              { label: 'DPO', value: `${kpis.dpo.toFixed(0)}j`, sub: 'Délai fourn.', color: 'bg-rose-50 text-rose-700 border-rose-200' },
+              { label: 'DIO', value: `${kpis.dio.toFixed(0)}j`, sub: 'Rotation stocks', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+              { label: 'BFR', value: `${kpis.bfrDays.toFixed(0)}j`, sub: 'en jours de CA', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+              { label: 'Masse Sal.', value: `${kpis.masseSalarialeRate.toFixed(1)}%`, sub: '% du CA', color: 'bg-purple-50 text-purple-700 border-purple-200' },
+              { label: 'CA/Heure', value: `${kpis.caPerHour.toFixed(0)}€`, sub: 'Productivité', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+              { label: 'Coût/H', value: `${kpis.costPerHour.toFixed(0)}€`, sub: 'Coût salarial', color: 'bg-orange-50 text-orange-700 border-orange-200' },
+            ].map(r => (
+              <div key={r.label} className={`flex flex-col items-center p-2.5 rounded-lg border ${r.color}`}>
+                <span className="text-[10px] font-bold uppercase tracking-wider opacity-70">{r.label}</span>
+                <span className="text-lg font-bold">{r.value}</span>
+                <span className="text-[9px] opacity-60">{r.sub}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ============================================= */}
       {/* ROW 1: CA + Tresorerie side by side           */}
@@ -1049,6 +1114,86 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
           )}
         </div>
       )}
+
+      {/* ============================================= */}
+      {/* ROW 4: Evolution Ratios + Tendances Activité  */}
+      {/* ============================================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Evolution des Ratios (jours) */}
+        {chartData.some(d => d.DSO !== null || d.DPO !== null || d.DIO !== null) && (
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2">
+                <Activity className="w-4 h-4 text-indigo-500" />
+                Evolution des Ratios (jours)
+              </h3>
+              <div className="flex items-center gap-2 text-[10px]">
+                <span className="flex items-center gap-1"><div className="w-2 h-0.5 bg-cyan-500"></div> DSO</span>
+                <span className="flex items-center gap-1"><div className="w-2 h-0.5 bg-rose-500"></div> DPO</span>
+                <span className="flex items-center gap-1"><div className="w-2 h-0.5 bg-amber-500"></div> DIO</span>
+              </div>
+            </div>
+            <div className="h-[220px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} dy={5} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(val: any) => `${Number(val).toFixed(0)}j`} />
+                  <Tooltip formatter={(value: any, name: string) => [`${Number(value).toFixed(1)} jours`, name]} />
+                  <Line type="monotone" dataKey="DSO" stroke="#06b6d4" strokeWidth={2} dot={{ r: 3, fill: '#06b6d4' }} name="DSO" connectNulls />
+                  <Line type="monotone" dataKey="DPO" stroke="#e11d48" strokeWidth={2} dot={{ r: 3, fill: '#e11d48' }} name="DPO" connectNulls />
+                  <Line type="monotone" dataKey="DIO" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3, fill: '#f59e0b' }} name="DIO" connectNulls />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {/* Tendances par Activité */}
+        {activityTrendData.length > 0 && kpis.topActivities.length > 0 && (
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-blue-500" />
+                Tendances par Activité
+              </h3>
+              <div className="flex items-center gap-2 text-[10px] flex-wrap justify-end">
+                {kpis.topActivities.map((act, idx) => (
+                  <span key={act.id} className="flex items-center gap-1">
+                    <div className="w-2 h-0.5" style={{ backgroundColor: COLORS_ACTIVITIES[idx % COLORS_ACTIVITIES.length] }}></div>
+                    <span className="truncate max-w-[60px]" title={act.name}>{act.name}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="h-[220px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={activityTrendData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} dy={5} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(val: any) => { const v = Number(val); return !isNaN(v) && v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(val); }} />
+                  <Tooltip formatter={(value: any, name: string) => {
+                    const act = kpis.topActivities.find(a => a.id === name);
+                    return [formatCurrency(Number(value)), act?.name || name];
+                  }} />
+                  {kpis.topActivities.map((act, idx) => (
+                    <Line
+                      key={act.id}
+                      type="monotone"
+                      dataKey={act.id}
+                      stroke={COLORS_ACTIVITIES[idx % COLORS_ACTIVITIES.length]}
+                      strokeWidth={2}
+                      dot={{ r: 3, fill: COLORS_ACTIVITIES[idx % COLORS_ACTIVITIES.length] }}
+                      name={act.id}
+                      connectNulls
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* ============================================= */}
       {/* Carburant (only if enabled AND has data)      */}

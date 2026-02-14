@@ -832,24 +832,37 @@ export function buildImportData(
   let analyseData = new Map<string, AnalyseMonthData>();
 
   // Process each mapped sheet
+  console.log(`[buildImportData] Processing ${mappings.length} mappings:`, mappings.map(m => `${m.sheetName} → ${m.type}`));
   for (const mapping of mappings) {
-    if (mapping.type === 'ignore') continue;
+    if (mapping.type === 'ignore') {
+      console.log(`[buildImportData] Skipping "${mapping.sheetName}" (ignore)`);
+      continue;
+    }
     const sheet = sheets.find(s => s.name === mapping.sheetName);
-    if (!sheet) continue;
+    if (!sheet) {
+      console.log(`[buildImportData] Sheet "${mapping.sheetName}" NOT FOUND in sheets array!`);
+      continue;
+    }
+    console.log(`[buildImportData] Processing "${mapping.sheetName}" as ${mapping.type}`);
 
     if (mapping.type === 'analyse_activite') {
       analyseData = parseAnalyseActiviteSheet(sheet, year);
+      console.log(`[buildImportData] analyseData result: ${analyseData.size} months`, [...analyseData.keys()]);
     } else if (mapping.type === 'revenue_by_family') {
       const parsed = parseRevenueSheet(sheet, year);
       allFamilies = [...allFamilies, ...parsed.families];
       revenueData = parsed.monthlyData;
       totalRow = parsed.totalRow;
+      console.log(`[buildImportData] revenueData: ${parsed.families.length} families, ${revenueData.size} months`);
     } else if (mapping.type === 'fuel_volumes') {
       const parsed = parseFuelSheet(sheet, year);
       fuelVolumes = parsed.volumes;
       fuelObjectives = parsed.objectives;
+      console.log(`[buildImportData] fuelVolumes: ${fuelVolumes.size} months`, [...fuelVolumes.entries()].slice(0, 2));
     }
   }
+
+  console.log(`[buildImportData] Summary after parsing: analyseData=${analyseData.size} months, revenueData=${revenueData.size} months, fuelVolumes=${fuelVolumes.size} months`);
 
   // Deduplicate families
   allFamilies = [...new Set(allFamilies)];

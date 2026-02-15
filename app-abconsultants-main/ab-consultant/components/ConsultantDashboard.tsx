@@ -5,6 +5,7 @@ import { getRecordsByClient } from '../services/dataService';
 import {
     AlertTriangle, Clock, CheckCircle, TrendingDown, TrendingUp, MessageSquare,
     ArrowRight, Briefcase, Loader2, Filter, Shield, Search, X, ChevronDown,
+    ChevronLeft, ChevronRight as ChevronRightIcon,
     DollarSign, Percent, Landmark, Target, Activity, CalendarClock, HelpCircle
 } from 'lucide-react';
 
@@ -328,7 +329,23 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
     const [searchQuery, setSearchQuery] = useState('');
     const [activePanel, setActivePanel] = useState<PanelType>(null);
 
-    const currentYear = new Date().getFullYear();
+    const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
+    // Par défaut : M-1 (mois précédent, car le mois en cours n'est pas encore clôturé)
+    const now = new Date();
+    const defaultMonthIdx = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+    const defaultYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    const [selectedYear, setSelectedYear] = useState(defaultYear);
+    const [selectedMonthIdx, setSelectedMonthIdx] = useState(defaultMonthIdx);
+
+    const navigatePeriod = (direction: -1 | 1) => {
+        setSelectedMonthIdx(prev => {
+            const next = prev + direction;
+            if (next < 0) { setSelectedYear(y => y - 1); return 11; }
+            if (next > 11) { setSelectedYear(y => y + 1); return 0; }
+            return next;
+        });
+    };
 
     useEffect(() => {
         const loadGlobalData = async () => {
@@ -340,37 +357,46 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                 activeClients.map(client => getRecordsByClient(client.id))
             );
 
-            const monthValues = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
-
             const results: ClientSummary[] = activeClients.map((client, i) => {
                 const records = allRecords[i];
-                const lastRecord = records.length > 0 ? records[records.length - 1] : null;
                 const pendingValidation = !!records.find(r => r.isSubmitted && !r.isValidated);
 
-                const yearRecords = records.filter(r => r.year === currentYear && r.revenue.total > 0);
-                const ytdRevenue = yearRecords.reduce((acc, r) => acc + r.revenue.total, 0);
-                const ytdObjective = yearRecords.reduce((acc, r) => acc + r.revenue.objective, 0);
-                const ytdMargin = yearRecords.reduce((acc, r) => acc + (r.margin?.total || 0), 0);
+                // YTD : de Janvier à selectedMonth de selectedYear
+                const ytdRecords = records.filter(r => {
+                    if (r.year !== selectedYear) return false;
+                    const mIdx = MONTHS.indexOf(r.month as string);
+                    return mIdx >= 0 && mIdx <= selectedMonthIdx && r.revenue.total > 0;
+                });
+                const ytdRevenue = ytdRecords.reduce((acc, r) => acc + r.revenue.total, 0);
+                const ytdObjective = ytdRecords.reduce((acc, r) => acc + r.revenue.objective, 0);
+                const ytdMargin = ytdRecords.reduce((acc, r) => acc + (r.margin?.total || 0), 0);
                 const ytdMarginRate = ytdRevenue > 0 ? (ytdMargin / ytdRevenue) * 100 : 0;
                 const objPerformance = ytdObjective > 0 ? (ytdRevenue / ytdObjective) * 100 : 0;
 
-                let dataFresh = false;
-                if (lastRecord) {
-                    const lastMonthIdx = monthValues.indexOf(lastRecord.month as string);
-                    const nowMonthIdx = new Date().getMonth();
-                    if (lastRecord.year === currentYear && lastMonthIdx >= nowMonthIdx - 2) {
-                        dataFresh = true;
-                    } else if (lastRecord.year === currentYear - 1 && nowMonthIdx <= 1 && lastMonthIdx >= 10) {
-                        dataFresh = true;
-                    }
-                }
+                // Trésorerie : dernier record connu jusqu'au mois sélectionné
+                const recordsUpToPeriod = records
+                    .filter(r => r.year < selectedYear || (r.year === selectedYear && MONTHS.indexOf(r.month as string) <= selectedMonthIdx))
+                    .sort((a, b) => {
+                        if (a.year !== b.year) return a.year - b.year;
+                        return MONTHS.indexOf(a.month as string) - MONTHS.indexOf(b.month as string);
+                    });
+                const lastRecord = recordsUpToPeriod.length > 0 ? recordsUpToPeriod[recordsUpToPeriod.length - 1] : null;
+
+                // Fraîcheur : le mois sélectionné a-t-il des données ?
+                const hasSelectedMonth = !!records.find(r => r.year === selectedYear && MONTHS.indexOf(r.month as string) === selectedMonthIdx);
+                const hasPreviousMonth = selectedMonthIdx > 0
+                    ? !!records.find(r => r.year === selectedYear && MONTHS.indexOf(r.month as string) === selectedMonthIdx - 1)
+                    : !!records.find(r => r.year === selectedYear - 1 && MONTHS.indexOf(r.month as string) === 11);
+                const dataFresh = hasSelectedMonth || hasPreviousMonth;
 
                 const treasuryAlert = lastRecord ? lastRecord.cashFlow.treasury < 0 : false;
                 const isHealthy = !treasuryAlert && dataFresh && (ytdObjective === 0 || objPerformance >= 85);
 
+                const globalLastRecord = records.length > 0 ? records[records.length - 1] : null;
+
                 return {
                     client, lastRecord, records, pendingValidation, treasuryAlert,
-                    lastActivity: lastRecord ? `${lastRecord.month} ${lastRecord.year}` : 'Aucune',
+                    lastActivity: globalLastRecord ? `${globalLastRecord.month} ${globalLastRecord.year}` : 'Aucune',
                     ytdRevenue, ytdObjective, ytdMargin, ytdMarginRate, objPerformance, dataFresh, isHealthy,
                 };
             });
@@ -390,7 +416,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
         } else {
             setIsLoading(false);
         }
-    }, [clients, currentYear]);
+    }, [clients, selectedYear, selectedMonthIdx]);
 
     // --- KPI GLOBAUX PORTEFEUILLE ---
     const totalUnread = clients.filter(c => c.hasUnreadMessages).length;
@@ -459,7 +485,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
 
-            {/* HEADER */}
+            {/* HEADER + SELECTEUR PERIODE */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
@@ -467,13 +493,59 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                         Cockpit de Pilotage
                     </h1>
                     <p className="text-slate-500 mt-1">
-                        Vue d'ensemble de vos <strong>{summaries.length}</strong> dossiers actifs — Exercice <strong>{currentYear}</strong>
+                        Vue d'ensemble de vos <strong>{summaries.length}</strong> dossiers actifs
                     </p>
                 </div>
-                <div className="text-right hidden md:block">
-                    <p className="text-xs font-bold text-slate-400 uppercase">Date</p>
-                    <p className="font-bold text-slate-700">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+
+                {/* Sélecteur de période */}
+                <div className="flex items-center gap-2">
+                    <button onClick={() => navigatePeriod(-1)} className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-700 transition shadow-sm" title="Mois précédent">
+                        <ChevronLeft className="w-4 h-4" />
+                    </button>
+
+                    <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-3 py-1.5 shadow-sm">
+                        <CalendarClock className="w-4 h-4 text-brand-500" />
+                        <select
+                            value={selectedMonthIdx}
+                            onChange={(e) => setSelectedMonthIdx(Number(e.target.value))}
+                            className="bg-transparent text-sm font-bold text-slate-700 border-none outline-none cursor-pointer appearance-none pr-1"
+                        >
+                            {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
+                        </select>
+                        <select
+                            value={selectedYear}
+                            onChange={(e) => setSelectedYear(Number(e.target.value))}
+                            className="bg-transparent text-sm font-bold text-slate-700 border-none outline-none cursor-pointer appearance-none"
+                        >
+                            {Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i).map(y => (
+                                <option key={y} value={y}>{y}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <button onClick={() => navigatePeriod(1)} className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-700 transition shadow-sm" title="Mois suivant">
+                        <ChevronRightIcon className="w-4 h-4" />
+                    </button>
+
+                    <button
+                        onClick={() => { setSelectedYear(defaultYear); setSelectedMonthIdx(defaultMonthIdx); }}
+                        className="text-[10px] font-bold text-brand-600 bg-brand-50 border border-brand-200 px-2.5 py-1.5 rounded-lg hover:bg-brand-100 transition"
+                        title="Revenir à M-1"
+                    >
+                        M-1
+                    </button>
                 </div>
+            </div>
+
+            {/* Bandeau période sélectionnée */}
+            <div className="text-xs text-slate-500 bg-slate-50 rounded-lg px-4 py-2 border border-slate-100 flex items-center justify-between">
+                <span>
+                    Période affichée : <strong className="text-slate-700">Janvier → {MONTHS[selectedMonthIdx]} {selectedYear}</strong> (YTD)
+                    {' '}— Trésorerie au <strong className="text-slate-700">{MONTHS[selectedMonthIdx]} {selectedYear}</strong>
+                </span>
+                {(selectedYear !== defaultYear || selectedMonthIdx !== defaultMonthIdx) && (
+                    <span className="text-[10px] text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">Période personnalisée</span>
+                )}
             </div>
 
             {/* ═══ KPI FINANCIERS DU PORTEFEUILLE ═══ */}
@@ -488,7 +560,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                             </span>
                         )}
                     </div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">CA Portefeuille <InfoTip text="Chiffre d'affaires HT cumulé de tous vos clients depuis le 1er janvier de l'année en cours (Year-to-Date). Cliquez pour voir le détail par client." /></p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">CA Portefeuille <InfoTip text={`CA HT cumulé Jan → ${MONTHS[selectedMonthIdx]} ${selectedYear}. Cliquez pour voir le détail par client.`} /></p>
                     <div className="text-lg font-bold text-slate-800">{fmtEur(portfolioKpis.totalCA)}</div>
                     {portfolioKpis.totalObj > 0 && (
                         <div className="mt-2">

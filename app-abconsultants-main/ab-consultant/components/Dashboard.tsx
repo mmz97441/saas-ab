@@ -1221,25 +1221,42 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Objectifs par type de carburant</div>
                <div className="space-y-2">
                  {[
-                   { label: 'Gasoil', vol: kpis.fuelDetails.gasoil.vol, obj: kpis.fuelDetails.gasoil.obj, color: 'bg-blue-500', bgColor: 'bg-blue-100' },
-                   { label: 'Sans Plomb', vol: kpis.fuelDetails.sp.vol, obj: kpis.fuelDetails.sp.obj, color: 'bg-amber-500', bgColor: 'bg-amber-100' },
-                   { label: 'GNR', vol: kpis.fuelDetails.gnr.vol, obj: kpis.fuelDetails.gnr.obj, color: 'bg-emerald-500', bgColor: 'bg-emerald-100' },
+                   { label: 'Gasoil', vol: kpis.fuelDetails.gasoil.vol, obj: kpis.fuelDetails.gasoil.obj },
+                   { label: 'Sans Plomb', vol: kpis.fuelDetails.sp.vol, obj: kpis.fuelDetails.sp.obj },
+                   { label: 'GNR', vol: kpis.fuelDetails.gnr.vol, obj: kpis.fuelDetails.gnr.obj },
                  ].filter(f => f.obj > 0 || f.vol > 0).map(f => {
-                   const pct = f.obj > 0 ? Math.min((f.vol / f.obj) * 100, 150) : 0;
-                   const isOver = f.obj > 0 && f.vol > f.obj;
+                   const pct = f.obj > 0 ? (f.vol / f.obj) * 100 : 0;
+                   // Fuel: lower = better. Color gradient based on consumption ratio
+                   // < 85% → deep green, 85-95% → green, 95-100% → amber, >100% → orange→red
+                   const getBarColor = (p: number) => {
+                     if (p <= 85) return '#059669';   // emerald-600 — excellent
+                     if (p <= 95) return '#65a30d';   // lime-600 — bon
+                     if (p <= 100) return '#d97706';  // amber-600 — attention
+                     if (p <= 110) return '#ea580c';  // orange-600 — dépassement
+                     return '#dc2626';                 // red-600 — critique
+                   };
+                   const getTextColor = (p: number) => {
+                     if (p <= 85) return 'text-emerald-700';
+                     if (p <= 95) return 'text-lime-700';
+                     if (p <= 100) return 'text-amber-600';
+                     if (p <= 110) return 'text-orange-600';
+                     return 'text-red-600';
+                   };
+                   const barColor = getBarColor(pct);
+                   const textColor = getTextColor(pct);
                    return (
                      <div key={f.label}>
                        <div className="flex justify-between items-center text-[11px] mb-0.5">
                          <span className="font-medium text-slate-600">{f.label}</span>
                          <span className="text-slate-500">
-                           <span className={`font-bold ${isOver ? 'text-red-600' : 'text-slate-700'}`}>{Math.round(f.vol).toLocaleString()} L</span>
+                           <span className={`font-bold ${textColor}`}>{Math.round(f.vol).toLocaleString()} L</span>
                            {f.obj > 0 && <span className="text-slate-400"> / {Math.round(f.obj).toLocaleString()} L</span>}
-                           {f.obj > 0 && <span className={`ml-1.5 font-bold ${isOver ? 'text-red-600' : pct >= 90 ? 'text-amber-600' : 'text-emerald-600'}`}>({pct.toFixed(0)}%)</span>}
+                           {f.obj > 0 && <span className={`ml-1.5 font-bold ${textColor}`}>({pct.toFixed(0)}%)</span>}
                          </span>
                        </div>
                        {f.obj > 0 && (
-                         <div className={`h-2 w-full ${f.bgColor} rounded-full overflow-hidden`}>
-                           <div className={`h-full ${isOver ? 'bg-red-500' : f.color} rounded-full transition-all duration-500`} style={{ width: `${Math.min(pct, 100)}%` }} />
+                         <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                           <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: barColor }} />
                          </div>
                        )}
                      </div>

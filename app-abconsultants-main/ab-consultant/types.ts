@@ -75,8 +75,26 @@ export interface Client {
   profitCenters?: ProfitCenter[]; 
   
   // CHAT META DATA
-  hasUnreadMessages?: boolean; 
+  hasUnreadMessages?: boolean;
   lastMessageTime?: any;
+
+  // RENDEZ-VOUS
+  nextAppointment?: NextAppointment;
+}
+
+// --- APPOINTMENT TYPES ---
+export type AppointmentStatus = 'proposed' | 'confirmed' | 'pending_change';
+
+export interface NextAppointment {
+  date: string;              // ISO date (YYYY-MM-DD)
+  time: string;              // "09:00"
+  location: string;          // "Sainte-Clotilde", "Visio", etc.
+  status: AppointmentStatus;
+  proposedDate?: string;     // Date proposée par le client (ISO)
+  proposedTime?: string;     // Heure proposée par le client
+  token: string;             // Token sécurisé pour les liens email
+  remindersSent: number[];   // Jours avant RDV déjà rappelés : [20, 14, 7, 1]
+  createdAt: string;         // ISO timestamp
 }
 
 // --- CHAT TYPES ---

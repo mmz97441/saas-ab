@@ -107,6 +107,15 @@ service cloud.firestore {
     }
 
     // =============================================
+    // APPOINTMENT TOKENS (Gestion RDV)
+    // Accédés uniquement par les Cloud Functions (Admin SDK)
+    // Aucun accès client-side nécessaire
+    // =============================================
+    match /appointmentTokens/{tokenId} {
+      allow read, write: if false;
+    }
+
+    // =============================================
     // DEFAULT: Deny everything else
     // =============================================
     match /{document=**} {

@@ -14,6 +14,7 @@ import ClientPortfolio from './components/ClientPortfolio';
 import ClientModal from './components/ClientModal';
 import TeamManagement from './components/TeamManagement';
 import ExcelImportModal from './components/ExcelImportModal';
+import AppointmentPanel from './components/AppointmentPanel';
 import { useConfirmDialog } from './contexts/ConfirmContext';
 
 import { FinancialRecord, Client, Month, ProfitCenter, Consultant, View } from './types';
@@ -505,6 +506,17 @@ const App: React.FC = () => {
                             <Plus className="w-4 h-4" /> Saisir mes données
                         </button>
                     </div>
+                </div>
+            )}
+
+            {/* PANNEAU RDV (consultant uniquement, client sélectionné) */}
+            {currentView === View.Dashboard && selectedClient && userRole === 'ab_consultant' && (
+                <div className="mb-6">
+                  <AppointmentPanel
+                    client={selectedClient}
+                    onAppointmentScheduled={refreshClients}
+                    showNotification={showNotification}
+                  />
                 </div>
             )}
 

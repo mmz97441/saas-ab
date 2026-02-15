@@ -97,6 +97,31 @@ export async function exportClientCSV(params: ExportCSVParams): Promise<void> {
 }
 
 // =============================================
+// SCHEDULE APPOINTMENT
+// =============================================
+interface ScheduleAppointmentParams {
+  clientId: string;
+  date: string;    // YYYY-MM-DD
+  time: string;    // HH:MM
+  location: string;
+}
+
+interface ScheduleAppointmentResponse {
+  success: boolean;
+  token: string;
+}
+
+export async function scheduleAppointment(params: ScheduleAppointmentParams): Promise<ScheduleAppointmentResponse> {
+  const fn = httpsCallable<ScheduleAppointmentParams, ScheduleAppointmentResponse>(
+    getFirebaseFunctions(),
+    'scheduleAppointment'
+  );
+
+  const result = await fn(params);
+  return result.data;
+}
+
+// =============================================
 // SET USER ROLE (Admin)
 // =============================================
 interface SetRoleParams {

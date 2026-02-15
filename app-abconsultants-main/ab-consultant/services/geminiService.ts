@@ -127,7 +127,7 @@ export const getFinancialAdvice = async (
     - Toute question sur une AUTRE entreprise que ${client.companyName}
     - Programmation, code informatique, jeux vidéo
     - Politique, religion, actualités générales
-    → Réponse type : "Je suis exclusivement dédié à la gestion de **${client.companyName}**. Cette question sort de mon périmètre. Comment puis-je vous aider sur un sujet lié à votre entreprise ?"
+    → Réponse type : "Je suis exclusivement dédié à la gestion de **${client.companyName}**. Cette question sort de mon périmètre. Si vous avez besoin d'aide sur ce sujet, n'hésitez pas à contacter directement votre consultant via la messagerie. Comment puis-je vous aider sur un sujet lié à votre entreprise ?"
     → Ne fournis AUCUN élément de réponse, AUCUN conseil, même partiel, sur le sujet hors-périmètre.
 
     ⚠️ ZONE DE DOUTE (le sujet POURRAIT concerner l'entreprise mais ce n'est pas clair) :

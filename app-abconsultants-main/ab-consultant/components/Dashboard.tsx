@@ -1226,20 +1226,20 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                    { label: 'GNR', vol: kpis.fuelDetails.gnr.vol, obj: kpis.fuelDetails.gnr.obj },
                  ].filter(f => f.obj > 0 || f.vol > 0).map(f => {
                    const pct = f.obj > 0 ? (f.vol / f.obj) * 100 : 0;
-                   // Fuel: lower = better. Color gradient based on consumption ratio
-                   // < 85% → deep green, 85-95% → green, 95-100% → amber, >100% → orange→red
+                   // Station-service : plus on vend mieux c'est (comme le CA)
+                   // > 100% → vert (objectif dépassé), < 85% → rouge (loin de l'objectif)
                    const getBarColor = (p: number) => {
-                     if (p <= 85) return '#059669';   // emerald-600 — excellent
-                     if (p <= 95) return '#65a30d';   // lime-600 — bon
-                     if (p <= 100) return '#d97706';  // amber-600 — attention
-                     if (p <= 110) return '#ea580c';  // orange-600 — dépassement
+                     if (p >= 110) return '#059669';  // emerald-600 — excellent
+                     if (p >= 100) return '#65a30d';  // lime-600 — objectif atteint
+                     if (p >= 95) return '#d97706';   // amber-600 — presque
+                     if (p >= 85) return '#ea580c';   // orange-600 — en retard
                      return '#dc2626';                 // red-600 — critique
                    };
                    const getTextColor = (p: number) => {
-                     if (p <= 85) return 'text-emerald-700';
-                     if (p <= 95) return 'text-lime-700';
-                     if (p <= 100) return 'text-amber-600';
-                     if (p <= 110) return 'text-orange-600';
+                     if (p >= 110) return 'text-emerald-700';
+                     if (p >= 100) return 'text-lime-700';
+                     if (p >= 95) return 'text-amber-600';
+                     if (p >= 85) return 'text-orange-600';
                      return 'text-red-600';
                    };
                    const barColor = getBarColor(pct);

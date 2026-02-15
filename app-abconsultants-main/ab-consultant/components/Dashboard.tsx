@@ -937,62 +937,86 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
             </div>
          </div>
 
-         {/* BFR Breakdown */}
+         {/* BFR Breakdown — bar-style layout */}
          <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
             <h3 className="text-sm font-bold text-brand-900 mb-3 flex items-center gap-2 uppercase tracking-wide">
                 <Briefcase className="w-4 h-4 text-cyan-500" /> Répartition du BFR
             </h3>
-            {snapshotRecord ? (
-              <>
-                <p className="text-[10px] text-slate-400 text-center mb-1">{snapshotRecord.month} {snapshotRecord.year}</p>
-                {/* Compact donut chart — no external labels */}
-                <div className="h-[160px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                          <Pie data={receivablesData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={50} fill="#06b6d4" label={false} labelLine={false}>
-                              {receivablesData.map((_entry, index) => <Cell key={`recv-${index}`} fill={COLORS_RECEIVABLES[Number(index) % COLORS_RECEIVABLES.length]} />)}
-                          </Pie>
-                          <Pie data={debtsData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={58} outerRadius={72} fill="#e11d48" label={false} labelLine={false}>
-                              {debtsData.map((_entry, index) => <Cell key={`debt-${index}`} fill={COLORS_DEBTS[Number(index) % COLORS_DEBTS.length]} />)}
-                          </Pie>
-                          <Tooltip formatter={(value: any) => formatCurrency(Number(value))} />
-                      </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="flex justify-center gap-4 text-[10px] font-bold mb-3">
-                    <span className="text-cyan-600 flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-cyan-500"></div> Créances</span>
-                    <span className="text-red-600 flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-rose-500"></div> Dettes</span>
-                </div>
+            {snapshotRecord ? (() => {
+              const r = snapshotRecord;
+              const totalActif = r.bfr.receivables.total + r.bfr.stock.total;
+              const totalPassif = r.bfr.debts.total;
+              const maxVal = Math.max(totalActif, totalPassif, 1);
 
-                {/* Two-column detail table */}
-                <div className="grid grid-cols-2 gap-3 text-[11px]">
-                  {/* Actif */}
-                  <div className="space-y-0.5">
-                    <div className="font-bold text-cyan-700 text-[10px] uppercase tracking-wider mb-1">Actif circulant</div>
-                    <div className="flex justify-between text-slate-600"><span>Clients</span><span>{formatCurrency(snapshotRecord.bfr.receivables.clients, 0)}</span></div>
-                    <div className="flex justify-between text-slate-600"><span>État</span><span>{formatCurrency(snapshotRecord.bfr.receivables.state, 0)}</span></div>
-                    <div className="flex justify-between text-slate-600"><span>Sociaux</span><span>{formatCurrency(snapshotRecord.bfr.receivables.social, 0)}</span></div>
-                    <div className="flex justify-between text-slate-600"><span>Autres</span><span>{formatCurrency(snapshotRecord.bfr.receivables.other, 0)}</span></div>
-                    <div className="flex justify-between text-slate-600"><span>Stocks</span><span>{formatCurrency(snapshotRecord.bfr.stock.total, 0)}</span></div>
-                    <div className="flex justify-between font-bold text-cyan-800 border-t border-slate-200 pt-1 mt-1"><span>Total</span><span>{formatCurrency(snapshotRecord.bfr.receivables.total + snapshotRecord.bfr.stock.total, 0)}</span></div>
+              const actifItems = [
+                { label: 'Clients', value: r.bfr.receivables.clients },
+                { label: 'État', value: r.bfr.receivables.state },
+                { label: 'Org. Sociaux', value: r.bfr.receivables.social },
+                { label: 'Autres', value: r.bfr.receivables.other },
+                { label: 'Stocks', value: r.bfr.stock.total },
+              ].filter(i => i.value > 0);
+
+              const passifItems = [
+                { label: 'Fournisseurs', value: r.bfr.debts.suppliers },
+                { label: 'Dettes Fiscales', value: r.bfr.debts.state },
+                { label: 'Dettes Sociales', value: r.bfr.debts.social },
+                { label: 'Salaires', value: r.bfr.debts.salaries },
+                { label: 'Autres', value: r.bfr.debts.other },
+              ].filter(i => i.value > 0);
+
+              return (
+                <>
+                  <p className="text-[10px] text-slate-400 text-center mb-3">{r.month} {r.year}</p>
+
+                  {/* Actif circulant */}
+                  <div className="mb-3">
+                    <div className="text-[10px] font-bold text-cyan-700 uppercase tracking-wider mb-1.5">Actif circulant</div>
+                    <div className="space-y-1.5">
+                      {actifItems.map(item => (
+                        <div key={item.label}>
+                          <div className="flex justify-between text-[11px] mb-0.5">
+                            <span className="text-slate-600">{item.label}</span>
+                            <span className="font-medium text-slate-700">{formatCurrency(item.value, 0)}</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-cyan-500 rounded-full" style={{ width: `${Math.min((item.value / maxVal) * 100, 100)}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-between font-bold text-xs text-cyan-800 border-t border-slate-200 pt-1.5 mt-2">
+                      <span>Total Actif</span><span>{formatCurrency(totalActif, 0)}</span>
+                    </div>
                   </div>
-                  {/* Passif */}
-                  <div className="space-y-0.5">
-                    <div className="font-bold text-red-700 text-[10px] uppercase tracking-wider mb-1">Passif circulant</div>
-                    <div className="flex justify-between text-slate-600"><span>Fourn.</span><span>{formatCurrency(snapshotRecord.bfr.debts.suppliers, 0)}</span></div>
-                    <div className="flex justify-between text-slate-600"><span>Fiscal</span><span>{formatCurrency(snapshotRecord.bfr.debts.state, 0)}</span></div>
-                    <div className="flex justify-between text-slate-600"><span>Sociaux</span><span>{formatCurrency(snapshotRecord.bfr.debts.social, 0)}</span></div>
-                    <div className="flex justify-between text-slate-600"><span>Salaires</span><span>{formatCurrency(snapshotRecord.bfr.debts.salaries, 0)}</span></div>
-                    <div className="flex justify-between text-slate-600"><span>Autres</span><span>{formatCurrency(snapshotRecord.bfr.debts.other, 0)}</span></div>
-                    <div className="flex justify-between font-bold text-red-800 border-t border-slate-200 pt-1 mt-1"><span>Total</span><span>{formatCurrency(snapshotRecord.bfr.debts.total, 0)}</span></div>
+
+                  {/* Passif circulant */}
+                  <div className="mb-3">
+                    <div className="text-[10px] font-bold text-red-700 uppercase tracking-wider mb-1.5">Passif circulant</div>
+                    <div className="space-y-1.5">
+                      {passifItems.map(item => (
+                        <div key={item.label}>
+                          <div className="flex justify-between text-[11px] mb-0.5">
+                            <span className="text-slate-600">{item.label}</span>
+                            <span className="font-medium text-slate-700">{formatCurrency(item.value, 0)}</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-rose-500 rounded-full" style={{ width: `${Math.min((item.value / maxVal) * 100, 100)}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-between font-bold text-xs text-red-800 border-t border-slate-200 pt-1.5 mt-2">
+                      <span>Total Passif</span><span>{formatCurrency(totalPassif, 0)}</span>
+                    </div>
                   </div>
-                </div>
-                {/* BFR Net */}
-                <div className="flex justify-between font-bold text-base text-brand-900 border-t-2 border-brand-200 pt-2 mt-2">
-                  <span>BFR Net</span><span>{formatCurrency(snapshotRecord.bfr.total, 0)}</span>
-                </div>
-              </>
-            ) : (
+
+                  {/* BFR Net */}
+                  <div className={`flex justify-between font-bold text-base border-t-2 pt-2 mt-1 ${r.bfr.total >= 0 ? 'text-cyan-900 border-cyan-200' : 'text-red-800 border-red-200'}`}>
+                    <span>BFR Net</span><span>{formatCurrency(r.bfr.total, 0)}</span>
+                  </div>
+                </>
+              );
+            })() : (
               <p className="text-sm text-slate-400 italic text-center py-8">Aucune donnée pour cette période</p>
             )}
          </div>

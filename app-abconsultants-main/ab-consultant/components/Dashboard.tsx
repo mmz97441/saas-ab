@@ -265,15 +265,21 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
     });
     
     let topActivities = Object.entries(activitiesBreakdown)
-        .map(([id, data]) => ({ 
-            id, 
+        .map(([id, data]) => ({
+            id,
             val: data.revenue,
             marginRate: data.revenue > 0 ? (data.margin / data.revenue) * 100 : 0,
             name: client.profitCenters?.find(p => p.id === id)?.name || id.charAt(0).toUpperCase() + id.slice(1),
             percent: totalRevenue > 0 ? (data.revenue / totalRevenue) * 100 : 0
         }))
-        .sort((a, b) => b.val - a.val)
-        .slice(0, 5); 
+        .sort((a, b) => b.val - a.val);
+
+    // Filter out parent/total entries: if an entry represents ≥98% of total revenue
+    // and there are other entries, it's a category total (e.g. "Marchandises" = sum of sub-families)
+    if (topActivities.length > 1) {
+        topActivities = topActivities.filter(a => a.percent < 98);
+    }
+    topActivities = topActivities.slice(0, 5);
 
     if (topActivities.length === 0 && totalRevenue > 0) {
         if (totalGoods > 0) {

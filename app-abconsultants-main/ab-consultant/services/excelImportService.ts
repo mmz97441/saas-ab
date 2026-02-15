@@ -360,8 +360,10 @@ export function parseRevenueSheet(
   const monthlyData = new Map<string, Map<string, number>>(); // month -> (family -> value)
   let totalRow: Map<string, number> | null = null;
 
-  // Skip rows that look like headers/totals
-  const totalAliases = ['total', 'total général', 'total general', 'total ca', 'total ht', 'sous-total', 'sous total', "chiffre d'affaires", 'chiffre d\'affaires'];
+  // Skip rows that look like headers/totals/category subtotals
+  const totalAliases = ['total', 'total général', 'total general', 'total ca', 'total ht', 'sous-total', 'sous total', "chiffre d'affaires", 'chiffre d\'affaires',
+    'marchandises', 'marchandise', 'vente marchandises', 'vente de marchandises', 'total marchandises',
+    'prestations', 'prestation de services', 'prestations de services', 'total services', 'total prestations'];
   const marginAliases = ['marge', 'taux de marge', 'taux marge'];
 
   // Section tracking: detect section headers and only collect families in CA section

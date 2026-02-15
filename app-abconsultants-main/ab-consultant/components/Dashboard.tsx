@@ -580,25 +580,6 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
   };
 
 
-  // --- CUMULATIVE CA vs OBJECTIF ---
-  const cumulativeData = useMemo(() => {
-    let cumulCA = 0;
-    let cumulObj = 0;
-    let cumulCA_N1 = 0;
-    return chartData.map(d => {
-      cumulCA += (d.CA || 0);
-      cumulObj += (d.Objectif || 0);
-      cumulCA_N1 += (d.CA_N1 || 0);
-      return {
-        name: d.name,
-        fullMonth: d.fullMonth,
-        CA_Cumul: cumulCA,
-        Objectif_Cumul: cumulObj,
-        CA_N1_Cumul: cumulCA_N1,
-      };
-    });
-  }, [chartData]);
-
   // BFR stacked chart data (evolution créances / stocks / dettes)
   const bfrStackedData = useMemo(() => {
     return chartData.map(d => ({
@@ -921,47 +902,6 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
       </div>
 
       {/* ============================================= */}
-      {/* ROW 1.5: CA Cumulé vs Objectif Cumulé         */}
-      {/* ============================================= */}
-      {kpis.objective > 0 && (
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2">
-              <Target className="w-4 h-4 text-amber-500" />
-              Progression Cumulée CA vs Objectif
-            </h3>
-            <div className="flex items-center gap-3 text-[10px]">
-              <span className="flex items-center gap-1"><div className="w-2 h-2 bg-brand-600 rounded-full"></div> CA cumulé</span>
-              <span className="flex items-center gap-1"><div className="w-2 h-0.5 bg-amber-500"></div> Objectif cumulé</span>
-              <span className="flex items-center gap-1"><div className="w-2 h-2 bg-slate-300 rounded-full"></div> CA N-1 cumulé</span>
-            </div>
-          </div>
-          <div className="h-[250px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={cumulativeData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} dy={5} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(val: any) => { const v = Number(val); return !isNaN(v) && v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(val); }} />
-                <Tooltip formatter={(value: any, name: string) => {
-                  const labels: Record<string, string> = { CA_Cumul: 'CA Cumulé', Objectif_Cumul: 'Objectif Cumulé', CA_N1_Cumul: 'CA N-1 Cumulé' };
-                  return [formatCurrency(Number(value)), labels[name] || name];
-                }} />
-                <defs>
-                  <linearGradient id="colorCACumul" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0f172a" stopOpacity={0.15}/>
-                    <stop offset="95%" stopColor="#0f172a" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <Area type="monotone" dataKey="CA_Cumul" fill="url(#colorCACumul)" stroke="#0f172a" strokeWidth={2.5} dot={{ r: 3, fill: '#0f172a' }} name="CA_Cumul" />
-                <Line type="monotone" dataKey="Objectif_Cumul" stroke="#f59e0b" strokeWidth={2} dot={false} strokeDasharray="6 3" name="Objectif_Cumul" />
-                <Line type="monotone" dataKey="CA_N1_Cumul" stroke="#94a3b8" strokeWidth={1.5} dot={false} strokeDasharray="4 4" name="CA_N1_Cumul" />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================= */}
       {/* ROW 2: BFR Evolution + Repartition BFR        */}
       {/* ============================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -997,55 +937,63 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
             </div>
          </div>
 
-         {/* BFR Breakdown - Pie Charts (ALWAYS VISIBLE) */}
-         <div className="bg-white p-6 rounded-xl shadow-sm border border-brand-100">
-            <h3 className="text-sm font-bold text-brand-900 mb-4 flex items-center gap-2 uppercase tracking-wide">
-                <Briefcase className="w-4 h-4 text-cyan-500" /> Repartition du BFR
+         {/* BFR Breakdown */}
+         <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
+            <h3 className="text-sm font-bold text-brand-900 mb-3 flex items-center gap-2 uppercase tracking-wide">
+                <Briefcase className="w-4 h-4 text-cyan-500" /> Répartition du BFR
             </h3>
             {snapshotRecord ? (
               <>
-                <p className="text-[10px] text-slate-400 text-center mb-2">{snapshotRecord.month} {snapshotRecord.year}</p>
-                <div className="h-[200px]">
+                <p className="text-[10px] text-slate-400 text-center mb-1">{snapshotRecord.month} {snapshotRecord.year}</p>
+                {/* Compact donut chart — no external labels */}
+                <div className="h-[160px]">
                   <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                          <Pie data={receivablesData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={55} fill="#06b6d4" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                          <Pie data={receivablesData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={50} fill="#06b6d4" label={false} labelLine={false}>
                               {receivablesData.map((_entry, index) => <Cell key={`recv-${index}`} fill={COLORS_RECEIVABLES[Number(index) % COLORS_RECEIVABLES.length]} />)}
                           </Pie>
-                          <Pie data={debtsData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={65} outerRadius={80} fill="#e11d48">
+                          <Pie data={debtsData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={58} outerRadius={72} fill="#e11d48" label={false} labelLine={false}>
                               {debtsData.map((_entry, index) => <Cell key={`debt-${index}`} fill={COLORS_DEBTS[Number(index) % COLORS_DEBTS.length]} />)}
                           </Pie>
                           <Tooltip formatter={(value: any) => formatCurrency(Number(value))} />
                       </PieChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="flex justify-between text-xs text-center mt-2 font-bold">
-                    <span className="text-cyan-600">Creances (int.)</span>
-                    <span className="text-red-600">Dettes (ext.)</span>
+                <div className="flex justify-center gap-4 text-[10px] font-bold mb-3">
+                    <span className="text-cyan-600 flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-cyan-500"></div> Créances</span>
+                    <span className="text-red-600 flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-rose-500"></div> Dettes</span>
                 </div>
 
-                {/* BFR Detail Table */}
-                <div className="mt-4 space-y-1 text-xs">
-                  <div className="font-bold text-cyan-700 mb-1">Actif circulant</div>
-                  <div className="flex justify-between text-slate-600"><span>Clients</span><span>{formatCurrency(snapshotRecord.bfr.receivables.clients)}</span></div>
-                  <div className="flex justify-between text-slate-600"><span>Etat</span><span>{formatCurrency(snapshotRecord.bfr.receivables.state)}</span></div>
-                  <div className="flex justify-between text-slate-600"><span>Org. Sociaux</span><span>{formatCurrency(snapshotRecord.bfr.receivables.social)}</span></div>
-                  <div className="flex justify-between text-slate-600"><span>Autres</span><span>{formatCurrency(snapshotRecord.bfr.receivables.other)}</span></div>
-                  <div className="flex justify-between text-slate-600"><span>Stocks</span><span>{formatCurrency(snapshotRecord.bfr.stock.total)}</span></div>
-                  <div className="flex justify-between font-bold text-cyan-800 border-t border-slate-100 pt-1 mt-1"><span>Total Actif</span><span>{formatCurrency(snapshotRecord.bfr.receivables.total + snapshotRecord.bfr.stock.total)}</span></div>
-
-                  <div className="font-bold text-red-700 mt-3 mb-1">Passif circulant</div>
-                  <div className="flex justify-between text-slate-600"><span>Fournisseurs</span><span>{formatCurrency(snapshotRecord.bfr.debts.suppliers)}</span></div>
-                  <div className="flex justify-between text-slate-600"><span>Dettes Fiscales</span><span>{formatCurrency(snapshotRecord.bfr.debts.state)}</span></div>
-                  <div className="flex justify-between text-slate-600"><span>Dettes Sociales</span><span>{formatCurrency(snapshotRecord.bfr.debts.social)}</span></div>
-                  <div className="flex justify-between text-slate-600"><span>Salaires</span><span>{formatCurrency(snapshotRecord.bfr.debts.salaries)}</span></div>
-                  <div className="flex justify-between text-slate-600"><span>Autres</span><span>{formatCurrency(snapshotRecord.bfr.debts.other)}</span></div>
-                  <div className="flex justify-between font-bold text-red-800 border-t border-slate-100 pt-1 mt-1"><span>Total Passif</span><span>{formatCurrency(snapshotRecord.bfr.debts.total)}</span></div>
-
-                  <div className="flex justify-between font-bold text-lg text-brand-900 border-t-2 border-brand-200 pt-2 mt-2"><span>BFR Net</span><span>{formatCurrency(snapshotRecord.bfr.total)}</span></div>
+                {/* Two-column detail table */}
+                <div className="grid grid-cols-2 gap-3 text-[11px]">
+                  {/* Actif */}
+                  <div className="space-y-0.5">
+                    <div className="font-bold text-cyan-700 text-[10px] uppercase tracking-wider mb-1">Actif circulant</div>
+                    <div className="flex justify-between text-slate-600"><span>Clients</span><span>{formatCurrency(snapshotRecord.bfr.receivables.clients, 0)}</span></div>
+                    <div className="flex justify-between text-slate-600"><span>État</span><span>{formatCurrency(snapshotRecord.bfr.receivables.state, 0)}</span></div>
+                    <div className="flex justify-between text-slate-600"><span>Sociaux</span><span>{formatCurrency(snapshotRecord.bfr.receivables.social, 0)}</span></div>
+                    <div className="flex justify-between text-slate-600"><span>Autres</span><span>{formatCurrency(snapshotRecord.bfr.receivables.other, 0)}</span></div>
+                    <div className="flex justify-between text-slate-600"><span>Stocks</span><span>{formatCurrency(snapshotRecord.bfr.stock.total, 0)}</span></div>
+                    <div className="flex justify-between font-bold text-cyan-800 border-t border-slate-200 pt-1 mt-1"><span>Total</span><span>{formatCurrency(snapshotRecord.bfr.receivables.total + snapshotRecord.bfr.stock.total, 0)}</span></div>
+                  </div>
+                  {/* Passif */}
+                  <div className="space-y-0.5">
+                    <div className="font-bold text-red-700 text-[10px] uppercase tracking-wider mb-1">Passif circulant</div>
+                    <div className="flex justify-between text-slate-600"><span>Fourn.</span><span>{formatCurrency(snapshotRecord.bfr.debts.suppliers, 0)}</span></div>
+                    <div className="flex justify-between text-slate-600"><span>Fiscal</span><span>{formatCurrency(snapshotRecord.bfr.debts.state, 0)}</span></div>
+                    <div className="flex justify-between text-slate-600"><span>Sociaux</span><span>{formatCurrency(snapshotRecord.bfr.debts.social, 0)}</span></div>
+                    <div className="flex justify-between text-slate-600"><span>Salaires</span><span>{formatCurrency(snapshotRecord.bfr.debts.salaries, 0)}</span></div>
+                    <div className="flex justify-between text-slate-600"><span>Autres</span><span>{formatCurrency(snapshotRecord.bfr.debts.other, 0)}</span></div>
+                    <div className="flex justify-between font-bold text-red-800 border-t border-slate-200 pt-1 mt-1"><span>Total</span><span>{formatCurrency(snapshotRecord.bfr.debts.total, 0)}</span></div>
+                  </div>
+                </div>
+                {/* BFR Net */}
+                <div className="flex justify-between font-bold text-base text-brand-900 border-t-2 border-brand-200 pt-2 mt-2">
+                  <span>BFR Net</span><span>{formatCurrency(snapshotRecord.bfr.total, 0)}</span>
                 </div>
               </>
             ) : (
-              <p className="text-sm text-slate-400 italic text-center py-8">Aucune donnee pour cette periode</p>
+              <p className="text-sm text-slate-400 italic text-center py-8">Aucune donnée pour cette période</p>
             )}
          </div>
       </div>

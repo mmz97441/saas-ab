@@ -937,7 +937,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
             </div>
          </div>
 
-         {/* BFR Breakdown — bar-style layout */}
+         {/* BFR Breakdown */}
          <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
             <h3 className="text-sm font-bold text-brand-900 mb-3 flex items-center gap-2 uppercase tracking-wide">
                 <Briefcase className="w-4 h-4 text-cyan-500" /> Répartition du BFR
@@ -946,73 +946,65 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
               const r = snapshotRecord;
               const totalActif = r.bfr.receivables.total + r.bfr.stock.total;
               const totalPassif = r.bfr.debts.total;
-              const maxVal = Math.max(totalActif, totalPassif, 1);
-
-              const actifItems = [
-                { label: 'Clients', value: r.bfr.receivables.clients },
-                { label: 'État', value: r.bfr.receivables.state },
-                { label: 'Org. Sociaux', value: r.bfr.receivables.social },
-                { label: 'Autres', value: r.bfr.receivables.other },
-                { label: 'Stocks', value: r.bfr.stock.total },
-              ].filter(i => i.value > 0);
-
-              const passifItems = [
-                { label: 'Fournisseurs', value: r.bfr.debts.suppliers },
-                { label: 'Dettes Fiscales', value: r.bfr.debts.state },
-                { label: 'Dettes Sociales', value: r.bfr.debts.social },
-                { label: 'Salaires', value: r.bfr.debts.salaries },
-                { label: 'Autres', value: r.bfr.debts.other },
-              ].filter(i => i.value > 0);
+              const barMax = Math.max(totalActif, totalPassif, 1);
 
               return (
                 <>
                   <p className="text-[10px] text-slate-400 text-center mb-3">{r.month} {r.year}</p>
 
-                  {/* Actif circulant */}
-                  <div className="mb-3">
-                    <div className="text-[10px] font-bold text-cyan-700 uppercase tracking-wider mb-1.5">Actif circulant</div>
-                    <div className="space-y-1.5">
-                      {actifItems.map(item => (
-                        <div key={item.label}>
-                          <div className="flex justify-between text-[11px] mb-0.5">
-                            <span className="text-slate-600">{item.label}</span>
-                            <span className="font-medium text-slate-700">{formatCurrency(item.value, 0)}</span>
-                          </div>
-                          <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-cyan-500 rounded-full" style={{ width: `${Math.min((item.value / maxVal) * 100, 100)}%` }} />
-                          </div>
-                        </div>
-                      ))}
+                  {/* BFR Net — highlighted card at top */}
+                  <div className={`rounded-lg p-3 mb-4 text-center ${r.bfr.total < 0 ? 'bg-emerald-50 border border-emerald-200' : 'bg-red-50 border border-red-200'}`}>
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-0.5">BFR Net</div>
+                    <div className={`text-2xl font-bold ${r.bfr.total < 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                      {formatCurrency(r.bfr.total, 0)}
                     </div>
-                    <div className="flex justify-between font-bold text-xs text-cyan-800 border-t border-slate-200 pt-1.5 mt-2">
-                      <span>Total Actif</span><span>{formatCurrency(totalActif, 0)}</span>
+                    <div className={`text-[10px] font-medium mt-0.5 ${r.bfr.total < 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {r.bfr.total < 0 ? 'Excédent de trésorerie' : 'Besoin de financement'}
                     </div>
                   </div>
 
-                  {/* Passif circulant */}
-                  <div className="mb-3">
-                    <div className="text-[10px] font-bold text-red-700 uppercase tracking-wider mb-1.5">Passif circulant</div>
-                    <div className="space-y-1.5">
-                      {passifItems.map(item => (
-                        <div key={item.label}>
-                          <div className="flex justify-between text-[11px] mb-0.5">
-                            <span className="text-slate-600">{item.label}</span>
-                            <span className="font-medium text-slate-700">{formatCurrency(item.value, 0)}</span>
-                          </div>
-                          <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-rose-500 rounded-full" style={{ width: `${Math.min((item.value / maxVal) * 100, 100)}%` }} />
-                          </div>
-                        </div>
-                      ))}
+                  {/* Actif vs Passif comparison bars */}
+                  <div className="space-y-2 mb-4">
+                    <div>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="font-bold text-cyan-700">Actif circulant</span>
+                        <span className="font-bold text-cyan-700">{formatCurrency(totalActif, 0)}</span>
+                      </div>
+                      <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-cyan-500 rounded-full transition-all duration-500" style={{ width: `${(totalActif / barMax) * 100}%` }} />
+                      </div>
                     </div>
-                    <div className="flex justify-between font-bold text-xs text-red-800 border-t border-slate-200 pt-1.5 mt-2">
-                      <span>Total Passif</span><span>{formatCurrency(totalPassif, 0)}</span>
+                    <div>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="font-bold text-rose-700">Passif circulant</span>
+                        <span className="font-bold text-rose-700">{formatCurrency(totalPassif, 0)}</span>
+                      </div>
+                      <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-rose-500 rounded-full transition-all duration-500" style={{ width: `${(totalPassif / barMax) * 100}%` }} />
+                      </div>
                     </div>
                   </div>
 
-                  {/* BFR Net */}
-                  <div className={`flex justify-between font-bold text-base border-t-2 pt-2 mt-1 ${r.bfr.total >= 0 ? 'text-cyan-900 border-cyan-200' : 'text-red-800 border-red-200'}`}>
-                    <span>BFR Net</span><span>{formatCurrency(r.bfr.total, 0)}</span>
+                  {/* Detail table — two columns side by side */}
+                  <div className="grid grid-cols-2 gap-4 text-[11px] border-t border-slate-100 pt-3">
+                    {/* Actif detail */}
+                    <div className="space-y-1">
+                      <div className="font-bold text-cyan-700 text-[10px] uppercase tracking-wider mb-1">Détail Actif</div>
+                      <div className="flex justify-between"><span className="text-slate-500">Clients</span><span className="text-slate-700 font-medium">{formatCurrency(r.bfr.receivables.clients, 0)}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500">État</span><span className="text-slate-700 font-medium">{formatCurrency(r.bfr.receivables.state, 0)}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Org. Sociaux</span><span className="text-slate-700 font-medium">{formatCurrency(r.bfr.receivables.social, 0)}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Autres</span><span className="text-slate-700 font-medium">{formatCurrency(r.bfr.receivables.other, 0)}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Stocks</span><span className="text-slate-700 font-medium">{formatCurrency(r.bfr.stock.total, 0)}</span></div>
+                    </div>
+                    {/* Passif detail */}
+                    <div className="space-y-1">
+                      <div className="font-bold text-rose-700 text-[10px] uppercase tracking-wider mb-1">Détail Passif</div>
+                      <div className="flex justify-between"><span className="text-slate-500">Fournisseurs</span><span className="text-slate-700 font-medium">{formatCurrency(r.bfr.debts.suppliers, 0)}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Fiscal</span><span className="text-slate-700 font-medium">{formatCurrency(r.bfr.debts.state, 0)}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Social</span><span className="text-slate-700 font-medium">{formatCurrency(r.bfr.debts.social, 0)}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Salaires</span><span className="text-slate-700 font-medium">{formatCurrency(r.bfr.debts.salaries, 0)}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Autres</span><span className="text-slate-700 font-medium">{formatCurrency(r.bfr.debts.other, 0)}</span></div>
+                    </div>
                   </div>
                 </>
               );

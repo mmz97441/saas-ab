@@ -295,7 +295,9 @@ const App: React.FC = () => {
 
   const handleUpdateFuelObjectives = async (objs: any) => {
       if (userRole !== 'ab_consultant' || !selectedClient) return;
-      await saveClient({ ...selectedClient, settings: { ...selectedClient.settings!, fuelObjectives: objs }});
+      const updated = { ...selectedClient, settings: { ...selectedClient.settings!, fuelObjectives: objs }};
+      await saveClient(updated);
+      setSelectedClient(updated);
       await refreshClients();
   };
 
@@ -318,15 +320,19 @@ const App: React.FC = () => {
 
   const handleToggleFuelModule = async () => {
     if (userRole !== 'ab_consultant' || !selectedClient) return;
-    await saveClient({ ...selectedClient, settings: { ...selectedClient.settings!, showFuelTracking: !selectedClient.settings?.showFuelTracking }});
+    const updated = { ...selectedClient, settings: { ...selectedClient.settings!, showFuelTracking: !selectedClient.settings?.showFuelTracking }};
+    await saveClient(updated);
+    setSelectedClient(updated);
     await refreshClients();
   };
 
   const handleToggleCommercialMargin = async () => {
     if (userRole !== 'ab_consultant' || !selectedClient) return;
-    await saveClient({ ...selectedClient, settings: { ...selectedClient.settings!, showCommercialMargin: !selectedClient.settings?.showCommercialMargin }});
+    const updated = { ...selectedClient, settings: { ...selectedClient.settings!, showCommercialMargin: !selectedClient.settings?.showCommercialMargin }};
+    await saveClient(updated);
+    setSelectedClient(updated);
     await refreshClients();
-    showNotification(selectedClient.settings?.showCommercialMargin ? "Module Marge désactivé." : "Module Marge activé.", 'info');
+    showNotification(updated.settings?.showCommercialMargin ? "Module Marge activé." : "Module Marge désactivé.", 'info');
   };
 
   // --- UI UPDATES (LOCAL) ---

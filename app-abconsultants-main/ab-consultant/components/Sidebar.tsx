@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { LayoutDashboard, FilePlus, Settings, Database, Users, Briefcase, Eye, EyeOff, LogOut, ChevronRight, ShieldCheck, UserCircle, ChevronDown, MessageSquare, PieChart, Search, HelpCircle } from 'lucide-react';
+import { LayoutDashboard, FilePlus, Settings, Database, Users, Briefcase, Eye, EyeOff, LogOut, ChevronRight, ShieldCheck, UserCircle, ChevronDown, ChevronUp, MessageSquare, PieChart, Search, HelpCircle, X, BookOpen } from 'lucide-react';
 import { View, Client, APP_VERSION } from '../types';
 
 interface SidebarProps {
@@ -69,6 +69,79 @@ const ClientCompanySelector: React.FC<{ companies: Client[], selectedId: string,
                         {filtered.length === 0 && (
                             <p className="px-3 py-2 text-xs text-brand-500 italic">Aucun résultat</p>
                         )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ─── PANNEAU D'AIDE AVEC GLOSSAIRE ───
+const HelpPanel: React.FC<{ userRole: 'ab_consultant' | 'client' }> = ({ userRole }) => {
+    const [isOpen, setIsOpen] = useState(false);
+
+    const glossaryConsultant = [
+        { term: 'CA Portefeuille', def: "Chiffre d'affaires HT cumulé de tous vos clients depuis le 1er janvier de l'année en cours (Year-to-Date)." },
+        { term: 'Marge Moyenne', def: "Taux de marge commerciale brute pondéré par le CA. Calcul : (Ventes - Achats consommés) / CA total." },
+        { term: 'Trésorerie Globale', def: "Somme des soldes bancaires (créditeurs - débiteurs) de chaque client, basée sur la dernière situation connue." },
+        { term: 'Objectifs Atteints', def: "Nombre de clients dont le CA YTD dépasse 100% de l'objectif défini. Seuls les clients avec objectif paramétré sont comptés." },
+        { term: 'Données à Jour', def: "Pourcentage de dossiers ayant transmis des données dans les 2 derniers mois. Cliquez sur la carte pour filtrer les retardataires." },
+        { term: 'Santé Portefeuille', def: "Score composite : un dossier est 'sain' s'il a une trésorerie positive, des données récentes ET un objectif ≥ 85%." },
+        { term: '% Objectif', def: "Ratio CA réalisé / CA objectif sur la même période. Vert ≥ 100%, Orange ≥ 85%, Rouge < 85%." },
+        { term: 'CA YTD', def: "Chiffre d'affaires HT cumulé d'un client sur l'exercice en cours." },
+        { term: 'Statut Rapport', def: "'À Valider' = soumis par le client, en attente. 'OK' = validé par le cabinet. 'En attente' = pas encore soumis." },
+    ];
+
+    const glossaryClient = [
+        { term: "Chiffre d'Affaires", def: "CA Hors Taxe facturé sur la période sélectionnée." },
+        { term: 'Marge Commerciale', def: "Marge brute = Ventes - Achats consommés. Le taux est exprimé en % du CA." },
+        { term: 'BFR', def: "Besoin en Fonds de Roulement : (Créances Clients + Stocks) - Dettes Fournisseurs/Fiscales/Sociales." },
+        { term: 'Trésorerie', def: "Soldes bancaires créditeurs (actif) - Soldes débiteurs et découverts (passif)." },
+        { term: 'Objectif CA', def: "Objectif de chiffre d'affaires fixé par votre consultant pour la période." },
+    ];
+
+    const glossary = userRole === 'ab_consultant' ? glossaryConsultant : glossaryClient;
+
+    return (
+        <div className="mt-2">
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-brand-300 hover:bg-brand-800 hover:text-white transition-all duration-200"
+            >
+                <HelpCircle className="w-5 h-5" />
+                <span className="font-medium text-sm">Aide & Glossaire</span>
+                {isOpen ? <ChevronUp className="w-4 h-4 ml-auto text-brand-400" /> : <ChevronDown className="w-4 h-4 ml-auto text-brand-400" />}
+            </button>
+
+            {isOpen && (
+                <div className="mt-2 mx-1 bg-brand-800/60 rounded-xl border border-brand-700/50 overflow-hidden animate-in slide-in-from-top-2 duration-200">
+                    {/* GLOSSAIRE */}
+                    <div className="p-3 border-b border-brand-700/40">
+                        <p className="text-[10px] font-bold text-brand-400 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                            <BookOpen className="w-3 h-3" /> Glossaire des indicateurs
+                        </p>
+                        <div className="space-y-2 max-h-56 overflow-y-auto custom-scrollbar pr-1">
+                            {glossary.map((item) => (
+                                <div key={item.term}>
+                                    <p className="text-[11px] font-bold text-accent-400">{item.term}</p>
+                                    <p className="text-[10px] text-brand-300 leading-relaxed">{item.def}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* CONTACT */}
+                    <div className="p-3">
+                        <p className="text-[10px] font-bold text-brand-400 uppercase tracking-wider mb-2">Contact</p>
+                        <p className="text-[10px] text-brand-300 leading-relaxed">
+                            Un doute ou une question ? Contactez-nous :
+                        </p>
+                        <button
+                            onClick={() => window.open(`mailto:contact@ab-consultants.fr?subject=Aide - ${userRole === 'client' ? 'Client' : 'Consultant'}`, '_blank')}
+                            className="mt-2 w-full text-center text-[10px] font-bold bg-brand-700 hover:bg-brand-600 text-white py-1.5 rounded-lg transition-colors"
+                        >
+                            contact@ab-consultants.fr
+                        </button>
                     </div>
                 </div>
             )}
@@ -242,18 +315,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                         </button>
                     )}
 
-                    {/* HELP LINK (all users) */}
-                    <button
-                        onClick={() => {
-                            // Simple toggle for a help tooltip or future FAQ page
-                            const helpMsg = "Besoin d'aide ?\n\nConsultant : contact@ab-consultants.fr\nTéléphone : 04 93 XX XX XX\n\nVotre espace vous permet de :\n• Saisir vos données mensuelles\n• Consulter vos analyses\n• Échanger avec votre consultant via le chat";
-                            window.open(`mailto:contact@ab-consultants.fr?subject=Aide - ${userRole === 'client' ? 'Client' : 'Consultant'}`, '_blank');
-                        }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-brand-300 hover:bg-brand-800 hover:text-white transition-all duration-200 mt-2"
-                    >
-                        <HelpCircle className="w-5 h-5" />
-                        <span className="font-medium text-sm">Aide & Contact</span>
-                    </button>
+                    {/* HELP PANEL (all users) */}
+                    <HelpPanel userRole={userRole} />
 
                     <button
                         onClick={onLogout}

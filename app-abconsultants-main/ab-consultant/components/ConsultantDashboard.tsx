@@ -5,8 +5,24 @@ import { getRecordsByClient } from '../services/dataService';
 import {
     AlertTriangle, Clock, CheckCircle, TrendingDown, TrendingUp, MessageSquare,
     ArrowRight, Briefcase, Loader2, Filter, Shield, Search, X,
-    DollarSign, Percent, Landmark, Target, Activity, CalendarClock
+    DollarSign, Percent, Landmark, Target, Activity, CalendarClock, HelpCircle
 } from 'lucide-react';
+
+// Tooltip d'aide sur hover — petit "?" discret avec bulle explicative
+const InfoTip: React.FC<{ text: string; position?: 'top' | 'bottom' }> = ({ text, position = 'bottom' }) => (
+    <span className="relative group/tip inline-flex ml-1 cursor-help" onClick={(e) => e.stopPropagation()}>
+        <HelpCircle className="w-3 h-3 text-slate-300 hover:text-brand-500 transition-colors" />
+        <span className={`
+            pointer-events-none absolute z-50 left-1/2 -translate-x-1/2
+            ${position === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'}
+            w-52 px-3 py-2 rounded-lg bg-slate-800 text-white text-[10px] leading-relaxed font-normal normal-case tracking-normal shadow-xl
+            opacity-0 group-hover/tip:opacity-100 transition-opacity duration-200
+        `}>
+            {text}
+            <span className={`absolute left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-800 rotate-45 ${position === 'top' ? 'top-full -mt-1' : 'bottom-full mb-0 -mb-1'}`} />
+        </span>
+    </span>
+);
 
 interface ConsultantDashboardProps {
     clients: Client[];
@@ -220,7 +236,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                             </span>
                         )}
                     </div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">CA Portefeuille</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">CA Portefeuille <InfoTip text="Chiffre d'affaires HT cumulé de tous vos clients depuis le 1er janvier de l'année en cours (Year-to-Date)." /></p>
                     <div className="text-lg font-bold text-slate-800">{fmtEur(portfolioKpis.totalCA)}</div>
                     {portfolioKpis.totalObj > 0 && (
                         <div className="mt-2">
@@ -237,7 +253,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                 {/* MARGE MOYENNE */}
                 <div className="p-4 rounded-xl border bg-white border-brand-100 shadow-sm">
                     <div className="p-1.5 rounded-lg bg-purple-50 text-purple-600 w-fit mb-2"><Percent className="w-4 h-4" /></div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Marge Moyenne</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Marge Moyenne <InfoTip text="Taux de marge commerciale brute pondéré par le CA de chaque client. Marge = (Ventes - Achats consommés) / CA." /></p>
                     <div className="text-lg font-bold text-slate-800">{portfolioKpis.avgMarginRate.toFixed(1)}%</div>
                     <p className="text-[9px] text-slate-400 mt-1">Marge brute : {fmtEur(portfolioKpis.totalMargin)}</p>
                 </div>
@@ -245,7 +261,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                 {/* TRESORERIE GLOBALE */}
                 <div className={`p-4 rounded-xl border shadow-sm ${portfolioKpis.totalTreasury < 0 ? 'bg-red-50 border-red-200' : 'bg-white border-brand-100'}`}>
                     <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 w-fit mb-2"><Landmark className="w-4 h-4" /></div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Trésorerie Globale</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Trésorerie Globale <InfoTip text="Somme des soldes bancaires (créditeurs - débiteurs) de chaque client sur leur dernière situation connue." /></p>
                     <div className={`text-lg font-bold ${portfolioKpis.totalTreasury >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
                         {fmtEur(portfolioKpis.totalTreasury)}
                     </div>
@@ -255,7 +271,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                 {/* TAUX ATTEINTE OBJECTIFS */}
                 <div className="p-4 rounded-xl border bg-white border-brand-100 shadow-sm">
                     <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600 w-fit mb-2"><Target className="w-4 h-4" /></div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Objectifs Atteints</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Objectifs Atteints <InfoTip text="Nombre de clients dont le CA YTD dépasse 100% de l'objectif défini. Seuls les clients ayant un objectif paramétré sont comptabilisés." /></p>
                     <div className="text-lg font-bold text-slate-800">
                         {portfolioKpis.clientsOnTarget}<span className="text-sm text-slate-400 font-normal">/{portfolioKpis.clientsWithObj}</span>
                     </div>
@@ -275,7 +291,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                     className={`text-left p-4 rounded-xl border shadow-sm transition-all hover:shadow-md ${filter === 'STALE' ? 'ring-2 ring-orange-400' : ''} ${portfolioKpis.staleCount > 0 ? 'bg-orange-50 border-orange-200' : 'bg-white border-brand-100'}`}
                 >
                     <div className="p-1.5 rounded-lg bg-orange-50 text-orange-600 w-fit mb-2"><CalendarClock className="w-4 h-4" /></div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Données à Jour</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Données à Jour <InfoTip text="Pourcentage de dossiers ayant transmis des données récentes (moins de 2 mois d'écart avec le mois en cours). Cliquez pour filtrer les retardataires." /></p>
                     <div className="text-lg font-bold text-slate-800">
                         {portfolioKpis.freshRate.toFixed(0)}%
                     </div>
@@ -287,7 +303,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                 {/* SCORE SANTE */}
                 <div className={`p-4 rounded-xl border shadow-sm ${healthCol.bg}`}>
                     <div className={`p-1.5 rounded-lg bg-white/60 ${healthCol.icon} w-fit mb-2`}><Activity className="w-4 h-4" /></div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Santé Portefeuille</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Santé Portefeuille <InfoTip text="Score composite : un dossier est 'sain' s'il a une trésorerie positive, des données récentes ET un objectif atteint à 85% minimum (ou pas d'objectif défini)." /></p>
                     <div className={`text-lg font-bold ${healthCol.text}`}>
                         {portfolioKpis.healthScore.toFixed(0)}%
                     </div>
@@ -309,7 +325,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                         {totalUnread > 0 && <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">{totalUnread} Nouveaux</span>}
                     </div>
                     <div className="text-2xl font-bold text-slate-800 mb-1">{totalUnread}</div>
-                    <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">Messages en attente</div>
+                    <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">Messages en attente <InfoTip text="Nombre de clients ayant des messages non lus dans la messagerie. Cliquez pour accéder à la messagerie." /></div>
                 </div>
 
                 {/* VALIDATIONS */}
@@ -323,7 +339,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                         </div>
                     </div>
                     <div className="text-2xl font-bold text-slate-800 mb-1">{totalPending}</div>
-                    <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">Rapports à Valider</div>
+                    <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">Rapports à Valider <InfoTip text="Rapports mensuels soumis par les clients et en attente de validation par le cabinet. Cliquez pour filtrer ces dossiers." /></div>
                 </button>
 
                 {/* ALERTS */}
@@ -337,7 +353,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                         </div>
                     </div>
                     <div className="text-2xl font-bold text-red-700 mb-1">{totalAlerts}</div>
-                    <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">Trésoreries Négatives</div>
+                    <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">Trésoreries Négatives <InfoTip text="Clients dont la dernière trésorerie connue est en solde négatif (découvert). Cliquez pour filtrer ces dossiers." /></div>
                 </button>
             </div>
 
@@ -379,12 +395,12 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                         <thead>
                             <tr className="text-[10px] font-bold text-slate-400 uppercase bg-slate-50/50 border-b border-slate-100">
                                 <th className="p-3 pl-4">Dossier Client</th>
-                                <th className="p-3 text-right">CA YTD</th>
-                                <th className="p-3 text-center">% Objectif</th>
-                                <th className="p-3 text-right">Marge</th>
-                                <th className="p-3 text-right">Trésorerie</th>
-                                <th className="p-3 text-center">Données</th>
-                                <th className="p-3 text-center">Statut</th>
+                                <th className="p-3 text-right">CA YTD <InfoTip text="Chiffre d'affaires HT cumulé depuis le 1er janvier de l'exercice en cours." position="top" /></th>
+                                <th className="p-3 text-center">% Objectif <InfoTip text="Ratio CA réalisé / Objectif CA sur la même période. Vert ≥ 100%, Orange ≥ 85%, Rouge &lt; 85%." position="top" /></th>
+                                <th className="p-3 text-right">Marge <InfoTip text="Taux de marge commerciale brute : (CA - Achats consommés) / CA, calculé sur l'exercice en cours." position="top" /></th>
+                                <th className="p-3 text-right">Trésorerie <InfoTip text="Dernier solde bancaire connu (actifs - passifs). Rouge si négatif." position="top" /></th>
+                                <th className="p-3 text-center">Données <InfoTip text="Indique si le client a transmis des données dans les 2 derniers mois. 'Retard' = données manquantes." position="top" /></th>
+                                <th className="p-3 text-center">Statut <InfoTip text="'À Valider' = rapport soumis en attente de validation. 'OK' = validé par le cabinet." position="top" /></th>
                                 <th className="p-3 text-right pr-4">Action</th>
                             </tr>
                         </thead>

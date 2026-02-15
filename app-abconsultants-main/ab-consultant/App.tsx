@@ -9,7 +9,8 @@ import Sidebar from './components/Sidebar';
 import HistoryView from './components/HistoryView';
 import SettingsView from './components/SettingsView';
 import ConsultantMessaging from './components/ConsultantMessaging'; 
-import ConsultantDashboard from './components/ConsultantDashboard'; // Import Nouveau
+import ConsultantDashboard from './components/ConsultantDashboard';
+import ClientPortfolio from './components/ClientPortfolio';
 import ClientModal from './components/ClientModal';
 import TeamManagement from './components/TeamManagement';
 import ExcelImportModal from './components/ExcelImportModal';
@@ -555,91 +556,16 @@ const App: React.FC = () => {
 
             {/* VUE LISTE CLIENTS */}
             {currentView === View.Clients && userRole === 'ab_consultant' && (
-                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    
-                    {/* Header avec Onglets */}
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                        <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
-                            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                                <Users className="w-6 h-6 text-brand-500" /> Portefeuille Clients
-                            </h2>
-                            <button onClick={() => { setEditingClient(null); setIsClientModalOpen(true); }} className="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700 font-bold shadow-sm transition">
-                                <Plus className="w-4 h-4" /> Nouveau Dossier
-                            </button>
-                        </div>
-                        
-                        {/* Search Bar */}
-                        <div className="relative mb-4">
-                            <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                            <input
-                                type="text"
-                                value={clientSearchQuery}
-                                onChange={(e) => setClientSearchQuery(e.target.value)}
-                                placeholder="Rechercher par nom, dirigeant, ville, SIRET..."
-                                className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition placeholder-slate-400"
-                            />
-                            {clientSearchQuery && (
-                                <button onClick={() => setClientSearchQuery('')} className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
-                                    <X className="w-4 h-4" />
-                                </button>
-                            )}
-                        </div>
-
-                        {/* Onglets Actifs / Archives */}
-                        <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
-                            <button 
-                                onClick={() => setClientViewMode('active')}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${clientViewMode === 'active' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                            >
-                                <Briefcase className="w-4 h-4" /> Dossiers Actifs
-                            </button>
-                            <button 
-                                onClick={() => setClientViewMode('inactive')}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${clientViewMode === 'inactive' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                            >
-                                <Archive className="w-4 h-4" /> Archives / Veille
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Grid Clients */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {displayedClientsList.length > 0 ? (
-                            displayedClientsList.map(client => (
-                                <div key={client.id} className={`bg-white rounded-xl shadow-sm border border-slate-200 p-5 hover:shadow-md transition cursor-pointer group relative ${client.status === 'inactive' ? 'opacity-75 grayscale-[0.3]' : ''}`} onClick={() => { setSelectedClient(client); setCurrentView(View.Dashboard); }}>
-                                    <div className="flex items-center gap-4 mb-4">
-                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl ${client.status === 'inactive' ? 'bg-amber-50 text-amber-600' : 'bg-brand-50 text-brand-700'}`}>
-                                            {client.companyName.substring(0, 2).toUpperCase()}
-                                        </div>
-                                        <div>
-                                            <h3 className="font-bold text-lg">{client.companyName}</h3>
-                                            <p className="text-sm text-slate-400">{client.managerName}</p>
-                                        </div>
-                                    </div>
-                                    
-                                    {client.status === 'inactive' && (
-                                        <div className="absolute top-4 right-12 px-2 py-1 bg-amber-100 text-amber-700 text-[10px] font-bold uppercase rounded-full">Archivé</div>
-                                    )}
-
-                                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition">
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); setEditingClient(client); setIsClientModalOpen(true); }} 
-                                            className="p-2 text-slate-400 hover:text-brand-600 bg-white rounded-full shadow-sm border border-slate-100"
-                                            title="Modifier / Restaurer"
-                                        >
-                                            <Edit2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))
-                        ) : (
-                            <div className="col-span-full p-12 text-center text-slate-400 bg-white rounded-xl border border-slate-200 border-dashed">
-                                <Archive className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                                <p className="font-medium">Aucun dossier dans cette catégorie.</p>
-                            </div>
-                        )}
-                    </div>
-                 </div>
+                <ClientPortfolio
+                    clients={clients}
+                    clientViewMode={clientViewMode}
+                    clientSearchQuery={clientSearchQuery}
+                    onSetClientViewMode={setClientViewMode}
+                    onSetClientSearchQuery={setClientSearchQuery}
+                    onSelectClient={(client) => { setSelectedClient(client); setCurrentView(View.Dashboard); }}
+                    onEditClient={(client) => { setEditingClient(client); setIsClientModalOpen(true); }}
+                    onNewClient={() => { setEditingClient(null); setIsClientModalOpen(true); }}
+                />
             )}
          </div>
       </main>

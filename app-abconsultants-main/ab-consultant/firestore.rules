@@ -17,61 +17,91 @@ service cloud.firestore {
       return isConsultant() && request.auth.token.isAdmin == true;
     }
 
-    function isOwnerClient(clientId) {
-      return isAuthenticated()
-        && request.auth.token.role == 'client'
-        && request.auth.token.clientId == clientId;
-    }
-
     function isClient() {
       return isAuthenticated() && request.auth.token.role == 'client';
+    }
+
+    // Vérifie qu'un dossier client appartient à l'utilisateur connecté (via owner.email).
+    // Supporte les clients multi-sociétés (un même email = plusieurs dossiers).
+    function isOwnerOfClient(clientId) {
+      return isClient()
+        && get(/databases/$(database)/documents/clients/$(clientId)).data.owner.email == request.auth.token.email;
     }
 
     // =============================================
     // CLIENTS COLLECTION
     // =============================================
     match /clients/{clientId} {
+      // Lecture : tout utilisateur authentifié
+      // Nécessaire pour le flux de login (checkClientEmailExists / checkConsultantEmailExists)
+      // Note : les données sensibles (financières) sont dans la collection records, pas ici.
       allow read: if isAuthenticated();
-      allow create: if isConsultant() || isAuthenticated();
-      allow update: if isConsultant() || isAuthenticated();
+
+      // Création & modification : consultants uniquement
+      // Les clients ne peuvent PAS créer ou modifier des dossiers
+      allow create, update: if isConsultant();
+
+      // Suppression : admin uniquement
       allow delete: if isAdmin();
     }
 
     // =============================================
     // RECORDS COLLECTION (Financial Data)
+    // SÉCURITÉ RENFORCÉE — données financières sensibles
     // =============================================
     match /records/{recordId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
-      allow delete: if isConsultant() || isAuthenticated();
+      // Lecture : consultant OU client propriétaire du dossier
+      allow read: if isConsultant()
+                  || isOwnerOfClient(resource.data.clientId);
+
+      // Création : consultant OU client propriétaire du dossier cible
+      allow create: if isConsultant()
+                   || (isClient() && isOwnerOfClient(request.resource.data.clientId));
+
+      // Modification : consultant OU client propriétaire
+      allow update: if isConsultant()
+                   || (isClient() && isOwnerOfClient(resource.data.clientId));
+
+      // Suppression : consultants uniquement (les clients ne peuvent pas supprimer)
+      allow delete: if isConsultant();
     }
 
     // =============================================
     // CONSULTANTS COLLECTION (Team Management)
     // =============================================
     match /consultants/{consultantId} {
+      // Lecture : tout utilisateur authentifié
+      // Nécessaire pour le flux de login (checkConsultantEmailExists)
       allow read: if isAuthenticated();
-      allow create, update, delete: if isAdmin() || isAuthenticated();
+
+      // Écriture : admin uniquement
+      // CORRIGÉ : l'ancien "isAdmin() || isAuthenticated()" permettait à tout utilisateur de se promouvoir consultant
+      allow create, update, delete: if isAdmin();
     }
 
     // =============================================
     // CONVERSATIONS & MESSAGES (Chat)
     // =============================================
     match /conversations/{clientId} {
-      allow read, write: if isAuthenticated();
+      // Consultant OU client propriétaire de ce dossier
+      allow read, write: if isConsultant()
+                        || isOwnerOfClient(clientId);
 
       match /messages/{messageId} {
-        allow read: if isAuthenticated();
-        allow create: if isAuthenticated();
+        allow read: if isConsultant()
+                    || isOwnerOfClient(clientId);
+        allow create: if isConsultant()
+                     || isOwnerOfClient(clientId);
+        // Les messages ne peuvent être ni modifiés ni supprimés
         allow update, delete: if false;
       }
     }
 
     // =============================================
-    // MAIL COLLECTION
+    // MAIL COLLECTION (Transactional Emails)
     // =============================================
     match /mail/{mailId} {
+      // Tout utilisateur authentifié peut déclencher un email (notification)
       allow create: if isAuthenticated();
       allow read, update, delete: if false;
     }

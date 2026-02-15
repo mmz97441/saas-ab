@@ -416,6 +416,10 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
         Fuel_SP: recordN ? recordN.fuel?.details?.sansPlomb.volume : null,
         Fuel_GNR: recordN ? recordN.fuel?.details?.gnr.volume : null,
         Fuel_Total_N1: recordN1 ? recordN1.fuel?.volume : null,
+        Fuel_Obj_Gasoil: recordN ? recordN.fuel?.details?.gasoil.objective : null,
+        Fuel_Obj_SP: recordN ? recordN.fuel?.details?.sansPlomb.objective : null,
+        Fuel_Obj_GNR: recordN ? recordN.fuel?.details?.gnr.objective : null,
+        Fuel_Obj_Total: recordN ? recordN.fuel?.objective : null,
         // Ratios (en jours)
         DSO: recordN && recordN.revenue.total > 0 ? (recordN.bfr.receivables.clients / recordN.revenue.total) * 30 : null,
         DPO: recordN && recordN.revenue.total > 0 ? (recordN.bfr.debts.suppliers / recordN.revenue.total) * 30 : null,
@@ -555,23 +559,31 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
 
         {isFuel && (
             <>
-                <div className="flex justify-between items-center mb-1">
+                <div className="flex justify-between items-center mb-1.5">
                     <span className="text-xs text-slate-500">Volume Total</span>
-                    <span className="font-bold text-blue-700">{Math.round(data.Fuel_Total).toLocaleString()} L</span>
+                    <span className="font-bold text-blue-700">{Math.round(data.Fuel_Total || 0).toLocaleString()} L</span>
                 </div>
-                <div className="grid grid-cols-3 gap-1 mt-2 text-[10px] text-center">
-                    <div className="bg-slate-50 rounded p-1">
-                        <span className="block text-slate-400">Gasoil</span>
-                        <span className="font-bold text-slate-700">{Math.round(data.Fuel_Gasoil || 0)}</span>
+                {data.Fuel_Obj_Total > 0 && (
+                    <div className="flex justify-between items-center mb-1.5 text-[10px]">
+                        <span className="text-slate-400">Objectif Total</span>
+                        <span className="font-medium text-slate-500">{Math.round(data.Fuel_Obj_Total).toLocaleString()} L</span>
                     </div>
-                    <div className="bg-slate-50 rounded p-1">
-                        <span className="block text-slate-400">SP</span>
-                        <span className="font-bold text-slate-700">{Math.round(data.Fuel_SP || 0)}</span>
-                    </div>
-                    <div className="bg-slate-50 rounded p-1">
-                        <span className="block text-slate-400">GNR</span>
-                        <span className="font-bold text-slate-700">{Math.round(data.Fuel_GNR || 0)}</span>
-                    </div>
+                )}
+                <div className="space-y-1 mt-2 text-[10px]">
+                    {[
+                      { label: 'Gasoil', vol: data.Fuel_Gasoil, obj: data.Fuel_Obj_Gasoil, color: '#3b82f6' },
+                      { label: 'SP', vol: data.Fuel_SP, obj: data.Fuel_Obj_SP, color: '#f59e0b' },
+                      { label: 'GNR', vol: data.Fuel_GNR, obj: data.Fuel_Obj_GNR, color: '#10b981' },
+                    ].filter(f => (f.vol || 0) > 0 || (f.obj || 0) > 0).map(f => (
+                        <div key={f.label} className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-sm flex-shrink-0" style={{ backgroundColor: f.color }} />
+                            <span className="text-slate-500 w-10">{f.label}</span>
+                            <span className="font-bold text-slate-700 flex-1 text-right">{Math.round(f.vol || 0).toLocaleString()} L</span>
+                            {(f.obj || 0) > 0 && (
+                                <span className="text-slate-400 ml-1">/ {Math.round(f.obj).toLocaleString()}</span>
+                            )}
+                        </div>
+                    ))}
                 </div>
             </>
         )}
@@ -1164,28 +1176,78 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
       {/* ============================================= */}
       {showFuelCard && kpis.fuelVolume > 0 && (
         <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
+           {/* Header */}
            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2">
+              <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2 uppercase tracking-wide">
                   <Fuel className="w-4 h-4 text-blue-600" />
-                  Consommation Carburant
+                  Volume Carburant
               </h3>
-              <div className="flex items-center gap-2 text-[10px]">
-                  <span className="flex items-center gap-1"><div className="w-2 h-2 bg-blue-500 rounded-sm"></div> N</span>
-                  <span className="flex items-center gap-1"><div className="w-2 h-2 bg-slate-300 rounded-sm"></div> N-1</span>
+              <div className="flex items-center gap-3 text-[10px]">
+                  <span className="flex items-center gap-1"><div className="w-2.5 h-2.5 bg-blue-500 rounded-sm"></div> Gasoil</span>
+                  <span className="flex items-center gap-1"><div className="w-2.5 h-2.5 bg-amber-500 rounded-sm"></div> SP</span>
+                  <span className="flex items-center gap-1"><div className="w-2.5 h-2.5 bg-emerald-500 rounded-sm"></div> GNR</span>
+                  <span className="flex items-center gap-1"><div className="w-4 border-t-2 border-dashed border-slate-400"></div> Objectif</span>
               </div>
            </div>
-           <div className="h-[220px] w-full">
+
+           {/* Stacked Bar Chart */}
+           <div className="h-[260px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={chartData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+                  <ComposedChart data={chartData} margin={{ top: 25, right: 5, left: -10, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                       <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} dy={5} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(v: number) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : String(v)} />
                       <Tooltip content={<CustomTooltip type="fuel" />} cursor={{ fill: '#f8fafc' }} />
-                      <Bar dataKey="Fuel_Total_N1" fill="#e2e8f0" radius={[3, 3, 0, 0]} barSize={16} name="Volume N-1" />
-                      <Bar dataKey="Fuel_Total" fill="#3b82f6" radius={[3, 3, 0, 0]} barSize={16} name="Volume N" />
+                      <Bar dataKey="Fuel_Gasoil" stackId="fuel" fill="#3b82f6" name="Gasoil" barSize={28} />
+                      <Bar dataKey="Fuel_SP" stackId="fuel" fill="#f59e0b" name="SP" barSize={28} />
+                      <Bar dataKey="Fuel_GNR" stackId="fuel" fill="#10b981" name="GNR" radius={[3, 3, 0, 0]} barSize={28}
+                        label={(props: any) => {
+                          const { x, y, width, index } = props;
+                          const d = chartData[index];
+                          if (!d) return null;
+                          const total = (d.Fuel_Gasoil || 0) + (d.Fuel_SP || 0) + (d.Fuel_GNR || 0);
+                          if (total === 0) return null;
+                          return <text x={x + width / 2} y={y - 6} textAnchor="middle" fontSize={9} fill="#475569" fontWeight={600}>{total >= 1000 ? `${(total/1000).toFixed(1)}k` : Math.round(total)}</text>;
+                        }}
+                      />
+                      <Line type="stepAfter" dataKey="Fuel_Obj_Total" stroke="#94a3b8" strokeDasharray="6 3" dot={false} strokeWidth={1.5} name="Objectif" connectNulls />
                   </ComposedChart>
               </ResponsiveContainer>
            </div>
+
+           {/* Fuel Type Summary — objectives by fuel type */}
+           {(kpis.fuelDetails.gasoil.obj > 0 || kpis.fuelDetails.sp.obj > 0 || kpis.fuelDetails.gnr.obj > 0) && (
+             <div className="mt-4 pt-3 border-t border-slate-100">
+               <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Objectifs par type de carburant</div>
+               <div className="space-y-2">
+                 {[
+                   { label: 'Gasoil', vol: kpis.fuelDetails.gasoil.vol, obj: kpis.fuelDetails.gasoil.obj, color: 'bg-blue-500', bgColor: 'bg-blue-100' },
+                   { label: 'Sans Plomb', vol: kpis.fuelDetails.sp.vol, obj: kpis.fuelDetails.sp.obj, color: 'bg-amber-500', bgColor: 'bg-amber-100' },
+                   { label: 'GNR', vol: kpis.fuelDetails.gnr.vol, obj: kpis.fuelDetails.gnr.obj, color: 'bg-emerald-500', bgColor: 'bg-emerald-100' },
+                 ].filter(f => f.obj > 0 || f.vol > 0).map(f => {
+                   const pct = f.obj > 0 ? Math.min((f.vol / f.obj) * 100, 150) : 0;
+                   const isOver = f.obj > 0 && f.vol > f.obj;
+                   return (
+                     <div key={f.label}>
+                       <div className="flex justify-between items-center text-[11px] mb-0.5">
+                         <span className="font-medium text-slate-600">{f.label}</span>
+                         <span className="text-slate-500">
+                           <span className={`font-bold ${isOver ? 'text-red-600' : 'text-slate-700'}`}>{Math.round(f.vol).toLocaleString()} L</span>
+                           {f.obj > 0 && <span className="text-slate-400"> / {Math.round(f.obj).toLocaleString()} L</span>}
+                           {f.obj > 0 && <span className={`ml-1.5 font-bold ${isOver ? 'text-red-600' : pct >= 90 ? 'text-amber-600' : 'text-emerald-600'}`}>({pct.toFixed(0)}%)</span>}
+                         </span>
+                       </div>
+                       {f.obj > 0 && (
+                         <div className={`h-2 w-full ${f.bgColor} rounded-full overflow-hidden`}>
+                           <div className={`h-full ${isOver ? 'bg-red-500' : f.color} rounded-full transition-all duration-500`} style={{ width: `${Math.min(pct, 100)}%` }} />
+                         </div>
+                       )}
+                     </div>
+                   );
+                 })}
+               </div>
+             </div>
+           )}
         </div>
       )}
 

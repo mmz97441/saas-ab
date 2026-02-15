@@ -4,7 +4,7 @@ import { Client, FinancialRecord } from '../types';
 import { getRecordsByClient } from '../services/dataService';
 import {
     AlertTriangle, Clock, CheckCircle, TrendingDown, TrendingUp, MessageSquare,
-    ArrowRight, Briefcase, Loader2, Filter, Shield, Search, X,
+    ArrowRight, Briefcase, Loader2, Filter, Shield, Search, X, ChevronDown,
     DollarSign, Percent, Landmark, Target, Activity, CalendarClock, HelpCircle
 } from 'lucide-react';
 
@@ -37,22 +37,296 @@ interface ClientSummary {
     pendingValidation: boolean;
     treasuryAlert: boolean;
     lastActivity: string;
-    // KPI annuels par client
     ytdRevenue: number;
     ytdObjective: number;
     ytdMargin: number;
     ytdMarginRate: number;
-    objPerformance: number; // % atteinte objectif
-    dataFresh: boolean; // données récentes (< 2 mois)
+    objPerformance: number;
+    dataFresh: boolean;
+    isHealthy: boolean;
 }
+
+type PanelType = 'CA' | 'MARGE' | 'TRESORERIE' | 'OBJECTIF' | 'FRAICHEUR' | 'SANTE' | 'PENDING' | 'ALERT' | null;
 
 const fmtEur = (v: number) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
 
+// Couleur dynamique basée sur un pourcentage (higher = better)
+const getPerfColor = (p: number) => {
+    if (p >= 110) return { text: 'text-emerald-700', bg: 'bg-emerald-100', bar: '#059669' };
+    if (p >= 100) return { text: 'text-lime-700', bg: 'bg-lime-100', bar: '#65a30d' };
+    if (p >= 95) return { text: 'text-amber-600', bg: 'bg-amber-100', bar: '#d97706' };
+    if (p >= 85) return { text: 'text-orange-600', bg: 'bg-orange-100', bar: '#ea580c' };
+    return { text: 'text-red-600', bg: 'bg-red-100', bar: '#dc2626' };
+};
+
+const getHealthColor = (score: number) => {
+    if (score >= 80) return { text: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', icon: 'text-emerald-600' };
+    if (score >= 60) return { text: 'text-amber-700', bg: 'bg-amber-50 border-amber-200', icon: 'text-amber-600' };
+    return { text: 'text-red-700', bg: 'bg-red-50 border-red-200', icon: 'text-red-600' };
+};
+
+// ─── Panneau Détail KPI ────────────────────────────────────────────
+interface DetailPanelProps {
+    panel: PanelType;
+    summaries: ClientSummary[];
+    portfolioKpis: any;
+    onSelectClient: (client: Client) => void;
+    onClose: () => void;
+}
+
+const PANEL_CONFIG: Record<Exclude<PanelType, null>, { title: string; color: string; border: string }> = {
+    CA:         { title: 'Détail CA par client', color: 'bg-brand-50', border: 'border-brand-200' },
+    MARGE:      { title: 'Détail Marge par client', color: 'bg-purple-50', border: 'border-purple-200' },
+    TRESORERIE: { title: 'Détail Trésorerie par client', color: 'bg-emerald-50', border: 'border-emerald-200' },
+    OBJECTIF:   { title: 'Détail Objectifs par client', color: 'bg-blue-50', border: 'border-blue-200' },
+    FRAICHEUR:  { title: 'Dossiers en retard', color: 'bg-orange-50', border: 'border-orange-200' },
+    SANTE:      { title: 'Dossiers en difficulté', color: 'bg-red-50', border: 'border-red-200' },
+    PENDING:    { title: 'Rapports en attente de validation', color: 'bg-amber-50', border: 'border-amber-200' },
+    ALERT:      { title: 'Trésoreries négatives', color: 'bg-red-50', border: 'border-red-200' },
+};
+
+const DetailPanel: React.FC<DetailPanelProps> = ({ panel, summaries, portfolioKpis, onSelectClient, onClose }) => {
+    if (!panel) return null;
+    const config = PANEL_CONFIG[panel];
+
+    // Filtrer et trier selon le type de panneau
+    const items = useMemo(() => {
+        let list = [...summaries];
+        switch (panel) {
+            case 'CA':
+                return list.filter(s => s.ytdRevenue > 0).sort((a, b) => b.ytdRevenue - a.ytdRevenue);
+            case 'MARGE':
+                return list.filter(s => s.ytdMarginRate > 0).sort((a, b) => b.ytdMarginRate - a.ytdMarginRate);
+            case 'TRESORERIE':
+                return list.filter(s => s.lastRecord).sort((a, b) => (a.lastRecord?.cashFlow.treasury || 0) - (b.lastRecord?.cashFlow.treasury || 0));
+            case 'OBJECTIF':
+                return list.filter(s => s.ytdObjective > 0).sort((a, b) => a.objPerformance - b.objPerformance);
+            case 'FRAICHEUR':
+                return list.filter(s => !s.dataFresh && s.lastRecord).sort((a, b) => a.client.companyName.localeCompare(b.client.companyName, 'fr'));
+            case 'SANTE':
+                return list.filter(s => !s.isHealthy).sort((a, b) => {
+                    const scoreA = (a.treasuryAlert ? 3 : 0) + (!a.dataFresh ? 2 : 0) + (a.ytdObjective > 0 && a.objPerformance < 85 ? 1 : 0);
+                    const scoreB = (b.treasuryAlert ? 3 : 0) + (!b.dataFresh ? 2 : 0) + (b.ytdObjective > 0 && b.objPerformance < 85 ? 1 : 0);
+                    return scoreB - scoreA;
+                });
+            case 'PENDING':
+                return list.filter(s => s.pendingValidation);
+            case 'ALERT':
+                return list.filter(s => s.treasuryAlert).sort((a, b) => (a.lastRecord?.cashFlow.treasury || 0) - (b.lastRecord?.cashFlow.treasury || 0));
+            default: return list;
+        }
+    }, [panel, summaries]);
+
+    const renderRow = (item: ClientSummary) => {
+        const perf = item.objPerformance;
+        const perfCol = item.ytdObjective > 0 ? getPerfColor(perf) : null;
+
+        return (
+            <tr key={item.client.id} onClick={() => onSelectClient(item.client)} className="hover:bg-white/80 transition-colors cursor-pointer group">
+                {/* Client */}
+                <td className="p-2.5 pl-4">
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-white text-slate-600 flex items-center justify-center font-bold border border-slate-200 text-[10px] shrink-0">
+                            {item.client.companyName.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                            <div className="font-bold text-slate-800 text-xs truncate max-w-[160px]">{item.client.companyName}</div>
+                            <div className="text-[10px] text-slate-400 truncate max-w-[160px]">{item.client.managerName}</div>
+                        </div>
+                    </div>
+                </td>
+
+                {/* Colonnes dynamiques selon le panneau */}
+                {(panel === 'CA' || panel === 'SANTE') && (
+                    <td className="p-2.5 text-right">
+                        <span className="font-mono font-bold text-xs text-slate-700">{fmtEur(item.ytdRevenue)}</span>
+                        {panel === 'CA' && portfolioKpis.totalCA > 0 && (
+                            <div className="text-[9px] text-slate-400">{((item.ytdRevenue / portfolioKpis.totalCA) * 100).toFixed(1)}% du total</div>
+                        )}
+                    </td>
+                )}
+
+                {(panel === 'MARGE') && (
+                    <>
+                        <td className="p-2.5 text-right">
+                            <span className="font-mono font-bold text-xs text-purple-600">{item.ytdMarginRate.toFixed(1)}%</span>
+                        </td>
+                        <td className="p-2.5 text-right">
+                            <span className="font-mono text-xs text-slate-500">{fmtEur(item.ytdMargin)}</span>
+                        </td>
+                    </>
+                )}
+
+                {(panel === 'TRESORERIE' || panel === 'ALERT') && (
+                    <td className="p-2.5 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                            {item.treasuryAlert && <TrendingDown className="w-3 h-3 text-red-500" />}
+                            <span className={`font-mono font-bold text-xs ${item.treasuryAlert ? 'text-red-600' : 'text-emerald-600'}`}>
+                                {fmtEur(item.lastRecord?.cashFlow.treasury || 0)}
+                            </span>
+                        </div>
+                    </td>
+                )}
+
+                {(panel === 'OBJECTIF') && (
+                    <>
+                        <td className="p-2.5 text-right">
+                            <span className="font-mono text-xs text-slate-600">{fmtEur(item.ytdRevenue)}</span>
+                        </td>
+                        <td className="p-2.5 text-right">
+                            <span className="font-mono text-xs text-slate-400">{fmtEur(item.ytdObjective)}</span>
+                        </td>
+                        <td className="p-2.5 text-center">
+                            <div className="inline-flex flex-col items-center gap-0.5">
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${perfCol!.bg} ${perfCol!.text}`}>
+                                    {perf.toFixed(0)}%
+                                </span>
+                                <div className="h-1 w-10 bg-white/60 rounded-full overflow-hidden">
+                                    <div className="h-full rounded-full" style={{ width: `${Math.min(perf, 100)}%`, backgroundColor: perfCol!.bar }} />
+                                </div>
+                            </div>
+                        </td>
+                    </>
+                )}
+
+                {(panel === 'FRAICHEUR') && (
+                    <td className="p-2.5 text-center">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-orange-600">
+                            <CalendarClock className="w-3 h-3" /> {item.lastActivity}
+                        </span>
+                    </td>
+                )}
+
+                {(panel === 'SANTE') && (
+                    <td className="p-2.5">
+                        <div className="flex flex-wrap gap-1">
+                            {item.treasuryAlert && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-700">Tréso &lt; 0</span>}
+                            {!item.dataFresh && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-orange-100 text-orange-700">Données</span>}
+                            {item.ytdObjective > 0 && item.objPerformance < 85 && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700">Obj &lt; 85%</span>}
+                        </div>
+                    </td>
+                )}
+
+                {(panel === 'PENDING') && (
+                    <td className="p-2.5 text-center">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700">
+                            <Clock className="w-3 h-3" /> À Valider
+                        </span>
+                    </td>
+                )}
+
+                {/* Ouvrir */}
+                <td className="p-2.5 text-right pr-4">
+                    <span className="text-[10px] font-bold text-brand-500 opacity-0 group-hover:opacity-100 transition inline-flex items-center gap-0.5">
+                        Ouvrir <ArrowRight className="w-3 h-3" />
+                    </span>
+                </td>
+            </tr>
+        );
+    };
+
+    const renderHeader = () => {
+        switch (panel) {
+            case 'CA':
+            case 'SANTE':
+                return (
+                    <>
+                        <th className="p-2.5 pl-4 text-left">Client</th>
+                        <th className="p-2.5 text-right">CA YTD</th>
+                        {panel === 'SANTE' && <th className="p-2.5 text-left">Problèmes</th>}
+                        <th className="p-2.5 text-right pr-4"></th>
+                    </>
+                );
+            case 'MARGE':
+                return (
+                    <>
+                        <th className="p-2.5 pl-4 text-left">Client</th>
+                        <th className="p-2.5 text-right">Taux marge</th>
+                        <th className="p-2.5 text-right">Marge brute</th>
+                        <th className="p-2.5 text-right pr-4"></th>
+                    </>
+                );
+            case 'TRESORERIE':
+            case 'ALERT':
+                return (
+                    <>
+                        <th className="p-2.5 pl-4 text-left">Client</th>
+                        <th className="p-2.5 text-right">Solde bancaire</th>
+                        <th className="p-2.5 text-right pr-4"></th>
+                    </>
+                );
+            case 'OBJECTIF':
+                return (
+                    <>
+                        <th className="p-2.5 pl-4 text-left">Client</th>
+                        <th className="p-2.5 text-right">CA réalisé</th>
+                        <th className="p-2.5 text-right">Objectif</th>
+                        <th className="p-2.5 text-center">Atteinte</th>
+                        <th className="p-2.5 text-right pr-4"></th>
+                    </>
+                );
+            case 'FRAICHEUR':
+                return (
+                    <>
+                        <th className="p-2.5 pl-4 text-left">Client</th>
+                        <th className="p-2.5 text-center">Dernière activité</th>
+                        <th className="p-2.5 text-right pr-4"></th>
+                    </>
+                );
+            case 'PENDING':
+                return (
+                    <>
+                        <th className="p-2.5 pl-4 text-left">Client</th>
+                        <th className="p-2.5 text-center">Statut</th>
+                        <th className="p-2.5 text-right pr-4"></th>
+                    </>
+                );
+            default: return null;
+        }
+    };
+
+    return (
+        <div className={`rounded-xl border ${config.border} ${config.color} overflow-hidden shadow-sm animate-in fade-in slide-in-from-top-2 duration-300`}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/40">
+                <h4 className="text-xs font-bold text-slate-700 flex items-center gap-2">
+                    <ChevronDown className="w-3.5 h-3.5" />
+                    {config.title}
+                    <span className="text-slate-400 font-normal">({items.length} client{items.length !== 1 ? 's' : ''})</span>
+                </h4>
+                <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 transition rounded-full hover:bg-white/60">
+                    <X className="w-3.5 h-3.5" />
+                </button>
+            </div>
+            {items.length > 0 ? (
+                <div className="overflow-x-auto max-h-[320px] overflow-y-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="text-[9px] font-bold text-slate-400 uppercase border-b border-white/40">
+                                {renderHeader()}
+                            </tr>
+                        </thead>
+                        <tbody className="text-sm divide-y divide-white/30">
+                            {items.map(renderRow)}
+                        </tbody>
+                    </table>
+                </div>
+            ) : (
+                <div className="p-6 text-center text-slate-400 text-xs">
+                    <CheckCircle className="w-6 h-6 mx-auto mb-2 opacity-30" />
+                    Aucun dossier dans cette catégorie
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ─── Composant Principal ───────────────────────────────────────────
 const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSelectClient, onNavigateToMessages }) => {
     const [summaries, setSummaries] = useState<ClientSummary[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [filter, setFilter] = useState<'ALL' | 'ALERT' | 'PENDING' | 'STALE'>('ALL');
     const [searchQuery, setSearchQuery] = useState('');
+    const [activePanel, setActivePanel] = useState<PanelType>(null);
 
     const currentYear = new Date().getFullYear();
 
@@ -73,7 +347,6 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                 const lastRecord = records.length > 0 ? records[records.length - 1] : null;
                 const pendingValidation = !!records.find(r => r.isSubmitted && !r.isValidated);
 
-                // Year-to-date pour l'année en cours
                 const yearRecords = records.filter(r => r.year === currentYear && r.revenue.total > 0);
                 const ytdRevenue = yearRecords.reduce((acc, r) => acc + r.revenue.total, 0);
                 const ytdObjective = yearRecords.reduce((acc, r) => acc + r.revenue.objective, 0);
@@ -81,31 +354,24 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                 const ytdMarginRate = ytdRevenue > 0 ? (ytdMargin / ytdRevenue) * 100 : 0;
                 const objPerformance = ytdObjective > 0 ? (ytdRevenue / ytdObjective) * 100 : 0;
 
-                // Fraîcheur : le dernier record est-il récent ? (≤ 2 mois d'écart)
                 let dataFresh = false;
                 if (lastRecord) {
                     const lastMonthIdx = monthValues.indexOf(lastRecord.month as string);
-                    const nowMonthIdx = new Date().getMonth(); // 0-based
+                    const nowMonthIdx = new Date().getMonth();
                     if (lastRecord.year === currentYear && lastMonthIdx >= nowMonthIdx - 2) {
                         dataFresh = true;
                     } else if (lastRecord.year === currentYear - 1 && nowMonthIdx <= 1 && lastMonthIdx >= 10) {
-                        dataFresh = true; // janvier/février qui réfère à nov/déc N-1
+                        dataFresh = true;
                     }
                 }
 
+                const treasuryAlert = lastRecord ? lastRecord.cashFlow.treasury < 0 : false;
+                const isHealthy = !treasuryAlert && dataFresh && (ytdObjective === 0 || objPerformance >= 85);
+
                 return {
-                    client,
-                    lastRecord,
-                    records,
-                    pendingValidation,
-                    treasuryAlert: lastRecord ? lastRecord.cashFlow.treasury < 0 : false,
+                    client, lastRecord, records, pendingValidation, treasuryAlert,
                     lastActivity: lastRecord ? `${lastRecord.month} ${lastRecord.year}` : 'Aucune',
-                    ytdRevenue,
-                    ytdObjective,
-                    ytdMargin,
-                    ytdMarginRate,
-                    objPerformance,
-                    dataFresh,
+                    ytdRevenue, ytdObjective, ytdMargin, ytdMarginRate, objPerformance, dataFresh, isHealthy,
                 };
             });
 
@@ -139,20 +405,15 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
         const totalTreasury = summaries.reduce((acc, s) => acc + (s.lastRecord?.cashFlow.treasury || 0), 0);
         const objPerformance = totalObj > 0 ? (totalCA / totalObj) * 100 : 0;
 
-        // Clients avec objectif défini
         const clientsWithObj = summaries.filter(s => s.ytdObjective > 0);
         const clientsOnTarget = clientsWithObj.filter(s => s.objPerformance >= 100).length;
         const onTargetRate = clientsWithObj.length > 0 ? (clientsOnTarget / clientsWithObj.length) * 100 : 0;
 
-        // Fraîcheur données
         const clientsWithData = summaries.filter(s => s.lastRecord);
         const freshCount = summaries.filter(s => s.dataFresh).length;
         const freshRate = clientsWithData.length > 0 ? (freshCount / clientsWithData.length) * 100 : 0;
 
-        // Score santé : trésorerie positive + objectif ≥ 85% + données fraîches
-        const healthyCount = summaries.filter(s =>
-            !s.treasuryAlert && s.dataFresh && (s.ytdObjective === 0 || s.objPerformance >= 85)
-        ).length;
+        const healthyCount = summaries.filter(s => s.isHealthy).length;
         const healthScore = summaries.length > 0 ? (healthyCount / summaries.length) * 100 : 0;
 
         return {
@@ -180,20 +441,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
         return result;
     }, [summaries, filter, searchQuery]);
 
-    // Couleur dynamique basée sur un pourcentage (higher = better)
-    const getPerfColor = (p: number) => {
-        if (p >= 110) return { text: 'text-emerald-700', bg: 'bg-emerald-100', bar: '#059669' };
-        if (p >= 100) return { text: 'text-lime-700', bg: 'bg-lime-100', bar: '#65a30d' };
-        if (p >= 95) return { text: 'text-amber-600', bg: 'bg-amber-100', bar: '#d97706' };
-        if (p >= 85) return { text: 'text-orange-600', bg: 'bg-orange-100', bar: '#ea580c' };
-        return { text: 'text-red-600', bg: 'bg-red-100', bar: '#dc2626' };
-    };
-
-    const getHealthColor = (score: number) => {
-        if (score >= 80) return { text: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', icon: 'text-emerald-600' };
-        if (score >= 60) return { text: 'text-amber-700', bg: 'bg-amber-50 border-amber-200', icon: 'text-amber-600' };
-        return { text: 'text-red-700', bg: 'bg-red-50 border-red-200', icon: 'text-red-600' };
-    };
+    const togglePanel = (p: PanelType) => setActivePanel(prev => prev === p ? null : p);
 
     if (isLoading) return (
         <div className="flex flex-col items-center justify-center h-[50vh] text-brand-500">
@@ -203,6 +451,10 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
     );
 
     const healthCol = getHealthColor(portfolioKpis.healthScore);
+
+    // Helper pour style de carte cliquable
+    const kpiCardClass = (panelKey: PanelType, baseClasses: string) =>
+        `text-left cursor-pointer transition-all hover:shadow-md ${baseClasses} ${activePanel === panelKey ? 'ring-2 ring-brand-400 shadow-md scale-[1.02]' : ''}`;
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -227,7 +479,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
             {/* ═══ KPI FINANCIERS DU PORTEFEUILLE ═══ */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 {/* CA TOTAL */}
-                <div className="p-4 rounded-xl border bg-white border-brand-100 shadow-sm">
+                <button onClick={() => togglePanel('CA')} className={kpiCardClass('CA', 'p-4 rounded-xl border bg-white border-brand-100 shadow-sm')}>
                     <div className="flex justify-between items-start mb-2">
                         <div className="p-1.5 rounded-lg bg-brand-50 text-brand-600"><DollarSign className="w-4 h-4" /></div>
                         {portfolioKpis.totalObj > 0 && (
@@ -236,7 +488,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                             </span>
                         )}
                     </div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">CA Portefeuille <InfoTip text="Chiffre d'affaires HT cumulé de tous vos clients depuis le 1er janvier de l'année en cours (Year-to-Date)." /></p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">CA Portefeuille <InfoTip text="Chiffre d'affaires HT cumulé de tous vos clients depuis le 1er janvier de l'année en cours (Year-to-Date). Cliquez pour voir le détail par client." /></p>
                     <div className="text-lg font-bold text-slate-800">{fmtEur(portfolioKpis.totalCA)}</div>
                     {portfolioKpis.totalObj > 0 && (
                         <div className="mt-2">
@@ -248,30 +500,30 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                             </div>
                         </div>
                     )}
-                </div>
+                </button>
 
                 {/* MARGE MOYENNE */}
-                <div className="p-4 rounded-xl border bg-white border-brand-100 shadow-sm">
+                <button onClick={() => togglePanel('MARGE')} className={kpiCardClass('MARGE', 'p-4 rounded-xl border bg-white border-brand-100 shadow-sm')}>
                     <div className="p-1.5 rounded-lg bg-purple-50 text-purple-600 w-fit mb-2"><Percent className="w-4 h-4" /></div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Marge Moyenne <InfoTip text="Taux de marge commerciale brute pondéré par le CA de chaque client. Marge = (Ventes - Achats consommés) / CA." /></p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Marge Moyenne <InfoTip text="Taux de marge commerciale brute pondéré par le CA. Cliquez pour voir le détail par client." /></p>
                     <div className="text-lg font-bold text-slate-800">{portfolioKpis.avgMarginRate.toFixed(1)}%</div>
                     <p className="text-[9px] text-slate-400 mt-1">Marge brute : {fmtEur(portfolioKpis.totalMargin)}</p>
-                </div>
+                </button>
 
                 {/* TRESORERIE GLOBALE */}
-                <div className={`p-4 rounded-xl border shadow-sm ${portfolioKpis.totalTreasury < 0 ? 'bg-red-50 border-red-200' : 'bg-white border-brand-100'}`}>
+                <button onClick={() => togglePanel('TRESORERIE')} className={kpiCardClass('TRESORERIE', `p-4 rounded-xl border shadow-sm ${portfolioKpis.totalTreasury < 0 ? 'bg-red-50 border-red-200' : 'bg-white border-brand-100'}`)}>
                     <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 w-fit mb-2"><Landmark className="w-4 h-4" /></div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Trésorerie Globale <InfoTip text="Somme des soldes bancaires (créditeurs - débiteurs) de chaque client sur leur dernière situation connue." /></p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Trésorerie Globale <InfoTip text="Somme des soldes bancaires. Cliquez pour voir le classement par client." /></p>
                     <div className={`text-lg font-bold ${portfolioKpis.totalTreasury >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
                         {fmtEur(portfolioKpis.totalTreasury)}
                     </div>
                     <p className="text-[9px] text-slate-400 mt-1">{totalAlerts} client{totalAlerts > 1 ? 's' : ''} en négatif</p>
-                </div>
+                </button>
 
                 {/* TAUX ATTEINTE OBJECTIFS */}
-                <div className="p-4 rounded-xl border bg-white border-brand-100 shadow-sm">
+                <button onClick={() => togglePanel('OBJECTIF')} className={kpiCardClass('OBJECTIF', 'p-4 rounded-xl border bg-white border-brand-100 shadow-sm')}>
                     <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600 w-fit mb-2"><Target className="w-4 h-4" /></div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Objectifs Atteints <InfoTip text="Nombre de clients dont le CA YTD dépasse 100% de l'objectif défini. Seuls les clients ayant un objectif paramétré sont comptabilisés." /></p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Objectifs Atteints <InfoTip text="Cliquez pour voir l'atteinte par client." /></p>
                     <div className="text-lg font-bold text-slate-800">
                         {portfolioKpis.clientsOnTarget}<span className="text-sm text-slate-400 font-normal">/{portfolioKpis.clientsWithObj}</span>
                     </div>
@@ -283,15 +535,15 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                             <p className={`text-[9px] font-bold mt-0.5 ${getPerfColor(portfolioKpis.onTargetRate).text}`}>{portfolioKpis.onTargetRate.toFixed(0)}% du portefeuille</p>
                         </div>
                     )}
-                </div>
+                </button>
 
                 {/* FRAICHEUR DONNEES */}
                 <button
-                    onClick={() => setFilter(filter === 'STALE' ? 'ALL' : 'STALE')}
-                    className={`text-left p-4 rounded-xl border shadow-sm transition-all hover:shadow-md ${filter === 'STALE' ? 'ring-2 ring-orange-400' : ''} ${portfolioKpis.staleCount > 0 ? 'bg-orange-50 border-orange-200' : 'bg-white border-brand-100'}`}
+                    onClick={() => { togglePanel('FRAICHEUR'); setFilter(activePanel === 'FRAICHEUR' ? 'ALL' : 'STALE'); }}
+                    className={kpiCardClass('FRAICHEUR', `p-4 rounded-xl border shadow-sm ${portfolioKpis.staleCount > 0 ? 'bg-orange-50 border-orange-200' : 'bg-white border-brand-100'}`)}
                 >
                     <div className="p-1.5 rounded-lg bg-orange-50 text-orange-600 w-fit mb-2"><CalendarClock className="w-4 h-4" /></div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Données à Jour <InfoTip text="Pourcentage de dossiers ayant transmis des données récentes (moins de 2 mois d'écart avec le mois en cours). Cliquez pour filtrer les retardataires." /></p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Données à Jour <InfoTip text="Cliquez pour voir les dossiers en retard." /></p>
                     <div className="text-lg font-bold text-slate-800">
                         {portfolioKpis.freshRate.toFixed(0)}%
                     </div>
@@ -301,15 +553,26 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                 </button>
 
                 {/* SCORE SANTE */}
-                <div className={`p-4 rounded-xl border shadow-sm ${healthCol.bg}`}>
+                <button onClick={() => togglePanel('SANTE')} className={kpiCardClass('SANTE', `p-4 rounded-xl border shadow-sm ${healthCol.bg}`)}>
                     <div className={`p-1.5 rounded-lg bg-white/60 ${healthCol.icon} w-fit mb-2`}><Activity className="w-4 h-4" /></div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Santé Portefeuille <InfoTip text="Score composite : un dossier est 'sain' s'il a une trésorerie positive, des données récentes ET un objectif atteint à 85% minimum (ou pas d'objectif défini)." /></p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Santé Portefeuille <InfoTip text="Cliquez pour voir les dossiers en difficulté." /></p>
                     <div className={`text-lg font-bold ${healthCol.text}`}>
                         {portfolioKpis.healthScore.toFixed(0)}%
                     </div>
                     <p className="text-[9px] text-slate-500 mt-1">{portfolioKpis.healthyCount}/{summaries.length} dossiers sains</p>
-                </div>
+                </button>
             </div>
+
+            {/* ═══ PANNEAU DETAIL KPI FINANCIERS ═══ */}
+            {activePanel && ['CA', 'MARGE', 'TRESORERIE', 'OBJECTIF', 'FRAICHEUR', 'SANTE'].includes(activePanel) && (
+                <DetailPanel
+                    panel={activePanel}
+                    summaries={summaries}
+                    portfolioKpis={portfolioKpis}
+                    onSelectClient={onSelectClient}
+                    onClose={() => setActivePanel(null)}
+                />
+            )}
 
             {/* ═══ CARTES D'ACTIONS (Messages / Validations / Alertes) ═══ */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -330,8 +593,8 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
 
                 {/* VALIDATIONS */}
                 <button
-                    onClick={() => setFilter(filter === 'PENDING' ? 'ALL' : 'PENDING')}
-                    className={`text-left p-4 rounded-xl border transition-all hover:shadow-md ${filter === 'PENDING' ? 'ring-2 ring-amber-400' : ''} ${totalPending > 0 ? 'bg-white border-amber-200' : 'bg-white border-slate-200'}`}
+                    onClick={() => { togglePanel('PENDING'); setFilter(activePanel === 'PENDING' ? 'ALL' : 'PENDING'); }}
+                    className={`text-left p-4 rounded-xl border transition-all hover:shadow-md ${activePanel === 'PENDING' ? 'ring-2 ring-amber-400 shadow-md' : ''} ${totalPending > 0 ? 'bg-white border-amber-200' : 'bg-white border-slate-200'}`}
                 >
                     <div className="flex justify-between items-start mb-2">
                         <div className={`p-2 rounded-lg ${totalPending > 0 ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400'}`}>
@@ -339,13 +602,13 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                         </div>
                     </div>
                     <div className="text-2xl font-bold text-slate-800 mb-1">{totalPending}</div>
-                    <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">Rapports à Valider <InfoTip text="Rapports mensuels soumis par les clients et en attente de validation par le cabinet. Cliquez pour filtrer ces dossiers." /></div>
+                    <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">Rapports à Valider <InfoTip text="Cliquez pour voir les clients avec rapports en attente." /></div>
                 </button>
 
                 {/* ALERTS */}
                 <button
-                    onClick={() => setFilter(filter === 'ALERT' ? 'ALL' : 'ALERT')}
-                    className={`text-left p-4 rounded-xl border transition-all hover:shadow-md ${filter === 'ALERT' ? 'ring-2 ring-red-400' : ''} ${totalAlerts > 0 ? 'bg-red-50 border-red-200' : 'bg-white border-slate-200'}`}
+                    onClick={() => { togglePanel('ALERT'); setFilter(activePanel === 'ALERT' ? 'ALL' : 'ALERT'); }}
+                    className={`text-left p-4 rounded-xl border transition-all hover:shadow-md ${activePanel === 'ALERT' ? 'ring-2 ring-red-400 shadow-md' : ''} ${totalAlerts > 0 ? 'bg-red-50 border-red-200' : 'bg-white border-slate-200'}`}
                 >
                     <div className="flex justify-between items-start mb-2">
                         <div className={`p-2 rounded-lg ${totalAlerts > 0 ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-400'}`}>
@@ -353,9 +616,20 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                         </div>
                     </div>
                     <div className="text-2xl font-bold text-red-700 mb-1">{totalAlerts}</div>
-                    <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">Trésoreries Négatives <InfoTip text="Clients dont la dernière trésorerie connue est en solde négatif (découvert). Cliquez pour filtrer ces dossiers." /></div>
+                    <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">Trésoreries Négatives <InfoTip text="Cliquez pour voir les clients en découvert." /></div>
                 </button>
             </div>
+
+            {/* ═══ PANNEAU DETAIL CARTES D'ACTIONS ═══ */}
+            {activePanel && ['PENDING', 'ALERT'].includes(activePanel) && (
+                <DetailPanel
+                    panel={activePanel}
+                    summaries={summaries}
+                    portfolioKpis={portfolioKpis}
+                    onSelectClient={onSelectClient}
+                    onClose={() => { setActivePanel(null); setFilter('ALL'); }}
+                />
+            )}
 
             {/* SEARCH BAR */}
             <div className="relative">
@@ -383,7 +657,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                     </h3>
                     <div className="flex gap-2">
                         {filter !== 'ALL' && (
-                            <button onClick={() => setFilter('ALL')} className="text-xs font-bold text-slate-500 bg-white border border-slate-300 px-2 py-1 rounded hover:bg-slate-100 flex items-center gap-1">
+                            <button onClick={() => { setFilter('ALL'); setActivePanel(null); }} className="text-xs font-bold text-slate-500 bg-white border border-slate-300 px-2 py-1 rounded hover:bg-slate-100 flex items-center gap-1">
                                 <Filter className="w-3 h-3" /> Effacer filtres
                             </button>
                         )}

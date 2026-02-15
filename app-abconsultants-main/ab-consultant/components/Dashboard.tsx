@@ -736,14 +736,43 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
 
          {/* REVENUE CARD */}
+         {(() => {
+           const caPerf = parseFloat(kpis.revenuePerformance);
+           const getCaBadge = (p: number) => {
+             if (p >= 110) return { bg: 'bg-emerald-100', text: 'text-emerald-700' };
+             if (p >= 100) return { bg: 'bg-lime-100', text: 'text-lime-700' };
+             if (p >= 95) return { bg: 'bg-amber-100', text: 'text-amber-700' };
+             if (p >= 85) return { bg: 'bg-orange-100', text: 'text-orange-700' };
+             return { bg: 'bg-red-100', text: 'text-red-700' };
+           };
+           const getCaBarColor = (p: number) => {
+             if (p >= 110) return '#059669';
+             if (p >= 100) return '#65a30d';
+             if (p >= 95) return '#d97706';
+             if (p >= 85) return '#ea580c';
+             return '#dc2626';
+           };
+           const getCaTextColor = (p: number) => {
+             if (p >= 110) return 'text-emerald-700';
+             if (p >= 100) return 'text-lime-700';
+             if (p >= 95) return 'text-amber-600';
+             if (p >= 85) return 'text-orange-600';
+             return 'text-red-600';
+           };
+           const badge = getCaBadge(caPerf);
+           const barColor = getCaBarColor(caPerf);
+           const textColor = getCaTextColor(caPerf);
+           return (
          <div className="p-4 rounded-xl border bg-white border-brand-100 shadow-sm relative overflow-hidden">
             <div className="flex justify-between items-start mb-1">
                 <div className="p-1.5 rounded-lg bg-brand-50 text-brand-600">
                     <DollarSign className="w-4 h-4" />
                 </div>
-                <div className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                {kpis.objective > 0 && (
+                <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${badge.bg} ${badge.text}`}>
                     {kpis.revenuePerformance}% Obj
                 </div>
+                )}
             </div>
             <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-slate-400" title="CA HT facturé sur la période sélectionnée">Chiffre d'Affaires</p>
             <h3 className="text-xl font-bold text-slate-800">
@@ -755,10 +784,30 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                 {kpis.revenueVariation > 0 ? '+' : ''}{kpis.revenueVariation.toFixed(1)}% vs N-1
               </div>
             )}
-            <div className="mt-2 h-1 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div className={`h-full rounded-full transition-all duration-1000 ${parseFloat(kpis.revenuePerformance) >= 100 ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${Math.min(parseFloat(kpis.revenuePerformance), 100)}%` }} />
-            </div>
+            {/* Jauge d'atteinte objectif CA */}
+            {kpis.objective > 0 && (
+              <div className="mt-3 pt-2 border-t border-slate-100">
+                <div className="flex justify-between items-center text-[11px] mb-1">
+                  <span className="font-medium text-slate-500">Objectif</span>
+                  <span className="text-slate-500">
+                    <span className={`font-bold ${textColor}`}>{Math.round(kpis.revenue).toLocaleString()} €</span>
+                    <span className="text-slate-400"> / {Math.round(kpis.objective).toLocaleString()} €</span>
+                  </span>
+                </div>
+                <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${Math.min(caPerf, 100)}%`, backgroundColor: barColor }} />
+                </div>
+                <div className="flex justify-between items-center mt-1">
+                  <span className={`text-[10px] font-bold ${textColor}`}>
+                    {caPerf >= 110 ? 'Excellent !' : caPerf >= 100 ? 'Objectif atteint' : caPerf >= 95 ? 'Presque...' : caPerf >= 85 ? 'En retard' : 'Critique'}
+                  </span>
+                  <span className={`text-[10px] font-bold ${textColor}`}>{caPerf.toFixed(1)}%</span>
+                </div>
+              </div>
+            )}
          </div>
+           );
+         })()}
 
          {/* MARGIN CARD */}
          <div className="bg-white p-4 rounded-xl border border-brand-100 shadow-sm relative overflow-hidden">

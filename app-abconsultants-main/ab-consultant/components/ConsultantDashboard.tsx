@@ -6,7 +6,8 @@ import {
     AlertTriangle, Clock, CheckCircle, TrendingDown, TrendingUp, MessageSquare,
     ArrowRight, Briefcase, Loader2, Filter, Shield, Search, X, ChevronDown,
     ChevronLeft, ChevronRight as ChevronRightIcon,
-    DollarSign, Percent, Landmark, Target, Activity, CalendarClock, HelpCircle
+    DollarSign, Percent, Landmark, Target, Activity, CalendarClock, HelpCircle,
+    Calendar, MapPin, FileCheck, FileX, ChevronUp
 } from 'lucide-react';
 
 // Tooltip d'aide sur hover — petit "?" discret avec bulle explicative
@@ -321,6 +322,112 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ panel, summaries, portfolioKp
     );
 };
 
+// ─── Helpers File d'attente RDV ────────────────────────────────────
+type RdvGroup = 'THIS_WEEK' | 'NEXT_WEEK' | 'LATER' | 'NOT_SUBMITTED' | 'DONE' | 'NO_RDV';
+
+interface RdvGroupConfig {
+    key: RdvGroup;
+    label: string;
+    icon: React.ReactNode;
+    badgeClass: string;
+    headerClass: string;
+}
+
+const RDV_GROUP_CONFIGS: RdvGroupConfig[] = [
+    { key: 'THIS_WEEK', label: 'Cette semaine', icon: <AlertTriangle className="w-4 h-4" />, badgeClass: 'bg-red-100 text-red-700 border-red-200', headerClass: 'bg-red-50 border-red-200 text-red-800' },
+    { key: 'NEXT_WEEK', label: 'Semaine prochaine', icon: <Calendar className="w-4 h-4" />, badgeClass: 'bg-amber-100 text-amber-700 border-amber-200', headerClass: 'bg-amber-50 border-amber-200 text-amber-800' },
+    { key: 'LATER', label: 'Plus tard', icon: <CalendarClock className="w-4 h-4" />, badgeClass: 'bg-emerald-100 text-emerald-700 border-emerald-200', headerClass: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
+    { key: 'NOT_SUBMITTED', label: 'En attente du client', icon: <FileX className="w-4 h-4" />, badgeClass: 'bg-slate-100 text-slate-600 border-slate-200', headerClass: 'bg-slate-50 border-slate-200 text-slate-700' },
+    { key: 'DONE', label: 'Terminés ce mois', icon: <CheckCircle className="w-4 h-4" />, badgeClass: 'bg-emerald-100 text-emerald-700 border-emerald-200', headerClass: 'bg-emerald-50/50 border-emerald-100 text-emerald-700' },
+    { key: 'NO_RDV', label: 'Sans RDV programmé', icon: <Clock className="w-4 h-4" />, badgeClass: 'bg-slate-100 text-slate-500 border-slate-200', headerClass: 'bg-slate-50 border-slate-200 text-slate-600' },
+];
+
+const getWeekBounds = (refDate: Date) => {
+    const d = new Date(refDate);
+    const dayOfWeek = d.getDay(); // 0=Sun, 1=Mon...
+    const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Offset to Monday
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - diff);
+    monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+    return { monday, sunday };
+};
+
+const classifyRdvGroup = (client: Client, summary: ClientSummary, selectedMonthIdx: number, selectedYear: number): RdvGroup => {
+    const now = new Date();
+    const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
+    // Dossier terminé ce mois (validé ET publié pour la période sélectionnée)
+    const selectedMonthName = MONTHS[selectedMonthIdx];
+    const doneRecord = summary.records.find(r =>
+        r.year === selectedYear &&
+        r.month === selectedMonthName &&
+        r.isValidated &&
+        r.isPublished
+    );
+    if (doneRecord) return 'DONE';
+
+    // Pas de RDV programmé
+    if (!client.nextAppointment?.date) return 'NO_RDV';
+
+    const rdvDate = new Date(client.nextAppointment.date);
+
+    // RDV passé → NO_RDV (à reprogrammer)
+    if (rdvDate < new Date(now.getFullYear(), now.getMonth(), now.getDate())) return 'NO_RDV';
+
+    // Pas de données soumises pour la période → en attente du client
+    const hasSubmitted = summary.records.some(r =>
+        r.year === selectedYear &&
+        r.month === selectedMonthName &&
+        r.isSubmitted
+    );
+    if (!hasSubmitted && !summary.pendingValidation) return 'NOT_SUBMITTED';
+
+    // Classifier par semaine
+    const thisWeek = getWeekBounds(now);
+    const nextWeekMonday = new Date(thisWeek.monday);
+    nextWeekMonday.setDate(nextWeekMonday.getDate() + 7);
+    const nextWeekSunday = new Date(nextWeekMonday);
+    nextWeekSunday.setDate(nextWeekMonday.getDate() + 6);
+    nextWeekSunday.setHours(23, 59, 59, 999);
+
+    if (rdvDate >= thisWeek.monday && rdvDate <= thisWeek.sunday) return 'THIS_WEEK';
+    if (rdvDate >= nextWeekMonday && rdvDate <= nextWeekSunday) return 'NEXT_WEEK';
+    return 'LATER';
+};
+
+const formatRdvDate = (dateStr: string): string => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffDays = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+    const dayName = date.toLocaleDateString('fr-FR', { weekday: 'short' });
+    const dayNum = date.getDate();
+    const monthName = date.toLocaleDateString('fr-FR', { month: 'short' });
+
+    if (diffDays === 0) return "Aujourd'hui";
+    if (diffDays === 1) return 'Demain';
+    if (diffDays < 0) return `Passé (${dayName} ${dayNum} ${monthName})`;
+    return `${dayName} ${dayNum} ${monthName} (J-${diffDays})`;
+};
+
+const getRdvStatusBadge = (summary: ClientSummary, selectedMonthIdx: number, selectedYear: number) => {
+    const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+    const selectedMonthName = MONTHS[selectedMonthIdx];
+
+    const record = summary.records.find(r =>
+        r.year === selectedYear && r.month === selectedMonthName
+    );
+
+    if (!record) return { label: 'Non soumis', class: 'bg-slate-100 text-slate-500', icon: <FileX className="w-3 h-3" /> };
+    if (record.isPublished && record.isValidated) return { label: 'Publié', class: 'bg-emerald-100 text-emerald-700', icon: <CheckCircle className="w-3 h-3" /> };
+    if (record.isValidated) return { label: 'Validé', class: 'bg-blue-100 text-blue-700', icon: <FileCheck className="w-3 h-3" /> };
+    if (record.isSubmitted) return { label: 'À valider', class: 'bg-amber-100 text-amber-700', icon: <Clock className="w-3 h-3" /> };
+    return { label: 'En saisie', class: 'bg-slate-100 text-slate-500', icon: <Clock className="w-3 h-3" /> };
+};
+
 // ─── Composant Principal ───────────────────────────────────────────
 const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSelectClient, onNavigateToMessages }) => {
     const [summaries, setSummaries] = useState<ClientSummary[]>([]);
@@ -468,6 +575,56 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
     }, [summaries, filter, searchQuery]);
 
     const togglePanel = (p: PanelType) => setActivePanel(prev => prev === p ? null : p);
+
+    // ─── FILE D'ATTENTE RDV ─────────────────────────────────────
+    const [collapsedGroups, setCollapsedGroups] = useState<Set<RdvGroup>>(new Set(['DONE']));
+
+    const toggleGroup = (group: RdvGroup) => {
+        setCollapsedGroups(prev => {
+            const next = new Set(prev);
+            if (next.has(group)) next.delete(group);
+            else next.add(group);
+            return next;
+        });
+    };
+
+    const rdvGroups = useMemo(() => {
+        const groups: Record<RdvGroup, ClientSummary[]> = {
+            THIS_WEEK: [], NEXT_WEEK: [], LATER: [],
+            NOT_SUBMITTED: [], DONE: [], NO_RDV: [],
+        };
+
+        summaries.forEach(s => {
+            const group = classifyRdvGroup(s.client, s, selectedMonthIdx, selectedYear);
+            groups[group].push(s);
+        });
+
+        // Trier chaque groupe par date de RDV (les plus proches en premier)
+        const sortByRdv = (a: ClientSummary, b: ClientSummary) => {
+            const dateA = a.client.nextAppointment?.date || '9999-12-31';
+            const dateB = b.client.nextAppointment?.date || '9999-12-31';
+            return dateA.localeCompare(dateB);
+        };
+
+        groups.THIS_WEEK.sort(sortByRdv);
+        groups.NEXT_WEEK.sort(sortByRdv);
+        groups.LATER.sort(sortByRdv);
+        groups.NOT_SUBMITTED.sort((a, b) => a.client.companyName.localeCompare(b.client.companyName, 'fr'));
+        groups.DONE.sort((a, b) => a.client.companyName.localeCompare(b.client.companyName, 'fr'));
+        groups.NO_RDV.sort((a, b) => a.client.companyName.localeCompare(b.client.companyName, 'fr'));
+
+        return groups;
+    }, [summaries, selectedMonthIdx, selectedYear]);
+
+    const rdvKpis = useMemo(() => {
+        const withRdv = summaries.filter(s => s.client.nextAppointment?.date);
+        const thisWeekCount = rdvGroups.THIS_WEEK.length;
+        const toValidate = summaries.filter(s => s.pendingValidation).length;
+        const notSubmitted = rdvGroups.NOT_SUBMITTED.length;
+        const doneCount = rdvGroups.DONE.length;
+        const noRdv = rdvGroups.NO_RDV.length;
+        return { withRdv: withRdv.length, thisWeekCount, toValidate, notSubmitted, doneCount, noRdv };
+    }, [summaries, rdvGroups]);
 
     if (isLoading) return (
         <div className="flex flex-col items-center justify-center h-[50vh] text-brand-500">
@@ -702,6 +859,140 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                     onClose={() => { setActivePanel(null); setFilter('ALL'); }}
                 />
             )}
+
+            {/* ═══ FILE D'ATTENTE RDV ═══ */}
+            <div className="space-y-3">
+                {/* Bandeau KPI RDV */}
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                    <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <Calendar className="w-5 h-5 text-brand-600" />
+                        File d'attente — Consultations
+                    </h2>
+                    <div className="flex flex-wrap gap-2 text-[10px] font-bold">
+                        {rdvKpis.thisWeekCount > 0 && (
+                            <span className="px-2.5 py-1 rounded-full bg-red-100 text-red-700 border border-red-200">
+                                {rdvKpis.thisWeekCount} RDV cette semaine
+                            </span>
+                        )}
+                        {rdvKpis.toValidate > 0 && (
+                            <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                                {rdvKpis.toValidate} saisie{rdvKpis.toValidate > 1 ? 's' : ''} à valider
+                            </span>
+                        )}
+                        {rdvKpis.notSubmitted > 0 && (
+                            <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                                {rdvKpis.notSubmitted} en attente du client
+                            </span>
+                        )}
+                        {rdvKpis.noRdv > 0 && (
+                            <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
+                                {rdvKpis.noRdv} sans RDV
+                            </span>
+                        )}
+                        {rdvKpis.doneCount > 0 && (
+                            <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                {rdvKpis.doneCount} terminé{rdvKpis.doneCount > 1 ? 's' : ''}
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                {/* Groupes RDV */}
+                {RDV_GROUP_CONFIGS.map(config => {
+                    const items = rdvGroups[config.key];
+                    if (items.length === 0) return null;
+                    const isCollapsed = collapsedGroups.has(config.key);
+
+                    return (
+                        <div key={config.key} className={`rounded-xl border overflow-hidden shadow-sm ${config.headerClass.split(' ').filter(c => c.startsWith('border-')).join(' ')}`}>
+                            {/* Header pliable */}
+                            <button
+                                onClick={() => toggleGroup(config.key)}
+                                className={`w-full flex items-center justify-between px-4 py-2.5 transition-colors ${config.headerClass}`}
+                            >
+                                <div className="flex items-center gap-2">
+                                    {config.icon}
+                                    <span className="text-xs font-bold">{config.label}</span>
+                                    <span className="text-[10px] font-normal opacity-70">({items.length} dossier{items.length > 1 ? 's' : ''})</span>
+                                </div>
+                                {isCollapsed ? <ChevronRightIcon className="w-4 h-4 opacity-50" /> : <ChevronDown className="w-4 h-4 opacity-50" />}
+                            </button>
+
+                            {/* Contenu */}
+                            {!isCollapsed && (
+                                <div className="bg-white divide-y divide-slate-100">
+                                    {items.map(item => {
+                                        const badge = getRdvStatusBadge(item, selectedMonthIdx, selectedYear);
+                                        const appt = item.client.nextAppointment;
+
+                                        return (
+                                            <div
+                                                key={item.client.id}
+                                                onClick={() => onSelectClient(item.client)}
+                                                className="flex items-center justify-between px-4 py-2.5 hover:bg-brand-50/30 transition-colors cursor-pointer group"
+                                            >
+                                                {/* Client info */}
+                                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                    <div className="relative shrink-0">
+                                                        <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold border border-slate-200 text-[10px]">
+                                                            {item.client.companyName.substring(0, 2).toUpperCase()}
+                                                        </div>
+                                                        {item.client.hasUnreadMessages && (
+                                                            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full border border-white animate-pulse" />
+                                                        )}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <div className="font-bold text-slate-800 text-xs truncate max-w-[180px]">{item.client.companyName}</div>
+                                                        <div className="text-[10px] text-slate-400 truncate max-w-[180px]">{item.client.managerName}</div>
+                                                    </div>
+                                                </div>
+
+                                                {/* RDV info */}
+                                                <div className="flex items-center gap-4 shrink-0">
+                                                    {/* Date RDV */}
+                                                    {appt?.date && (
+                                                        <div className="text-right hidden sm:block">
+                                                            <div className="text-[10px] font-bold text-slate-600">
+                                                                {formatRdvDate(appt.date)}
+                                                            </div>
+                                                            <div className="text-[9px] text-slate-400 flex items-center justify-end gap-1">
+                                                                <Clock className="w-2.5 h-2.5" /> {appt.time}
+                                                                {appt.location && (
+                                                                    <>
+                                                                        <span className="mx-0.5">·</span>
+                                                                        <MapPin className="w-2.5 h-2.5" /> {appt.location}
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Statut dossier */}
+                                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${badge.class}`}>
+                                                        {badge.icon} {badge.label}
+                                                    </span>
+
+                                                    {/* Trésorerie mini */}
+                                                    {item.lastRecord && (
+                                                        <span className={`hidden md:inline-block font-mono text-[10px] font-bold ${item.treasuryAlert ? 'text-red-600' : 'text-emerald-600'}`}>
+                                                            {fmtEur(item.lastRecord.cashFlow.treasury)}
+                                                        </span>
+                                                    )}
+
+                                                    {/* Ouvrir */}
+                                                    <span className="text-[10px] font-bold text-brand-500 opacity-0 group-hover:opacity-100 transition inline-flex items-center gap-0.5">
+                                                        Ouvrir <ArrowRight className="w-3 h-3" />
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
 
             {/* SEARCH BAR */}
             <div className="relative">

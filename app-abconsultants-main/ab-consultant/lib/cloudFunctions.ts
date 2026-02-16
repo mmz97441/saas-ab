@@ -109,6 +109,7 @@ interface ScheduleAppointmentParams {
 interface ScheduleAppointmentResponse {
   success: boolean;
   token: string;
+  emailSent?: boolean;
 }
 
 export async function scheduleAppointment(params: ScheduleAppointmentParams): Promise<ScheduleAppointmentResponse> {

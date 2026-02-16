@@ -27,13 +27,17 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
 
     setIsLoading(true);
     try {
-      await scheduleAppointment({
+      const result = await scheduleAppointment({
         clientId: client.id,
         date: formData.date,
         time: formData.time,
         location: formData.location,
       });
-      showNotification('RDV programmé. Email de convocation envoyé.', 'success');
+      if (result.emailSent === false) {
+        showNotification('RDV programmé, mais l\'email n\'a pas pu être envoyé. Vérifiez l\'adresse email du client.', 'info');
+      } else {
+        showNotification('RDV programmé. Email de convocation envoyé.', 'success');
+      }
       setIsScheduling(false);
       onAppointmentScheduled();
     } catch (err: any) {

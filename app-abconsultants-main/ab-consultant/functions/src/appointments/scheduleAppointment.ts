@@ -44,70 +44,84 @@ export const scheduleAppointment = functions.https.onCall(async (data, context) 
 
   const clientData = clientDoc.data()!;
 
-  // Générer un token sécurisé
-  const token = crypto.randomUUID();
+  try {
+    // Générer un token sécurisé
+    const token = crypto.randomUUID();
 
-  // Sauvegarder le RDV sur le document client
-  const nextAppointment = {
-    date,
-    time,
-    location: location || '',
-    status: 'proposed',
-    token,
-    remindersSent: [],
-    createdAt: new Date().toISOString(),
-  };
+    // Sauvegarder le RDV sur le document client
+    const nextAppointment = {
+      date,
+      time,
+      location: location || '',
+      status: 'proposed',
+      token,
+      remindersSent: [],
+      createdAt: new Date().toISOString(),
+    };
 
-  await db.collection('clients').doc(clientId).update({
-    nextAppointment,
-  });
+    await db.collection('clients').doc(clientId).update({
+      nextAppointment,
+    });
 
-  // Sauvegarder le token pour lookup rapide O(1)
-  await db.collection('appointmentTokens').doc(token).set({
-    clientId,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
-
-  // Construire les URLs
-  const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || 'ab-consultants';
-  const region = 'europe-west1';
-  const baseUrl = `https://${region}-${projectId}.cloudfunctions.net`;
-  const confirmUrl = `${baseUrl}/confirmAppointment?token=${token}`;
-  const proposeUrl = `${baseUrl}/proposeNewDate?token=${token}`;
-
-  // Formater la date pour l'affichage
-  const dateObj = new Date(date + 'T00:00:00');
-  const options: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-  const dateFormatted = dateObj.toLocaleDateString('fr-FR', options);
-
-  // Récupérer le nom du consultant
-  const consultantName = context.auth.token.name || 'Votre consultant AB Consultants';
-
-  // Envoyer l'email de convocation
-  const ownerEmail = clientData.owner?.email;
-  if (ownerEmail) {
-    await db.collection('mail').add({
-      to: ownerEmail,
-      message: {
-        subject: `[AB Consultants] RDV prévu le ${dateFormatted}`,
-        html: buildConvocationEmail({
-          clientName: clientData.owner?.name || clientData.managerName || 'Madame, Monsieur',
-          companyName: clientData.companyName,
-          date: dateFormatted,
-          time,
-          location: location || 'À définir',
-          consultantName,
-          confirmUrl,
-          proposeUrl,
-        }),
-      },
+    // Sauvegarder le token pour lookup rapide O(1)
+    await db.collection('appointmentTokens').doc(token).set({
+      clientId,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
+
+    // Construire les URLs
+    const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || 'ab-consultants';
+    const region = 'europe-west1';
+    const baseUrl = `https://${region}-${projectId}.cloudfunctions.net`;
+    const confirmUrl = `${baseUrl}/confirmAppointment?token=${token}`;
+    const proposeUrl = `${baseUrl}/proposeNewDate?token=${token}`;
+
+    // Formater la date pour l'affichage
+    const dateObj = new Date(date + 'T00:00:00');
+    const options: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const dateFormatted = dateObj.toLocaleDateString('fr-FR', options);
+
+    // Récupérer le nom du consultant
+    const consultantName = context.auth.token.name || 'Votre consultant AB Consultants';
+
+    // Envoyer l'email de convocation (non bloquant : le RDV est déjà sauvé)
+    let emailSent = false;
+    const ownerEmail = clientData.owner?.email;
+    if (ownerEmail) {
+      try {
+        await db.collection('mail').add({
+          to: ownerEmail,
+          message: {
+            subject: `[AB Consultants] RDV prévu le ${dateFormatted}`,
+            html: buildConvocationEmail({
+              clientName: clientData.owner?.name || clientData.managerName || 'Madame, Monsieur',
+              companyName: clientData.companyName,
+              date: dateFormatted,
+              time,
+              location: location || 'À définir',
+              consultantName,
+              confirmUrl,
+              proposeUrl,
+            }),
+          },
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        emailSent = true;
+      } catch (emailErr: any) {
+        functions.logger.error('Failed to queue convocation email', { clientId, error: emailErr?.message });
+      }
+    }
+
+    functions.logger.info('Appointment scheduled', { clientId, date, time, emailSent, token: token.substring(0, 8) + '...' });
+
+    return { success: true, token, emailSent };
+  } catch (err: any) {
+    functions.logger.error('Error scheduling appointment', { clientId, error: err?.message });
+    throw new functions.https.HttpsError(
+      'internal',
+      'Erreur lors de la programmation du RDV. Veuillez réessayer.'
+    );
   }
-
-  functions.logger.info('Appointment scheduled', { clientId, date, time, token: token.substring(0, 8) + '...' });
-
-  return { success: true, token };
 });
 
 function buildConvocationEmail(params: {

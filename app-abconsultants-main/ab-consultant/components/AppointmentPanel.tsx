@@ -3,14 +3,16 @@ import { Calendar, Clock, MapPin, Check, AlertTriangle, Loader2, CalendarPlus, R
 import { Client, NextAppointment } from '../types';
 import { scheduleAppointment } from '../lib/cloudFunctions';
 import { saveClient } from '../services/dataService';
+import DatePickerCalendar from './DatePickerCalendar';
 
 interface AppointmentPanelProps {
   client: Client;
   onAppointmentScheduled: () => void;
   showNotification: (message: string, type: 'success' | 'error' | 'info') => void;
+  allClients?: Client[];
 }
 
-const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointmentScheduled, showNotification }) => {
+const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointmentScheduled, showNotification, allClients = [] }) => {
   const [isScheduling, setIsScheduling] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -20,6 +22,17 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
   });
 
   const appointment = client.nextAppointment;
+
+  // Construire la liste de tous les RDV pour le calendrier
+  const allAppointments = allClients
+    .filter(c => c.nextAppointment?.date)
+    .map(c => ({
+      date: c.nextAppointment!.date,
+      time: c.nextAppointment!.time,
+      clientName: c.owner?.name || c.managerName || c.companyName || 'Client',
+      location: c.nextAppointment!.location,
+      status: c.nextAppointment!.status,
+    }));
 
   const handleSchedule = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,6 +106,38 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
   tomorrow.setDate(tomorrow.getDate() + 1);
   const minDate = tomorrow.toISOString().split('T')[0];
 
+  // Formulaire réutilisable avec le DatePickerCalendar
+  const renderForm = (submitLabel: string, onCancel: () => void) => (
+    <form onSubmit={handleSchedule} className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div>
+          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Date</label>
+          <DatePickerCalendar
+            value={formData.date}
+            onChange={(date) => setFormData({ ...formData, date })}
+            minDate={minDate}
+            appointments={allAppointments}
+          />
+        </div>
+        <div>
+          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Heure</label>
+          <input type="time" value={formData.time} onChange={(e) => setFormData({ ...formData, time: e.target.value })} required className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 outline-none" />
+        </div>
+        <div>
+          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Lieu</label>
+          <input type="text" value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} placeholder="Sainte-Clotilde" className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 outline-none" />
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <button type="submit" disabled={isLoading} className="px-4 py-2 bg-brand-600 text-white rounded-lg text-xs font-bold hover:bg-brand-700 transition disabled:opacity-50 flex items-center gap-1">
+          {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Calendar className="w-3 h-3" />}
+          {submitLabel}
+        </button>
+        <button type="button" onClick={onCancel} className="px-4 py-2 text-slate-500 text-xs hover:text-slate-700">Annuler</button>
+      </div>
+    </form>
+  );
+
   // --- ÉTAT : Proposition de changement du client ---
   if (appointment?.status === 'pending_change' && appointment.proposedDate) {
     return (
@@ -140,29 +185,9 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
 
         {/* Formulaire de contre-proposition */}
         {isScheduling && (
-          <form onSubmit={handleSchedule} className="mt-4 pt-4 border-t border-amber-200 space-y-3">
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Date</label>
-                <input type="date" min={minDate} value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} required className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 outline-none" />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Heure</label>
-                <input type="time" value={formData.time} onChange={(e) => setFormData({ ...formData, time: e.target.value })} required className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 outline-none" />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Lieu</label>
-                <input type="text" value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} placeholder="Sainte-Clotilde" className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 outline-none" />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button type="submit" disabled={isLoading} className="px-4 py-2 bg-brand-600 text-white rounded-lg text-xs font-bold hover:bg-brand-700 transition disabled:opacity-50 flex items-center gap-1">
-                {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Calendar className="w-3 h-3" />}
-                Reprogrammer
-              </button>
-              <button type="button" onClick={() => setIsScheduling(false)} className="px-4 py-2 text-slate-500 text-xs hover:text-slate-700">Annuler</button>
-            </div>
-          </form>
+          <div className="mt-4 pt-4 border-t border-amber-200">
+            {renderForm('Reprogrammer', () => setIsScheduling(false))}
+          </div>
         )}
       </div>
     );
@@ -193,29 +218,9 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
           </div>
 
           {isScheduling && (
-            <form onSubmit={handleSchedule} className="mt-4 pt-4 border-t border-slate-200 space-y-3">
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Date</label>
-                  <input type="date" min={minDate} value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} required className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 outline-none" />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Heure</label>
-                  <input type="time" value={formData.time} onChange={(e) => setFormData({ ...formData, time: e.target.value })} required className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 outline-none" />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Lieu</label>
-                  <input type="text" value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} placeholder="Sainte-Clotilde" className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 outline-none" />
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button type="submit" disabled={isLoading} className="px-4 py-2 bg-brand-600 text-white rounded-lg text-xs font-bold hover:bg-brand-700 transition disabled:opacity-50 flex items-center gap-1">
-                  {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Calendar className="w-3 h-3" />}
-                  Programmer
-                </button>
-                <button type="button" onClick={() => setIsScheduling(false)} className="px-4 py-2 text-slate-500 text-xs hover:text-slate-700">Annuler</button>
-              </div>
-            </form>
+            <div className="mt-4 pt-4 border-t border-slate-200">
+              {renderForm('Programmer', () => setIsScheduling(false))}
+            </div>
           )}
         </div>
       );
@@ -254,30 +259,10 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
 
         {/* Formulaire de reprogrammation */}
         {isScheduling && (
-          <form onSubmit={handleSchedule} className={`mt-4 pt-4 border-t space-y-3 ${isConfirmed ? 'border-emerald-200' : 'border-blue-200'}`}>
-            <p className="text-xs text-slate-500 font-medium">Reprogrammer le RDV (un nouvel email sera envoyé) :</p>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Date</label>
-                <input type="date" min={minDate} value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} required className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 outline-none" />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Heure</label>
-                <input type="time" value={formData.time} onChange={(e) => setFormData({ ...formData, time: e.target.value })} required className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 outline-none" />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Lieu</label>
-                <input type="text" value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} placeholder="Sainte-Clotilde" className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 outline-none" />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button type="submit" disabled={isLoading} className="px-4 py-2 bg-brand-600 text-white rounded-lg text-xs font-bold hover:bg-brand-700 transition disabled:opacity-50 flex items-center gap-1">
-                {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Calendar className="w-3 h-3" />}
-                Reprogrammer
-              </button>
-              <button type="button" onClick={() => setIsScheduling(false)} className="px-4 py-2 text-slate-500 text-xs hover:text-slate-700">Annuler</button>
-            </div>
-          </form>
+          <div className={`mt-4 pt-4 border-t ${isConfirmed ? 'border-emerald-200' : 'border-blue-200'}`}>
+            <p className="text-xs text-slate-500 font-medium mb-3">Reprogrammer le RDV (un nouvel email sera envoyé) :</p>
+            {renderForm('Reprogrammer', () => setIsScheduling(false))}
+          </div>
         )}
       </div>
     );
@@ -307,29 +292,7 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
         <CalendarPlus className="w-4 h-4 text-brand-600" />
         Programmer un rendez-vous
       </h3>
-      <form onSubmit={handleSchedule} className="space-y-3">
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Date</label>
-            <input type="date" min={minDate} value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} required className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 outline-none" />
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Heure</label>
-            <input type="time" value={formData.time} onChange={(e) => setFormData({ ...formData, time: e.target.value })} required className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 outline-none" />
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Lieu</label>
-            <input type="text" value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} placeholder="Sainte-Clotilde" className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 outline-none" />
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <button type="submit" disabled={isLoading} className="px-4 py-2 bg-brand-600 text-white rounded-lg text-xs font-bold hover:bg-brand-700 transition disabled:opacity-50 flex items-center gap-1">
-            {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Calendar className="w-3 h-3" />}
-            Programmer et envoyer la convocation
-          </button>
-          <button type="button" onClick={() => setIsScheduling(false)} className="px-4 py-2 text-slate-500 text-xs hover:text-slate-700">Annuler</button>
-        </div>
-      </form>
+      {renderForm('Programmer et envoyer la convocation', () => setIsScheduling(false))}
     </div>
   );
 };

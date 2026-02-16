@@ -516,6 +516,7 @@ const App: React.FC = () => {
                     client={selectedClient}
                     onAppointmentScheduled={refreshClients}
                     showNotification={showNotification}
+                    allClients={clients}
                   />
                 </div>
             )}

@@ -1,5 +1,6 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import { sendMail } from '../email/emailService';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -63,16 +64,13 @@ export const confirmAppointment = functions.https.onRequest(async (req, res) => 
       'nextAppointment.status': 'confirmed',
     });
 
-    // Notifier le consultant
+    // Notifier le consultant via SMTP
     const consultantEmail = clientData.assignedConsultantEmail || 'admin@ab-consultants.fr';
     const dateFormatted = formatDate(appointment.date);
-    await db.collection('mail').add({
+    await sendMail({
       to: consultantEmail,
-      message: {
-        subject: `[AB Consultants] RDV confirmé — ${clientData.companyName}`,
-        html: `<p><strong>${clientData.owner?.name || clientData.managerName || 'Le client'}</strong> (${clientData.companyName}) a confirmé le RDV du <strong>${dateFormatted} à ${appointment.time}</strong>.</p>`,
-      },
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      subject: `[AB Consultants] RDV confirmé — ${clientData.companyName}`,
+      html: `<p><strong>${clientData.owner?.name || clientData.managerName || 'Le client'}</strong> (${clientData.companyName}) a confirmé le RDV du <strong>${dateFormatted} à ${appointment.time}</strong>.</p>`,
     });
 
     functions.logger.info('Appointment confirmed', { clientId, date: appointment.date });

@@ -1,5 +1,6 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import { sendMail } from '../email/emailService';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -106,22 +107,19 @@ export const sendDashboardReminders = functions.pubsub
       const rdvDateFormatted = formatDate(appointment.date);
       const level = getReminderLevel(daysUntilRdv);
 
-      await db.collection('mail').add({
+      await sendMail({
         to: ownerEmail,
-        message: {
-          subject: buildReminderSubject(level, dataMonthName),
-          html: buildReminderEmail({
-            clientName: client.owner?.name || client.managerName || 'Madame, Monsieur',
-            companyName: client.companyName,
-            dataMonthName,
-            dataYear,
-            rdvDate: rdvDateFormatted,
-            rdvTime: appointment.time,
-            daysUntilRdv,
-            level,
-          }),
-        },
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        subject: buildReminderSubject(level, dataMonthName),
+        html: buildReminderEmail({
+          clientName: client.owner?.name || client.managerName || 'Madame, Monsieur',
+          companyName: client.companyName,
+          dataMonthName,
+          dataYear,
+          rdvDate: rdvDateFormatted,
+          rdvTime: appointment.time,
+          daysUntilRdv,
+          level,
+        }),
       });
 
       // Marquer le rappel comme envoyé
@@ -135,14 +133,11 @@ export const sendDashboardReminders = functions.pubsub
       // J-1 : CC le consultant si toujours pas soumis
       if (daysUntilRdv <= 1) {
         const consultantEmail = client.assignedConsultantEmail || 'admin@ab-consultants.fr';
-        await db.collection('mail').add({
+        await sendMail({
           to: consultantEmail,
-          message: {
-            subject: `[AB Consultants] ⚠️ Saisie non faite — ${client.companyName} — RDV demain`,
-            html: `<p><strong>${client.companyName}</strong> n'a toujours pas saisi son tableau de bord de <strong>${dataMonthName} ${dataYear}</strong>.</p>
+          subject: `[AB Consultants] ⚠️ Saisie non faite — ${client.companyName} — RDV demain`,
+          html: `<p><strong>${client.companyName}</strong> n'a toujours pas saisi son tableau de bord de <strong>${dataMonthName} ${dataYear}</strong>.</p>
 <p>Le rendez-vous est prévu <strong>${rdvDateFormatted} à ${appointment.time}</strong>.</p>`,
-          },
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
       }
     }

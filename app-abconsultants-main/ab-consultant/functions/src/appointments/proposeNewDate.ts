@@ -1,5 +1,6 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import { sendMail } from '../email/emailService';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -68,20 +69,17 @@ export const proposeNewDate = functions.https.onRequest(async (req, res) => {
         'nextAppointment.proposedTime': proposedTime,
       });
 
-      // Notifier le consultant
+      // Notifier le consultant via SMTP
       const consultantEmail = clientData.assignedConsultantEmail || 'admin@ab-consultants.fr';
       const proposedDateFormatted = formatDate(proposedDate);
-      await db.collection('mail').add({
+      await sendMail({
         to: consultantEmail,
-        message: {
-          subject: `[AB Consultants] Demande de changement de RDV — ${clientData.companyName}`,
-          html: `
+        subject: `[AB Consultants] Demande de changement de RDV — ${clientData.companyName}`,
+        html: `
 <p><strong>${clientData.owner?.name || clientData.managerName || 'Le client'}</strong> (${clientData.companyName}) souhaite modifier son rendez-vous.</p>
 <p><strong>Date actuelle :</strong> ${formatDate(appointment.date)} à ${appointment.time}</p>
 <p><strong>Date proposée :</strong> ${proposedDateFormatted} à ${proposedTime}</p>
 <p>Connectez-vous à l'application pour accepter ou proposer une alternative.</p>`,
-        },
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
       functions.logger.info('New date proposed', { clientId, proposedDate, proposedTime });

@@ -1,6 +1,7 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import * as crypto from 'crypto';
+import { sendMail } from '../email/emailService';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -84,31 +85,27 @@ export const scheduleAppointment = functions.https.onCall(async (data, context) 
     // Récupérer le nom du consultant
     const consultantName = context.auth.token.name || 'Votre consultant AB Consultants';
 
-    // Envoyer l'email de convocation (non bloquant : le RDV est déjà sauvé)
+    // Envoyer l'email de convocation via SMTP (non bloquant : le RDV est déjà sauvé)
     let emailSent = false;
     const ownerEmail = clientData.owner?.email;
     if (ownerEmail) {
       try {
-        await db.collection('mail').add({
+        emailSent = await sendMail({
           to: ownerEmail,
-          message: {
-            subject: `[AB Consultants] RDV prévu le ${dateFormatted}`,
-            html: buildConvocationEmail({
-              clientName: clientData.owner?.name || clientData.managerName || 'Madame, Monsieur',
-              companyName: clientData.companyName,
-              date: dateFormatted,
-              time,
-              location: location || 'À définir',
-              consultantName,
-              confirmUrl,
-              proposeUrl,
-            }),
-          },
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          subject: `[AB Consultants] RDV prévu le ${dateFormatted}`,
+          html: buildConvocationEmail({
+            clientName: clientData.owner?.name || clientData.managerName || 'Madame, Monsieur',
+            companyName: clientData.companyName,
+            date: dateFormatted,
+            time,
+            location: location || 'À définir',
+            consultantName,
+            confirmUrl,
+            proposeUrl,
+          }),
         });
-        emailSent = true;
       } catch (emailErr: any) {
-        functions.logger.error('Failed to queue convocation email', { clientId, error: emailErr?.message });
+        functions.logger.error('Failed to send convocation email', { clientId, error: emailErr?.message });
       }
     }
 

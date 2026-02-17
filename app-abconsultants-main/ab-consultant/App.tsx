@@ -18,7 +18,7 @@ import AppointmentPanel from './components/AppointmentPanel';
 import { useConfirmDialog } from './contexts/ConfirmContext';
 
 import { FinancialRecord, Client, Month, ProfitCenter, Consultant, View } from './types';
-import { getClients, saveClient, updateClientStatus, getRecordsByClient, resetDatabase, MONTH_ORDER, toShortMonth, getConsultants, addConsultant, deleteConsultant, deleteRecord, checkConsultantEmailExists, checkClientEmailExists, saveRecord } from './services/dataService';
+import { getClients, saveClient, updateClientStatus, getRecordsByClient, resetDatabase, MONTH_ORDER, toShortMonth, getConsultants, addConsultant, deleteConsultant, deleteRecord, checkConsultantEmailExists, checkClientEmailExists, saveRecord, logActivity } from './services/dataService';
 import { auth } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -170,11 +170,12 @@ const App: React.FC = () => {
         isSubmitted: userRole === 'client' ? true : record.isSubmitted 
     };
     await saveRecord(recordWithClient);
+    await logActivity(selectedClient.id, 'data_submitted', `Données ${record.month} ${record.year} enregistrées`, { month: record.month, year: record.year });
     await refreshRecords();
-    
+
     if (userRole === 'client') {
         showNotification("Saisie enregistrée.", 'success');
-        setEditingRecord(recordWithClient); 
+        setEditingRecord(recordWithClient);
     } else {
         showNotification("Données enregistrées.", 'success');
         setEditingRecord(null);
@@ -203,12 +204,14 @@ const App: React.FC = () => {
   const toggleValidation = async (record: FinancialRecord) => {
       if (userRole !== 'ab_consultant') return;
       await saveRecord({ ...record, isValidated: !record.isValidated });
+      if (selectedClient) await logActivity(selectedClient.id, 'data_validated', `${record.month} ${record.year} ${!record.isValidated ? 'validé' : 'dé-validé'}`, { month: record.month, year: record.year });
       await refreshRecords();
   };
 
   const togglePublication = async (record: FinancialRecord) => {
       if (userRole !== 'ab_consultant') return;
       await saveRecord({ ...record, isPublished: !record.isPublished });
+      if (selectedClient) await logActivity(selectedClient.id, 'data_published', `${record.month} ${record.year} ${!record.isPublished ? 'publié' : 'dé-publié'}`, { month: record.month, year: record.year });
       await refreshRecords();
   };
 
@@ -236,9 +239,10 @@ const App: React.FC = () => {
       } as Client;
 
       await saveClient(newClient);
+      await logActivity(newClient.id, clientData.id ? 'config_updated' : 'client_created', clientData.id ? `Dossier ${newClient.companyName} modifié` : `Dossier ${newClient.companyName} créé`);
       await refreshClients();
       // On garde la modale ouverte si c'était une création pour l'étape d'invitation (gérée dans ClientModal)
-      if (clientData.id) setIsClientModalOpen(false); 
+      if (clientData.id) setIsClientModalOpen(false);
       showNotification(clientData.id ? "Dossier modifié." : "Dossier créé avec succès.", 'success');
   };
 
@@ -305,8 +309,9 @@ const App: React.FC = () => {
 
   const handleUpdateClientStatus = async (client: Client, newStatus: 'active' | 'inactive') => {
       if (userRole !== 'ab_consultant') return;
-      if (statusModal.isOpen) setStatusModal({ isOpen: false, client: null }); 
+      if (statusModal.isOpen) setStatusModal({ isOpen: false, client: null });
       await updateClientStatus(client.id, newStatus);
+      await logActivity(client.id, 'status_changed', `Dossier ${newStatus === 'active' ? 'réactivé' : 'archivé'}`);
       await refreshClients();
       showNotification(`Dossier ${newStatus}.`, 'success');
   };
@@ -590,6 +595,32 @@ const App: React.FC = () => {
                         });
                         if (ok) await handleUpdateClientStatus(client, newStatus);
                     }}
+                    onSaveClient={async (client) => {
+                        await saveClient(client);
+                        await logActivity(client.id, 'config_updated', `Fiche administrative mise à jour`);
+                        await refreshClients();
+                        showNotification("Dossier mis à jour.", 'success');
+                    }}
+                    onUpdateProfitCenters={async (client, pcs) => {
+                        await saveClient({ ...client, profitCenters: pcs });
+                        await logActivity(client.id, 'config_updated', `Structure analytique modifiée (${pcs.length} activités)`);
+                        await refreshClients();
+                        showNotification("Activités mises à jour.", 'success');
+                    }}
+                    onToggleFuelModule={async (client) => {
+                        const updated = { ...client, settings: { ...client.settings!, showFuelTracking: !client.settings?.showFuelTracking }};
+                        await saveClient(updated);
+                        await logActivity(updated.id, 'config_updated', `Module carburant ${updated.settings?.showFuelTracking ? 'activé' : 'désactivé'}`);
+                        await refreshClients();
+                    }}
+                    onToggleCommercialMargin={async (client) => {
+                        const updated = { ...client, settings: { ...client.settings!, showCommercialMargin: !client.settings?.showCommercialMargin }};
+                        await saveClient(updated);
+                        await logActivity(updated.id, 'config_updated', `Module marge ${updated.settings?.showCommercialMargin ? 'activé' : 'désactivé'}`);
+                        await refreshClients();
+                        showNotification(updated.settings?.showCommercialMargin ? "Module Marge activé." : "Module Marge désactivé.", 'info');
+                    }}
+                    onUpdateClientStatus={handleUpdateClientStatus}
                 />
             )}
          </div>

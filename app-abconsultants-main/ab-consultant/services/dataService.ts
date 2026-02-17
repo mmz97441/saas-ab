@@ -1,5 +1,5 @@
 
-import { FinancialRecord, Month, Client, Consultant, ChatMessage } from "../types";
+import { FinancialRecord, Month, Client, Consultant, ChatMessage, ActivityEvent, ActivityEventType } from "../types";
 import { db, auth } from "../firebase"; 
 import { 
   collection, 
@@ -429,4 +429,81 @@ export const resetDatabase = async (): Promise<void> => {
 
     await deleteInBatches(COLL_CLIENTS);
     await deleteInBatches(COLL_RECORDS);
+};
+
+// --- ACTIVITY TIMELINE SERVICES ---
+const COLL_ACTIVITIES = 'activities';
+
+export const logActivity = async (
+    clientId: string,
+    type: ActivityEventType,
+    description: string,
+    metadata?: Record<string, any>
+): Promise<void> => {
+    try {
+        await addDoc(collection(db, COLL_ACTIVITIES), {
+            clientId,
+            type,
+            description,
+            metadata: metadata || {},
+            timestamp: serverTimestamp()
+        });
+    } catch (error) {
+        console.error("Erreur log activité:", error);
+    }
+};
+
+export const getClientActivities = async (clientId: string, limitCount = 30): Promise<ActivityEvent[]> => {
+    try {
+        const q = query(
+            collection(db, COLL_ACTIVITIES),
+            where("clientId", "==", clientId),
+            orderBy("timestamp", "desc")
+        );
+        const snapshot = await getDocs(q);
+        const events = snapshot.docs.map(doc => {
+            const data = doc.data({ serverTimestamps: 'estimate' });
+            return {
+                id: doc.id,
+                clientId: data.clientId,
+                type: data.type as ActivityEventType,
+                description: data.description,
+                timestamp: data.timestamp,
+                metadata: data.metadata || {}
+            } as ActivityEvent;
+        });
+        return events.slice(0, limitCount);
+    } catch (error) {
+        console.error("Erreur chargement activités:", error);
+        return [];
+    }
+};
+
+export const subscribeToClientActivities = (
+    clientId: string,
+    callback: (events: ActivityEvent[]) => void,
+    limitCount = 20
+) => {
+    if (!clientId) return () => {};
+    const q = query(
+        collection(db, COLL_ACTIVITIES),
+        where("clientId", "==", clientId),
+        orderBy("timestamp", "desc")
+    );
+    return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
+        const events = snapshot.docs.slice(0, limitCount).map(doc => {
+            const data = doc.data({ serverTimestamps: 'estimate' });
+            return {
+                id: doc.id,
+                clientId: data.clientId,
+                type: data.type as ActivityEventType,
+                description: data.description,
+                timestamp: data.timestamp,
+                metadata: data.metadata || {}
+            } as ActivityEvent;
+        });
+        callback(events);
+    }, (error) => {
+        console.error("Erreur subscription activités:", error);
+    });
 };

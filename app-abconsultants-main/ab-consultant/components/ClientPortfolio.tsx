@@ -1,12 +1,15 @@
 
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { Client, FinancialRecord } from '../types';
+import { Client, FinancialRecord, ProfitCenter } from '../types';
 import { getRecordsByClient } from '../services/dataService';
 import {
     Users, Plus, Edit2, Search, Briefcase, Archive, X, Loader2,
     ArrowUpDown, ArrowUp, ArrowDown, TrendingDown, CheckCircle,
-    Clock, CalendarClock, HelpCircle, MoreVertical, Send, Copy, Power
+    Clock, CalendarClock, HelpCircle, MoreVertical, Send, Copy, Power,
+    PanelRightOpen, Activity, Settings
 } from 'lucide-react';
+import ActivityTimeline from './ActivityTimeline';
+import QuickConfigPanel from './QuickConfigPanel';
 
 interface ClientPortfolioProps {
     clients: Client[];
@@ -18,6 +21,11 @@ interface ClientPortfolioProps {
     onEditClient: (client: Client) => void;
     onNewClient: () => void;
     onToggleStatus: (client: Client) => void;
+    onSaveClient?: (client: Client) => Promise<void>;
+    onUpdateProfitCenters?: (client: Client, pcs: ProfitCenter[]) => void;
+    onToggleFuelModule?: (client: Client) => void;
+    onToggleCommercialMargin?: (client: Client) => void;
+    onUpdateClientStatus?: (client: Client, status: 'active' | 'inactive') => void;
 }
 
 interface ClientWithKpis {
@@ -34,6 +42,7 @@ interface ClientWithKpis {
 
 type SortKey = 'name' | 'revenue' | 'objective' | 'treasury' | 'sector';
 type SortDir = 'asc' | 'desc';
+type PanelTab = 'timeline' | 'config';
 
 const fmtEur = (v: number) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
 
@@ -56,7 +65,9 @@ const getPerfColor = (p: number) => {
 const ClientPortfolio: React.FC<ClientPortfolioProps> = ({
     clients, clientViewMode, clientSearchQuery,
     onSetClientViewMode, onSetClientSearchQuery,
-    onSelectClient, onEditClient, onNewClient, onToggleStatus
+    onSelectClient, onEditClient, onNewClient, onToggleStatus,
+    onSaveClient, onUpdateProfitCenters, onToggleFuelModule,
+    onToggleCommercialMargin, onUpdateClientStatus
 }) => {
     const [clientKpis, setClientKpis] = useState<ClientWithKpis[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -65,6 +76,11 @@ const ClientPortfolio: React.FC<ClientPortfolioProps> = ({
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
+
+    // Side panel state
+    const [panelClient, setPanelClient] = useState<Client | null>(null);
+    const [panelTab, setPanelTab] = useState<PanelTab>('timeline');
+    const panelRef = useRef<HTMLDivElement>(null);
 
     // Fermer le menu quand on clique ailleurs
     useEffect(() => {
@@ -76,6 +92,23 @@ const ClientPortfolio: React.FC<ClientPortfolioProps> = ({
         if (openMenuId) document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [openMenuId]);
+
+    // Keep panel client in sync with clients array updates (e.g. after config save)
+    useEffect(() => {
+        if (panelClient) {
+            const updated = clients.find(c => c.id === panelClient.id);
+            if (updated) setPanelClient(updated);
+        }
+    }, [clients]);
+
+    const handleOpenPanel = (client: Client, tab: PanelTab = 'timeline') => {
+        if (panelClient?.id === client.id && panelTab === tab) {
+            setPanelClient(null);
+        } else {
+            setPanelClient(client);
+            setPanelTab(tab);
+        }
+    };
 
     // --- Logique d'invitation ---
     const getInviteMessage = (client: Client) => {
@@ -217,279 +250,368 @@ Expertise & Stratégie Financière`;
     };
 
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="flex gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Main content area */}
+            <div className={`space-y-6 transition-all duration-300 ${panelClient ? 'flex-1 min-w-0' : 'w-full'}`}>
 
-            {/* Header + Onglets */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
-                    <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                        <Users className="w-6 h-6 text-brand-500" /> Portefeuille Clients
-                        <span className="text-sm font-normal text-slate-400">({filtered.length} dossier{filtered.length !== 1 ? 's' : ''})</span>
-                    </h2>
-                    <button onClick={onNewClient} className="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700 font-bold shadow-sm transition">
-                        <Plus className="w-4 h-4" /> Nouveau Dossier
-                    </button>
-                </div>
-
-                {/* Search */}
-                <div className="relative mb-4">
-                    <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                    <input
-                        type="text"
-                        value={clientSearchQuery}
-                        onChange={(e) => onSetClientSearchQuery(e.target.value)}
-                        placeholder="Rechercher par nom, dirigeant, ville, SIRET, secteur..."
-                        className="w-full pl-10 pr-10 py-2 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition placeholder-slate-400"
-                    />
-                    {clientSearchQuery && (
-                        <button onClick={() => onSetClientSearchQuery('')} className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
-                            <X className="w-4 h-4" />
+                {/* Header + Onglets */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+                        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                            <Users className="w-6 h-6 text-brand-500" /> Portefeuille Clients
+                            <span className="text-sm font-normal text-slate-400">({filtered.length} dossier{filtered.length !== 1 ? 's' : ''})</span>
+                        </h2>
+                        <button onClick={onNewClient} className="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700 font-bold shadow-sm transition">
+                            <Plus className="w-4 h-4" /> Nouveau Dossier
                         </button>
-                    )}
-                </div>
-
-                {/* Tabs */}
-                <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
-                    <button
-                        onClick={() => onSetClientViewMode('active')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${clientViewMode === 'active' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                        <Briefcase className="w-4 h-4" /> Dossiers Actifs
-                    </button>
-                    <button
-                        onClick={() => onSetClientViewMode('inactive')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${clientViewMode === 'inactive' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                        <Archive className="w-4 h-4" /> Archives / Veille
-                    </button>
-                </div>
-            </div>
-
-            {/* Table */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                {isLoading ? (
-                    <div className="flex items-center justify-center py-16 text-brand-500">
-                        <Loader2 className="w-6 h-6 animate-spin mr-2" />
-                        <span className="text-sm font-medium">Chargement des indicateurs...</span>
                     </div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="text-[10px] font-bold text-slate-400 uppercase bg-slate-50 border-b border-slate-100">
-                                    <th className="p-3 pl-4">
-                                        <button onClick={() => handleSort('name')} className="inline-flex items-center gap-0.5 hover:text-slate-600 transition">
-                                            Dossier Client <SortIcon col="name" />
-                                        </button>
-                                    </th>
-                                    <th className="p-3 text-center">
-                                        <button onClick={() => handleSort('sector')} className="inline-flex items-center gap-0.5 hover:text-slate-600 transition">
-                                            Secteur <SortIcon col="sector" />
-                                        </button>
-                                    </th>
-                                    <th className="p-3 text-right">
-                                        <button onClick={() => handleSort('revenue')} className="inline-flex items-center gap-0.5 hover:text-slate-600 transition ml-auto">
-                                            CA YTD <SortIcon col="revenue" />
-                                        </button>
-                                        <InfoTip text="Chiffre d'affaires HT cumulé depuis le 1er janvier de l'exercice en cours." />
-                                    </th>
-                                    <th className="p-3 text-center">
-                                        <button onClick={() => handleSort('objective')} className="inline-flex items-center gap-0.5 hover:text-slate-600 transition">
-                                            % Objectif <SortIcon col="objective" />
-                                        </button>
-                                        <InfoTip text="Ratio CA réalisé / Objectif CA. Vert ≥ 100%, Orange ≥ 85%, Rouge < 85%." />
-                                    </th>
-                                    <th className="p-3 text-right">
-                                        <button onClick={() => handleSort('treasury')} className="inline-flex items-center gap-0.5 hover:text-slate-600 transition ml-auto">
-                                            Trésorerie <SortIcon col="treasury" />
-                                        </button>
-                                        <InfoTip text="Dernier solde bancaire connu. Rouge si négatif." />
-                                    </th>
-                                    <th className="p-3 text-center">Données <InfoTip text="Fraîcheur des données (< 2 mois = à jour)." /></th>
-                                    <th className="p-3 text-center">Statut</th>
-                                    <th className="p-3 text-right pr-4">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="text-sm divide-y divide-slate-100">
-                                {sorted.map(({ client, ytdRevenue, ytdObjective, objPerformance, lastTreasury, treasuryAlert, dataFresh, pendingValidation, lastActivity }) => {
-                                    const perfCol = ytdObjective > 0 ? getPerfColor(objPerformance) : null;
-                                    return (
-                                        <tr key={client.id} onClick={() => onSelectClient(client)} className={`hover:bg-brand-50/30 transition-colors cursor-pointer group ${client.status === 'inactive' ? 'opacity-60' : ''}`}>
-                                            {/* CLIENT */}
-                                            <td className="p-3 pl-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold border text-sm ${client.status === 'inactive' ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-brand-50 text-brand-700 border-brand-200'}`}>
-                                                        {client.companyName.substring(0, 2).toUpperCase()}
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <div className="font-bold text-slate-800 text-xs truncate max-w-[180px]">{client.companyName}</div>
-                                                        <div className="text-[10px] text-slate-400 truncate max-w-[180px]">
-                                                            {client.managerName}
-                                                            {client.city ? <span className="text-slate-300"> — {client.city}</span> : null}
+
+                    {/* Search */}
+                    <div className="relative mb-4">
+                        <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                        <input
+                            type="text"
+                            value={clientSearchQuery}
+                            onChange={(e) => onSetClientSearchQuery(e.target.value)}
+                            placeholder="Rechercher par nom, dirigeant, ville, SIRET, secteur..."
+                            className="w-full pl-10 pr-10 py-2 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition placeholder-slate-400"
+                        />
+                        {clientSearchQuery && (
+                            <button onClick={() => onSetClientSearchQuery('')} className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+                                <X className="w-4 h-4" />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Tabs */}
+                    <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
+                        <button
+                            onClick={() => onSetClientViewMode('active')}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${clientViewMode === 'active' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            <Briefcase className="w-4 h-4" /> Dossiers Actifs
+                        </button>
+                        <button
+                            onClick={() => onSetClientViewMode('inactive')}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${clientViewMode === 'inactive' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            <Archive className="w-4 h-4" /> Archives / Veille
+                        </button>
+                    </div>
+                </div>
+
+                {/* Table */}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    {isLoading ? (
+                        <div className="flex items-center justify-center py-16 text-brand-500">
+                            <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                            <span className="text-sm font-medium">Chargement des indicateurs...</span>
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="text-[10px] font-bold text-slate-400 uppercase bg-slate-50 border-b border-slate-100">
+                                        <th className="p-3 pl-4">
+                                            <button onClick={() => handleSort('name')} className="inline-flex items-center gap-0.5 hover:text-slate-600 transition">
+                                                Dossier Client <SortIcon col="name" />
+                                            </button>
+                                        </th>
+                                        <th className="p-3 text-center">
+                                            <button onClick={() => handleSort('sector')} className="inline-flex items-center gap-0.5 hover:text-slate-600 transition">
+                                                Secteur <SortIcon col="sector" />
+                                            </button>
+                                        </th>
+                                        <th className="p-3 text-right">
+                                            <button onClick={() => handleSort('revenue')} className="inline-flex items-center gap-0.5 hover:text-slate-600 transition ml-auto">
+                                                CA YTD <SortIcon col="revenue" />
+                                            </button>
+                                            <InfoTip text="Chiffre d'affaires HT cumulé depuis le 1er janvier de l'exercice en cours." />
+                                        </th>
+                                        <th className="p-3 text-center">
+                                            <button onClick={() => handleSort('objective')} className="inline-flex items-center gap-0.5 hover:text-slate-600 transition">
+                                                % Objectif <SortIcon col="objective" />
+                                            </button>
+                                            <InfoTip text="Ratio CA réalisé / Objectif CA. Vert ≥ 100%, Orange ≥ 85%, Rouge < 85%." />
+                                        </th>
+                                        <th className="p-3 text-right">
+                                            <button onClick={() => handleSort('treasury')} className="inline-flex items-center gap-0.5 hover:text-slate-600 transition ml-auto">
+                                                Trésorerie <SortIcon col="treasury" />
+                                            </button>
+                                            <InfoTip text="Dernier solde bancaire connu. Rouge si négatif." />
+                                        </th>
+                                        <th className="p-3 text-center">Données <InfoTip text="Fraîcheur des données (< 2 mois = à jour)." /></th>
+                                        <th className="p-3 text-center">Statut</th>
+                                        <th className="p-3 text-right pr-4">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="text-sm divide-y divide-slate-100">
+                                    {sorted.map(({ client, ytdRevenue, ytdObjective, objPerformance, lastTreasury, treasuryAlert, dataFresh, pendingValidation, lastActivity }) => {
+                                        const perfCol = ytdObjective > 0 ? getPerfColor(objPerformance) : null;
+                                        const isSelectedInPanel = panelClient?.id === client.id;
+                                        return (
+                                            <tr key={client.id} onClick={() => onSelectClient(client)} className={`hover:bg-brand-50/30 transition-colors cursor-pointer group ${client.status === 'inactive' ? 'opacity-60' : ''} ${isSelectedInPanel ? 'bg-brand-50/50 border-l-2 border-l-brand-500' : ''}`}>
+                                                {/* CLIENT */}
+                                                <td className="p-3 pl-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold border text-sm ${client.status === 'inactive' ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-brand-50 text-brand-700 border-brand-200'}`}>
+                                                            {client.companyName.substring(0, 2).toUpperCase()}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <div className="font-bold text-slate-800 text-xs truncate max-w-[180px]">{client.companyName}</div>
+                                                            <div className="text-[10px] text-slate-400 truncate max-w-[180px]">
+                                                                {client.managerName}
+                                                                {client.city ? <span className="text-slate-300"> — {client.city}</span> : null}
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            </td>
+                                                </td>
 
-                                            {/* SECTEUR */}
-                                            <td className="p-3 text-center">
-                                                {client.sector ? (
-                                                    <span className="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-medium text-slate-600">{client.sector}</span>
-                                                ) : (
-                                                    <span className="text-slate-300 text-[10px]">—</span>
-                                                )}
-                                            </td>
+                                                {/* SECTEUR */}
+                                                <td className="p-3 text-center">
+                                                    {client.sector ? (
+                                                        <span className="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-medium text-slate-600">{client.sector}</span>
+                                                    ) : (
+                                                        <span className="text-slate-300 text-[10px]">—</span>
+                                                    )}
+                                                </td>
 
-                                            {/* CA YTD */}
-                                            <td className="p-3 text-right">
-                                                {ytdRevenue > 0 ? (
-                                                    <span className="font-mono font-bold text-slate-700 text-xs">{fmtEur(ytdRevenue)}</span>
-                                                ) : (
-                                                    <span className="text-slate-300 text-xs">—</span>
-                                                )}
-                                            </td>
+                                                {/* CA YTD */}
+                                                <td className="p-3 text-right">
+                                                    {ytdRevenue > 0 ? (
+                                                        <span className="font-mono font-bold text-slate-700 text-xs">{fmtEur(ytdRevenue)}</span>
+                                                    ) : (
+                                                        <span className="text-slate-300 text-xs">—</span>
+                                                    )}
+                                                </td>
 
-                                            {/* % OBJECTIF */}
-                                            <td className="p-3 text-center">
-                                                {ytdObjective > 0 ? (
-                                                    <div className="inline-flex flex-col items-center gap-0.5">
-                                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${perfCol!.bg} ${perfCol!.text}`}>
-                                                            {objPerformance.toFixed(0)}%
-                                                        </span>
-                                                        <div className="h-1 w-10 bg-slate-100 rounded-full overflow-hidden">
-                                                            <div className="h-full rounded-full" style={{ width: `${Math.min(objPerformance, 100)}%`, backgroundColor: perfCol!.bar }} />
+                                                {/* % OBJECTIF */}
+                                                <td className="p-3 text-center">
+                                                    {ytdObjective > 0 ? (
+                                                        <div className="inline-flex flex-col items-center gap-0.5">
+                                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${perfCol!.bg} ${perfCol!.text}`}>
+                                                                {objPerformance.toFixed(0)}%
+                                                            </span>
+                                                            <div className="h-1 w-10 bg-slate-100 rounded-full overflow-hidden">
+                                                                <div className="h-full rounded-full" style={{ width: `${Math.min(objPerformance, 100)}%`, backgroundColor: perfCol!.bar }} />
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-slate-300 text-[10px]">N/A</span>
-                                                )}
-                                            </td>
+                                                    ) : (
+                                                        <span className="text-slate-300 text-[10px]">N/A</span>
+                                                    )}
+                                                </td>
 
-                                            {/* TRESORERIE */}
-                                            <td className="p-3 text-right">
-                                                {lastTreasury !== null ? (
-                                                    <div className="flex items-center justify-end gap-1">
-                                                        {treasuryAlert && <TrendingDown className="w-3 h-3 text-red-500" />}
-                                                        <span className={`font-mono font-bold text-xs ${treasuryAlert ? 'text-red-600' : 'text-emerald-600'}`}>
-                                                            {fmtEur(lastTreasury)}
-                                                        </span>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-slate-300 text-xs">—</span>
-                                                )}
-                                            </td>
+                                                {/* TRESORERIE */}
+                                                <td className="p-3 text-right">
+                                                    {lastTreasury !== null ? (
+                                                        <div className="flex items-center justify-end gap-1">
+                                                            {treasuryAlert && <TrendingDown className="w-3 h-3 text-red-500" />}
+                                                            <span className={`font-mono font-bold text-xs ${treasuryAlert ? 'text-red-600' : 'text-emerald-600'}`}>
+                                                                {fmtEur(lastTreasury)}
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-slate-300 text-xs">—</span>
+                                                    )}
+                                                </td>
 
-                                            {/* FRAICHEUR */}
-                                            <td className="p-3 text-center">
-                                                {lastTreasury !== null ? (
-                                                    dataFresh ? (
-                                                        <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-600">
-                                                            <CheckCircle className="w-3 h-3" /> À jour
+                                                {/* FRAICHEUR */}
+                                                <td className="p-3 text-center">
+                                                    {lastTreasury !== null ? (
+                                                        dataFresh ? (
+                                                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-600">
+                                                                <CheckCircle className="w-3 h-3" /> À jour
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-orange-600">
+                                                                <CalendarClock className="w-3 h-3" /> Retard
+                                                            </span>
+                                                        )
+                                                    ) : (
+                                                        <span className="text-slate-300 text-[10px]">Aucune</span>
+                                                    )}
+                                                </td>
+
+                                                {/* STATUT */}
+                                                <td className="p-3 text-center">
+                                                    {client.status === 'inactive' ? (
+                                                        <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-full">Archivé</span>
+                                                    ) : pendingValidation ? (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
+                                                            <Clock className="w-3 h-3" /> À Valider
                                                         </span>
                                                     ) : (
-                                                        <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-orange-600">
-                                                            <CalendarClock className="w-3 h-3" /> Retard
-                                                        </span>
-                                                    )
-                                                ) : (
-                                                    <span className="text-slate-300 text-[10px]">Aucune</span>
-                                                )}
-                                            </td>
-
-                                            {/* STATUT */}
-                                            <td className="p-3 text-center">
-                                                {client.status === 'inactive' ? (
-                                                    <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-full">Archivé</span>
-                                                ) : pendingValidation ? (
-                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
-                                                        <Clock className="w-3 h-3" /> À Valider
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 opacity-70">
-                                                        <CheckCircle className="w-3 h-3" /> OK
-                                                    </span>
-                                                )}
-                                            </td>
-
-                                            {/* ACTIONS */}
-                                            <td className="p-3 text-right pr-4">
-                                                <div className="relative inline-block">
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === client.id ? null : client.id); }}
-                                                        className="p-2 text-slate-400 hover:text-brand-600 bg-white rounded-full shadow-sm border border-slate-100 opacity-0 group-hover:opacity-100 transition"
-                                                        title="Actions"
-                                                    >
-                                                        <MoreVertical className="w-3.5 h-3.5" />
-                                                    </button>
-
-                                                    {/* Feedback copié */}
-                                                    {copyFeedback === client.id && (
-                                                        <span className="absolute -top-8 right-0 bg-emerald-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow whitespace-nowrap animate-in fade-in zoom-in-95 duration-200">
-                                                            Copié !
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 opacity-70">
+                                                            <CheckCircle className="w-3 h-3" /> OK
                                                         </span>
                                                     )}
+                                                </td>
 
-                                                    {/* Menu dropdown */}
-                                                    {openMenuId === client.id && (
-                                                        <div ref={menuRef} className="absolute right-0 top-full mt-1 z-40 w-52 bg-white rounded-xl shadow-xl border border-slate-200 py-1 animate-in fade-in zoom-in-95 duration-150">
+                                                {/* ACTIONS */}
+                                                <td className="p-3 text-right pr-4">
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        {/* Quick panel button */}
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleOpenPanel(client, 'timeline'); }}
+                                                            className={`p-1.5 rounded-full transition ${isSelectedInPanel && panelTab === 'timeline' ? 'bg-brand-100 text-brand-600' : 'text-slate-300 hover:text-brand-500 hover:bg-brand-50'} opacity-0 group-hover:opacity-100`}
+                                                            title="Timeline d'activité"
+                                                        >
+                                                            <Activity className="w-3.5 h-3.5" />
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleOpenPanel(client, 'config'); }}
+                                                            className={`p-1.5 rounded-full transition ${isSelectedInPanel && panelTab === 'config' ? 'bg-brand-100 text-brand-600' : 'text-slate-300 hover:text-brand-500 hover:bg-brand-50'} opacity-0 group-hover:opacity-100`}
+                                                            title="Configuration rapide"
+                                                        >
+                                                            <Settings className="w-3.5 h-3.5" />
+                                                        </button>
+
+                                                        <div className="relative inline-block">
                                                             <button
-                                                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); onEditClient(client); }}
-                                                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-brand-50 hover:text-brand-700 transition text-left"
+                                                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === client.id ? null : client.id); }}
+                                                                className="p-2 text-slate-400 hover:text-brand-600 bg-white rounded-full shadow-sm border border-slate-100 opacity-0 group-hover:opacity-100 transition"
+                                                                title="Actions"
                                                             >
-                                                                <Edit2 className="w-3.5 h-3.5 text-slate-400" />
-                                                                Modifier le dossier
+                                                                <MoreVertical className="w-3.5 h-3.5" />
                                                             </button>
 
-                                                            {client.owner?.email && (
-                                                                <>
-                                                                    <div className="border-t border-slate-100 my-1" />
-                                                                    <button
-                                                                        onClick={(e) => { e.stopPropagation(); handleSendEmail(client); }}
-                                                                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-brand-50 hover:text-brand-700 transition text-left"
-                                                                    >
-                                                                        <Send className="w-3.5 h-3.5 text-brand-400" />
-                                                                        Envoyer l'invitation
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={(e) => { e.stopPropagation(); handleCopyInvite(client); }}
-                                                                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-brand-50 hover:text-brand-700 transition text-left"
-                                                                    >
-                                                                        <Copy className="w-3.5 h-3.5 text-slate-400" />
-                                                                        Copier l'invitation
-                                                                    </button>
-                                                                </>
+                                                            {/* Feedback copié */}
+                                                            {copyFeedback === client.id && (
+                                                                <span className="absolute -top-8 right-0 bg-emerald-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow whitespace-nowrap animate-in fade-in zoom-in-95 duration-200">
+                                                                    Copié !
+                                                                </span>
                                                             )}
 
-                                                            <div className="border-t border-slate-100 my-1" />
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); onToggleStatus(client); }}
-                                                                className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition text-left ${client.status === 'active' ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'}`}
-                                                            >
-                                                                {client.status === 'active' ? (
-                                                                    <><Archive className="w-3.5 h-3.5" /> Archiver le dossier</>
-                                                                ) : (
-                                                                    <><Power className="w-3.5 h-3.5" /> Réactiver le dossier</>
-                                                                )}
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+                                                            {/* Menu dropdown */}
+                                                            {openMenuId === client.id && (
+                                                                <div ref={menuRef} className="absolute right-0 top-full mt-1 z-40 w-52 bg-white rounded-xl shadow-xl border border-slate-200 py-1 animate-in fade-in zoom-in-95 duration-150">
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); onEditClient(client); }}
+                                                                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-brand-50 hover:text-brand-700 transition text-left"
+                                                                    >
+                                                                        <Edit2 className="w-3.5 h-3.5 text-slate-400" />
+                                                                        Modifier le dossier
+                                                                    </button>
 
-                {!isLoading && sorted.length === 0 && (
-                    <div className="p-12 text-center text-slate-400">
-                        <Archive className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                        <p className="font-medium">Aucun dossier dans cette catégorie.</p>
-                    </div>
-                )}
+                                                                    {client.owner?.email && (
+                                                                        <>
+                                                                            <div className="border-t border-slate-100 my-1" />
+                                                                            <button
+                                                                                onClick={(e) => { e.stopPropagation(); handleSendEmail(client); }}
+                                                                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-brand-50 hover:text-brand-700 transition text-left"
+                                                                            >
+                                                                                <Send className="w-3.5 h-3.5 text-brand-400" />
+                                                                                Envoyer l'invitation
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={(e) => { e.stopPropagation(); handleCopyInvite(client); }}
+                                                                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-brand-50 hover:text-brand-700 transition text-left"
+                                                                            >
+                                                                                <Copy className="w-3.5 h-3.5 text-slate-400" />
+                                                                                Copier l'invitation
+                                                                            </button>
+                                                                        </>
+                                                                    )}
+
+                                                                    <div className="border-t border-slate-100 my-1" />
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); onToggleStatus(client); }}
+                                                                        className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition text-left ${client.status === 'active' ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'}`}
+                                                                    >
+                                                                        {client.status === 'active' ? (
+                                                                            <><Archive className="w-3.5 h-3.5" /> Archiver le dossier</>
+                                                                        ) : (
+                                                                            <><Power className="w-3.5 h-3.5" /> Réactiver le dossier</>
+                                                                        )}
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+
+                    {!isLoading && sorted.length === 0 && (
+                        <div className="p-12 text-center text-slate-400">
+                            <Archive className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                            <p className="font-medium">Aucun dossier dans cette catégorie.</p>
+                        </div>
+                    )}
+                </div>
             </div>
+
+            {/* === SIDE PANEL (Timeline + Config Rapide) === */}
+            {panelClient && (
+                <div
+                    ref={panelRef}
+                    className="w-[380px] shrink-0 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in slide-in-from-right-4 duration-300 self-start sticky top-4"
+                >
+                    {/* Panel Header */}
+                    <div className="p-4 bg-slate-50 border-b border-slate-200">
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2 min-w-0">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs border ${panelClient.status === 'inactive' ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-brand-50 text-brand-700 border-brand-200'}`}>
+                                    {panelClient.companyName.substring(0, 2).toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                    <h3 className="text-sm font-bold text-slate-800 truncate">{panelClient.companyName}</h3>
+                                    <p className="text-[10px] text-slate-400 truncate">{panelClient.managerName} {panelClient.city ? `— ${panelClient.city}` : ''}</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setPanelClient(null)}
+                                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        {/* Tab Switcher */}
+                        <div className="flex gap-1 bg-slate-200/60 p-0.5 rounded-lg">
+                            <button
+                                onClick={() => setPanelTab('timeline')}
+                                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-bold transition ${panelTab === 'timeline' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                <Activity className="w-3 h-3" /> Timeline
+                            </button>
+                            <button
+                                onClick={() => setPanelTab('config')}
+                                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-bold transition ${panelTab === 'config' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                <Settings className="w-3 h-3" /> Config Rapide
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Panel Body */}
+                    <div className="p-4 max-h-[calc(100vh-220px)] overflow-y-auto custom-scrollbar">
+                        {panelTab === 'timeline' ? (
+                            <ActivityTimeline clientId={panelClient.id} clientName={panelClient.companyName} />
+                        ) : (
+                            onSaveClient && onUpdateProfitCenters && onToggleFuelModule && onToggleCommercialMargin && onUpdateClientStatus ? (
+                                <QuickConfigPanel
+                                    client={panelClient}
+                                    onSaveClient={onSaveClient}
+                                    onUpdateProfitCenters={(pcs) => onUpdateProfitCenters(panelClient, pcs)}
+                                    onToggleFuelModule={() => onToggleFuelModule(panelClient)}
+                                    onToggleCommercialMargin={() => onToggleCommercialMargin(panelClient)}
+                                    onUpdateClientStatus={onUpdateClientStatus}
+                                />
+                            ) : (
+                                <div className="text-center py-8 text-slate-400 text-xs">
+                                    Configuration non disponible.
+                                </div>
+                            )
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

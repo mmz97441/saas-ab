@@ -107,6 +107,29 @@ export interface ChatMessage {
   isSystemSummary?: boolean; 
 }
 
+// --- ACTIVITY TIMELINE TYPES ---
+export type ActivityEventType =
+  | 'client_created'
+  | 'data_submitted'
+  | 'data_validated'
+  | 'data_published'
+  | 'appointment_scheduled'
+  | 'appointment_confirmed'
+  | 'email_sent'
+  | 'message_received'
+  | 'config_updated'
+  | 'status_changed'
+  | 'invitation_sent';
+
+export interface ActivityEvent {
+  id: string;
+  clientId: string;
+  type: ActivityEventType;
+  description: string;
+  timestamp: any;
+  metadata?: Record<string, any>;
+}
+
 export interface FinancialRecord {
   id: string;
   clientId: string; 

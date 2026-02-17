@@ -91,6 +91,9 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
   const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
   const [celebrated, setCelebrated] = useState(false);
 
+  // Rolling period mode (12M = 12 mois glissants, 6M = 6 mois glissants)
+  const [rollingMode, setRollingMode] = useState<'12M' | '6M' | null>(null);
+
   // Comment State
   const [commentText, setCommentText] = useState('');
 
@@ -133,9 +136,45 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
     return standardMonthOrder.slice(0, currentMonthIndex);
   }, [selectedYear]);
 
+  // --- ROLLING PERIOD DATA (12M / 6M glissants) ---
+  const rollingData = useMemo(() => {
+    if (!rollingMode) return null;
+    const monthCount = rollingMode === '12M' ? 12 : 6;
+    // Build ordered list of (year, month) tuples ending at M-1
+    const now = new Date();
+    let endMonthIdx = now.getMonth() - 1; // M-1 (0-indexed)
+    let endYear = now.getFullYear();
+    if (endMonthIdx < 0) { endMonthIdx = 11; endYear--; }
+
+    const periods: { year: number; month: Month; label: string }[] = [];
+    for (let i = monthCount - 1; i >= 0; i--) {
+      let mIdx = endMonthIdx - i;
+      let yr = endYear;
+      while (mIdx < 0) { mIdx += 12; yr--; }
+      const m = standardMonthOrder[mIdx];
+      const shortYear = String(yr).slice(-2);
+      periods.push({ year: yr, month: m, label: `${toShortMonth(m)} ${shortYear}` });
+    }
+
+    // Fetch matching records
+    const records = periods.map(p => {
+      const record = data.find(d => d.year === p.year && d.month === p.month);
+      return { ...p, record: record || null };
+    });
+
+    // N-1 rolling: same months but one year earlier
+    const n1Records = periods.map(p => {
+      const record = data.find(d => d.year === p.year - 1 && d.month === p.month);
+      return { year: p.year - 1, month: p.month, record: record || null };
+    });
+
+    return { periods, records, n1Records };
+  }, [rollingMode, data]);
+
   // --- FILTERS LOGIC ---
   const handleMonthToggle = (month: string) => {
     setCelebrated(false);
+    setRollingMode(null);
     setSelectedMonths(prev => {
       if (prev.includes(month)) {
         return prev.filter(m => m !== month);
@@ -148,6 +187,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
 
   const applyPreset = (preset: 'ALL' | 'Q1' | 'Q2' | 'Q3' | 'Q4' | 'S1' | 'S2') => {
     setCelebrated(false);
+    setRollingMode(null);
     switch (preset) {
       case 'ALL': setSelectedMonths([]); break;
       case 'Q1': setSelectedMonths(fiscalMonthOrder.slice(0, 3)); break;
@@ -159,6 +199,12 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
     }
   };
 
+  const applyRollingMode = (mode: '12M' | '6M') => {
+    setCelebrated(false);
+    setSelectedMonths([]);
+    setRollingMode(prev => prev === mode ? null : mode);
+  };
+
   // --- DATA PROCESSING ---
   const yearData = useMemo(() => {
     let filtered = data.filter(d => d.year === selectedYear);
@@ -167,6 +213,12 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
   }, [data, selectedYear, fiscalMonthOrder]);
 
   const displayData = useMemo(() => {
+    // Rolling mode: cross-year data
+    if (rollingMode && rollingData) {
+      return rollingData.records
+        .filter(r => r.record !== null)
+        .map(r => r.record!);
+    }
     if (selectedMonths.length > 0) {
       return yearData.filter(d => selectedMonths.includes(d.month));
     }
@@ -175,7 +227,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
       return yearData.filter(d => (defaultMonthsUpToM1 as string[]).includes(d.month));
     }
     return yearData;
-  }, [yearData, selectedMonths, defaultMonthsUpToM1]);
+  }, [yearData, selectedMonths, defaultMonthsUpToM1, rollingMode, rollingData]);
 
   const snapshotRecord = useMemo(() => {
     return displayData.length > 0 ? displayData[displayData.length - 1] : null;
@@ -306,12 +358,20 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
     const costPerHour = totalHours > 0 ? totalSalaries / totalHours : 0;
 
     // --- N-1 COMPARISONS ---
-    const n1Data = data.filter(d => d.year === selectedYear - 1);
-    const n1Filtered = selectedMonths.length > 0
-      ? n1Data.filter(d => selectedMonths.includes(d.month))
-      : defaultMonthsUpToM1 !== null
-        ? n1Data.filter(d => (defaultMonthsUpToM1 as string[]).includes(d.month))
-        : n1Data;
+    let n1Filtered: FinancialRecord[];
+    if (rollingMode && rollingData) {
+      // Rolling mode: N-1 = same months but 1 year earlier
+      n1Filtered = rollingData.n1Records
+        .filter(r => r.record !== null)
+        .map(r => r.record!);
+    } else {
+      const n1Data = data.filter(d => d.year === selectedYear - 1);
+      n1Filtered = selectedMonths.length > 0
+        ? n1Data.filter(d => selectedMonths.includes(d.month))
+        : defaultMonthsUpToM1 !== null
+          ? n1Data.filter(d => (defaultMonthsUpToM1 as string[]).includes(d.month))
+          : n1Data;
+    }
     const n1Revenue = n1Filtered.reduce((acc, curr) => acc + curr.revenue.total, 0);
     const n1Treasury = n1Filtered.length > 0 ? n1Filtered[n1Filtered.length - 1].cashFlow.treasury : null;
     const n1Bfr = n1Filtered.length > 0 ? n1Filtered.reduce((acc, curr) => acc + curr.bfr.total, 0) / n1Filtered.length : null;
@@ -355,7 +415,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
       caPerHour,
       costPerHour,
     };
-  }, [displayData, snapshotRecord, yearData, client.profitCenters, selectedMonths, defaultMonthsUpToM1, data, selectedYear]);
+  }, [displayData, snapshotRecord, yearData, client.profitCenters, selectedMonths, defaultMonthsUpToM1, data, selectedYear, rollingMode, rollingData]);
 
   // Celebration
   useEffect(() => {
@@ -378,23 +438,74 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
 
   // 5. Prepare Chart Data
   const chartData = useMemo(() => {
+    // --- ROLLING MODE: cross-year chart data ---
+    if (rollingMode && rollingData) {
+      const rollingRecords = rollingData.records.filter(r => r.record !== null).map(r => r.record!);
+      const rollingAvg = rollingRecords.length > 0
+        ? rollingRecords.reduce((acc, r) => acc + r.revenue.total, 0) / rollingRecords.length
+        : null;
+
+      return rollingData.periods.map(p => {
+        const recordN = data.find(d => d.year === p.year && d.month === p.month);
+        const recordN1 = data.find(d => d.year === p.year - 1 && d.month === p.month);
+
+        const productivityRate = (recordN && recordN.expenses.hoursWorked > 0) ? recordN.revenue.total / recordN.expenses.hoursWorked : null;
+        const productivityRateN1 = (recordN1 && recordN1.expenses.hoursWorked > 0) ? recordN1.revenue.total / recordN1.expenses.hoursWorked : null;
+
+        return {
+          name: p.label, // "Jan 25", "Fev 26" etc.
+          fullMonth: p.month,
+          _year: p.year,
+          CA: recordN ? recordN.revenue.total : null,
+          CA_N1: recordN1 ? recordN1.revenue.total : null,
+          Objectif: recordN ? recordN.revenue.objective : null,
+          Moyenne_N: rollingAvg,
+          Moyenne_N1: null,
+          BFR: recordN ? recordN.bfr.total : null,
+          BFR_N1: recordN1 ? recordN1.bfr.total : null,
+          Tresorerie: recordN ? recordN.cashFlow.treasury : null,
+          Tresorerie_N1: recordN1 ? recordN1.cashFlow.treasury : null,
+          Productivity: recordN ? recordN.expenses.hoursWorked : null,
+          Productivity_N1: recordN1 ? recordN1.expenses.hoursWorked : null,
+          ProductivityRate: productivityRate,
+          ProductivityRate_N1: productivityRateN1,
+          BFR_Creances: recordN ? recordN.bfr.receivables.total : null,
+          BFR_Stocks: recordN ? recordN.bfr.stock.total : null,
+          BFR_Dettes: recordN ? -recordN.bfr.debts.total : null,
+          Fuel_Total: recordN ? recordN.fuel?.volume : null,
+          Fuel_Gasoil: recordN ? recordN.fuel?.details?.gasoil.volume : null,
+          Fuel_SP: recordN ? recordN.fuel?.details?.sansPlomb.volume : null,
+          Fuel_GNR: recordN ? recordN.fuel?.details?.gnr.volume : null,
+          Fuel_Total_N1: recordN1 ? recordN1.fuel?.volume : null,
+          Fuel_Obj_Gasoil: recordN ? recordN.fuel?.details?.gasoil.objective : null,
+          Fuel_Obj_SP: recordN ? recordN.fuel?.details?.sansPlomb.objective : null,
+          Fuel_Obj_GNR: recordN ? recordN.fuel?.details?.gnr.objective : null,
+          Fuel_Obj_Total: recordN ? recordN.fuel?.objective : null,
+          DSO: recordN && recordN.revenue.total > 0 ? (recordN.bfr.receivables.clients / recordN.revenue.total) * 30 : null,
+          DPO: recordN && recordN.revenue.total > 0 ? (recordN.bfr.debts.suppliers / recordN.revenue.total) * 30 : null,
+          DIO: recordN && recordN.revenue.total > 0 ? (recordN.bfr.stock.total / recordN.revenue.total) * 30 : null,
+        };
+      });
+    }
+
+    // --- STANDARD MODE: single year ---
     const recordsN = data.filter(d => d.year === selectedYear);
     // FIX: Filter only months with revenue to avoid dragging down average with future/empty months
     const activeRecordsN = recordsN.filter(r => r.revenue.total > 0);
-    const annualAverageN = activeRecordsN.length > 0 
-        ? activeRecordsN.reduce((acc: number, curr: FinancialRecord) => acc + curr.revenue.total, 0) / activeRecordsN.length 
+    const annualAverageN = activeRecordsN.length > 0
+        ? activeRecordsN.reduce((acc: number, curr: FinancialRecord) => acc + curr.revenue.total, 0) / activeRecordsN.length
         : null;
 
     const recordsN1 = data.filter(d => d.year === selectedYear - 1);
     const activeRecordsN1 = recordsN1.filter(r => r.revenue.total > 0);
-    const annualAverageN1 = activeRecordsN1.length > 0 
-        ? activeRecordsN1.reduce((acc: number, curr: FinancialRecord) => acc + curr.revenue.total, 0) / activeRecordsN1.length 
+    const annualAverageN1 = activeRecordsN1.length > 0
+        ? activeRecordsN1.reduce((acc: number, curr: FinancialRecord) => acc + curr.revenue.total, 0) / activeRecordsN1.length
         : null;
 
     const fullYearChartData = fiscalMonthOrder.map(m => {
       const recordN = data.find(d => d.year === selectedYear && d.month === m);
       const recordN1 = data.find(d => d.year === selectedYear - 1 && d.month === m);
-      
+
       const productivityRate = (recordN && recordN.expenses.hoursWorked > 0) ? recordN.revenue.total / recordN.expenses.hoursWorked : null;
       const productivityRateN1 = (recordN1 && recordN1.expenses.hoursWorked > 0) ? recordN1.revenue.total / recordN1.expenses.hoursWorked : null;
 
@@ -441,7 +552,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
     }
     return fullYearChartData.filter(d => selectedMonths.includes(d.fullMonth));
 
-  }, [data, selectedYear, selectedMonths, fiscalMonthOrder, defaultMonthsUpToM1]);
+  }, [data, selectedYear, selectedMonths, fiscalMonthOrder, defaultMonthsUpToM1, rollingMode, rollingData]);
 
   const receivablesData = useMemo(() => {
     if (!snapshotRecord) return [];
@@ -465,6 +576,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
   }, [snapshotRecord]);
 
   const handleChartClick = (data: any) => {
+    if (rollingMode) return; // Disable click filtering in rolling mode
     let clickedMonth: string | null = null;
     if (data && data.activePayload && data.activePayload.length > 0) {
       clickedMonth = data.activePayload[0].payload.fullMonth;
@@ -528,7 +640,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
     return (
       <div className="bg-white/95 backdrop-blur-sm p-5 border border-slate-100 shadow-2xl rounded-2xl ring-1 ring-slate-900/5 min-w-[280px]">
         <div className="flex justify-between items-center border-b border-slate-100 pb-2 mb-3">
-          <span className="font-bold text-slate-700 capitalize">{data.fullMonth} {selectedYear}</span>
+          <span className="font-bold text-slate-700 capitalize">{data.fullMonth} {data._year || selectedYear}</span>
         </div>
         
         {isRevenue && (
@@ -615,7 +727,8 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
     if (!kpis.topActivities.length) return [];
     const actIds = kpis.topActivities.map(a => a.id);
     return chartData.map(d => {
-      const record = data.find(r => r.year === selectedYear && r.month === d.fullMonth);
+      const yr = (d as any)._year || selectedYear;
+      const record = data.find(r => r.year === yr && r.month === d.fullMonth);
       const point: Record<string, any> = { name: d.name, fullMonth: d.fullMonth };
       actIds.forEach(id => {
         point[id] = record?.revenue.breakdown?.[id] || 0;
@@ -632,13 +745,14 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
            <div className="flex items-center gap-4">
              {/* Year Selector */}
-             <div className="flex items-center gap-2">
+             <div className={`flex items-center gap-2 ${rollingMode ? 'opacity-40 pointer-events-none' : ''}`}>
                 <span className="text-xs font-bold text-brand-400 uppercase tracking-wider">Exercice</span>
                 <div className="relative">
                     <select
                       value={selectedYear}
                       onChange={(e) => setSelectedYear(Number(e.target.value))}
-                      className="appearance-none bg-brand-50 border border-brand-200 text-brand-900 text-sm rounded-lg focus:ring-brand-500 focus:border-brand-500 block pl-3 pr-8 py-2 font-bold cursor-pointer hover:bg-brand-100 transition-colors"
+                      disabled={!!rollingMode}
+                      className="appearance-none bg-brand-50 border border-brand-200 text-brand-900 text-sm rounded-lg focus:ring-brand-500 focus:border-brand-500 block pl-3 pr-8 py-2 font-bold cursor-pointer hover:bg-brand-100 transition-colors disabled:cursor-not-allowed"
                     >
                        {Array.from(new Set([...data.map(d => d.year), currentYear])).sort((a,b)=>b-a).map(y => (
                            <option key={y} value={y}>{y}</option>
@@ -657,12 +771,27 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                         key={p}
                         onClick={() => applyPreset(p as any)}
                         className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${
-                            (p === 'ALL' && selectedMonths.length === 0)
+                            (p === 'ALL' && selectedMonths.length === 0 && !rollingMode)
                             ? 'bg-white text-brand-700 shadow-sm'
                             : 'text-brand-400 hover:text-brand-600 hover:bg-brand-100'
                         }`}
                     >
                         {p === 'ALL' ? 'ANNEE' : p}
+                    </button>
+                ))}
+                <div className="w-px bg-brand-200 mx-0.5" />
+                {(['6M', '12M'] as const).map(mode => (
+                    <button
+                        key={mode}
+                        onClick={() => applyRollingMode(mode)}
+                        className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${
+                            rollingMode === mode
+                            ? 'bg-indigo-600 text-white shadow-sm'
+                            : 'text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50'
+                        }`}
+                        title={mode === '12M' ? '12 mois glissants' : '6 derniers mois'}
+                    >
+                        {mode}
                     </button>
                 ))}
              </div>
@@ -695,7 +824,13 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
            </div>
 
            {/* Active Filters Display */}
-           {selectedMonths.length > 0 ? (
+           {rollingMode && rollingData ? (
+             <div className="flex items-center gap-2 bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full text-xs font-bold border border-indigo-200">
+                 <Activity className="w-3 h-3" />
+                 {rollingMode === '12M' ? '12 mois glissants' : '6 derniers mois'} : {rollingData.periods[0].label} → {rollingData.periods[rollingData.periods.length - 1].label}
+                 <button onClick={() => setRollingMode(null)} className="ml-1 hover:text-red-500"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+             </div>
+           ) : selectedMonths.length > 0 ? (
              <div className="flex items-center gap-2 bg-brand-50 text-brand-600 px-3 py-1.5 rounded-full text-xs font-bold border border-brand-200">
                  <Filter className="w-3 h-3" />
                  {selectedMonths.length} mois selectionne{selectedMonths.length > 1 ? 's' : ''}
@@ -710,7 +845,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
          </div>
 
          {/* MONTH GRID - Clickable months */}
-         <div className="grid grid-cols-6 md:grid-cols-12 gap-1">
+         <div className={`grid grid-cols-6 md:grid-cols-12 gap-1 ${rollingMode ? 'opacity-30 pointer-events-none' : ''}`}>
             {fiscalMonthOrder.map(m => {
               const hasData = yearData.some(d => d.month === m);
               const isSelected = selectedMonths.includes(m);

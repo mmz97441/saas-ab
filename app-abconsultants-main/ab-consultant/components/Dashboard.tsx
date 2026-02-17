@@ -298,6 +298,8 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
 
     // --- ACTIVITY BREAKDOWN CALCULATION ---
     const activitiesBreakdown: Record<string, { revenue: number, margin: number }> = {};
+    // Build a set of known profit center IDs for fast lookup
+    const knownPcIds = new Set((client.profitCenters || []).map(p => p.id));
     let totalGoods = 0;
     let totalServices = 0;
 
@@ -315,21 +317,29 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
             });
         }
     });
-    
+
     let topActivities = Object.entries(activitiesBreakdown)
         .map(([id, data]) => ({
             id,
             val: data.revenue,
             marginRate: data.revenue > 0 ? (data.margin / data.revenue) * 100 : 0,
             name: client.profitCenters?.find(p => p.id === id)?.name || id.charAt(0).toUpperCase() + id.slice(1),
-            percent: totalRevenue > 0 ? (data.revenue / totalRevenue) * 100 : 0
+            percent: totalRevenue > 0 ? (data.revenue / totalRevenue) * 100 : 0,
+            isKnown: knownPcIds.has(id),
         }))
         .sort((a, b) => b.val - a.val);
 
-    // Filter out parent/total entries: if an entry represents ≥98% of total revenue
-    // and there are other entries, it's a category total (e.g. "Marchandises" = sum of sub-families)
+    // Filter out parent/total entries:
+    // 1) Entries whose ID is not in client.profitCenters (auto-generated parent categories)
+    //    but only if there are other known entries to show
+    // 2) Entries representing ≥98% of total revenue (category totals like "Marchandises")
     if (topActivities.length > 1) {
-        topActivities = topActivities.filter(a => a.percent < 98);
+        const hasKnownEntries = topActivities.some(a => a.isKnown);
+        topActivities = topActivities.filter(a => {
+            if (a.percent >= 98) return false;
+            if (!a.isKnown && hasKnownEntries) return false;
+            return true;
+        });
     }
     topActivities = topActivities.slice(0, 5);
 

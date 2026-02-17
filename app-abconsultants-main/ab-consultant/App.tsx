@@ -578,6 +578,18 @@ const App: React.FC = () => {
                     onSelectClient={(client) => { setSelectedClient(client); setCurrentView(View.Dashboard); }}
                     onEditClient={(client) => { setEditingClient(client); setIsClientModalOpen(true); }}
                     onNewClient={() => { setEditingClient(null); setIsClientModalOpen(true); }}
+                    onToggleStatus={async (client) => {
+                        const newStatus = client.status === 'active' ? 'inactive' : 'active';
+                        const ok = await confirm({
+                            title: client.status === 'active' ? 'Archiver ce dossier ?' : 'Réactiver ce dossier ?',
+                            message: client.status === 'active'
+                                ? `Le dossier "${client.companyName}" sera placé en veille. Le client ne pourra plus soumettre de données.`
+                                : `Le dossier "${client.companyName}" sera remis en production.`,
+                            confirmLabel: client.status === 'active' ? 'Archiver' : 'Réactiver',
+                            variant: client.status === 'active' ? 'danger' : 'default'
+                        });
+                        if (ok) await handleUpdateClientStatus(client, newStatus);
+                    }}
                 />
             )}
          </div>

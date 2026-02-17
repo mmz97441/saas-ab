@@ -1,11 +1,11 @@
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { Client, FinancialRecord } from '../types';
 import { getRecordsByClient } from '../services/dataService';
 import {
     Users, Plus, Edit2, Search, Briefcase, Archive, X, Loader2,
     ArrowUpDown, ArrowUp, ArrowDown, TrendingDown, CheckCircle,
-    Clock, CalendarClock, HelpCircle
+    Clock, CalendarClock, HelpCircle, MoreVertical, Send, Copy, Power
 } from 'lucide-react';
 
 interface ClientPortfolioProps {
@@ -17,6 +17,7 @@ interface ClientPortfolioProps {
     onSelectClient: (client: Client) => void;
     onEditClient: (client: Client) => void;
     onNewClient: () => void;
+    onToggleStatus: (client: Client) => void;
 }
 
 interface ClientWithKpis {
@@ -55,12 +56,74 @@ const getPerfColor = (p: number) => {
 const ClientPortfolio: React.FC<ClientPortfolioProps> = ({
     clients, clientViewMode, clientSearchQuery,
     onSetClientViewMode, onSetClientSearchQuery,
-    onSelectClient, onEditClient, onNewClient
+    onSelectClient, onEditClient, onNewClient, onToggleStatus
 }) => {
     const [clientKpis, setClientKpis] = useState<ClientWithKpis[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [sortKey, setSortKey] = useState<SortKey>('name');
     const [sortDir, setSortDir] = useState<SortDir>('asc');
+    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    // Fermer le menu quand on clique ailleurs
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+                setOpenMenuId(null);
+            }
+        };
+        if (openMenuId) document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [openMenuId]);
+
+    // --- Logique d'invitation ---
+    const getInviteMessage = (client: Client) => {
+        const url = window.location.origin;
+        const manager = client.managerName ? ` ${client.managerName}` : '';
+        return `Cher Partenaire${manager},
+
+Dans le cadre de notre mandat d'accompagnement, nous avons le plaisir de vous confirmer l'ouverture de votre accès sécurisé à la Suite de Pilotage Financier AB Consultants.
+
+Ce portail exclusif vous permet désormais de :
+• Suivre vos indicateurs stratégiques en temps réel.
+• Transmettre vos données mensuelles via un canal chiffré.
+• Échanger confidentiellement avec votre consultant référent.
+
+PROCÉDURE D'ACTIVATION SÉCURISÉE :
+
+1. Accédez au portail : ${url}
+2. Sélectionnez le portail "Espace Client".
+3. Cliquez sur le lien "Première connexion ? Créer mon accès".
+4. Saisissez votre identifiant unique : ${client.owner?.email}
+5. Définissez votre mot de passe personnel.
+
+Note de sécurité : Cet identifiant est strictement personnel.
+
+Votre consultant référent reste à votre entière disposition pour vous accompagner dans la prise en main de cet outil décisionnel.
+
+Respectueusement,
+
+LA DIRECTION
+AB CONSULTANTS
+Expertise & Stratégie Financière`;
+    };
+
+    const handleSendEmail = (client: Client) => {
+        const subject = `CONFIDENTIEL | Activation de votre Portail Stratégique - ${client.companyName}`;
+        const body = getInviteMessage(client);
+        window.location.href = `mailto:${client.owner?.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        setOpenMenuId(null);
+    };
+
+    const handleCopyInvite = async (client: Client) => {
+        try {
+            await navigator.clipboard.writeText(getInviteMessage(client));
+            setCopyFeedback(client.id);
+            setTimeout(() => setCopyFeedback(null), 2000);
+        } catch { /* ignore */ }
+        setOpenMenuId(null);
+    };
 
     const currentYear = new Date().getFullYear();
     const monthValues = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
@@ -350,13 +413,67 @@ const ClientPortfolio: React.FC<ClientPortfolioProps> = ({
 
                                             {/* ACTIONS */}
                                             <td className="p-3 text-right pr-4">
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); onEditClient(client); }}
-                                                    className="p-2 text-slate-400 hover:text-brand-600 bg-white rounded-full shadow-sm border border-slate-100 opacity-0 group-hover:opacity-100 transition"
-                                                    title="Modifier"
-                                                >
-                                                    <Edit2 className="w-3.5 h-3.5" />
-                                                </button>
+                                                <div className="relative inline-block">
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === client.id ? null : client.id); }}
+                                                        className="p-2 text-slate-400 hover:text-brand-600 bg-white rounded-full shadow-sm border border-slate-100 opacity-0 group-hover:opacity-100 transition"
+                                                        title="Actions"
+                                                    >
+                                                        <MoreVertical className="w-3.5 h-3.5" />
+                                                    </button>
+
+                                                    {/* Feedback copié */}
+                                                    {copyFeedback === client.id && (
+                                                        <span className="absolute -top-8 right-0 bg-emerald-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow whitespace-nowrap animate-in fade-in zoom-in-95 duration-200">
+                                                            Copié !
+                                                        </span>
+                                                    )}
+
+                                                    {/* Menu dropdown */}
+                                                    {openMenuId === client.id && (
+                                                        <div ref={menuRef} className="absolute right-0 top-full mt-1 z-40 w-52 bg-white rounded-xl shadow-xl border border-slate-200 py-1 animate-in fade-in zoom-in-95 duration-150">
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); onEditClient(client); }}
+                                                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-brand-50 hover:text-brand-700 transition text-left"
+                                                            >
+                                                                <Edit2 className="w-3.5 h-3.5 text-slate-400" />
+                                                                Modifier le dossier
+                                                            </button>
+
+                                                            {client.owner?.email && (
+                                                                <>
+                                                                    <div className="border-t border-slate-100 my-1" />
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); handleSendEmail(client); }}
+                                                                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-brand-50 hover:text-brand-700 transition text-left"
+                                                                    >
+                                                                        <Send className="w-3.5 h-3.5 text-brand-400" />
+                                                                        Envoyer l'invitation
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); handleCopyInvite(client); }}
+                                                                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-brand-50 hover:text-brand-700 transition text-left"
+                                                                    >
+                                                                        <Copy className="w-3.5 h-3.5 text-slate-400" />
+                                                                        Copier l'invitation
+                                                                    </button>
+                                                                </>
+                                                            )}
+
+                                                            <div className="border-t border-slate-100 my-1" />
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); onToggleStatus(client); }}
+                                                                className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition text-left ${client.status === 'active' ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'}`}
+                                                            >
+                                                                {client.status === 'active' ? (
+                                                                    <><Archive className="w-3.5 h-3.5" /> Archiver le dossier</>
+                                                                ) : (
+                                                                    <><Power className="w-3.5 h-3.5" /> Réactiver le dossier</>
+                                                                )}
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     );

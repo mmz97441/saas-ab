@@ -395,12 +395,123 @@ const EntryForm: React.FC<EntryFormProps> = ({
         return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
     }, [formData, draftKey, isLocked, isFormEmpty]);
 
+    // --- ABERRANT VALUE DETECTION ---
+    const detectAberrantValues = (record: FinancialRecord): string[] => {
+        const warnings: string[] = [];
+        const MIN_SALARY = 500;
+        const MIN_REVENUE = 100;
+        const MIN_AMOUNT = 50;
+        const MAX_AMOUNT = 100_000_000;
+
+        // Revenue
+        if (record.revenue.total > 0 && record.revenue.total < MIN_REVENUE) {
+            warnings.push(`CA Global HT = ${formatForDisplay(record.revenue.total)} € (< ${MIN_REVENUE} €)`);
+        }
+        if (record.revenue.total > MAX_AMOUNT) {
+            warnings.push(`CA Global HT = ${formatForDisplay(record.revenue.total)} € (> 100 M€)`);
+        }
+
+        // Margin
+        if (record.margin?.total && record.margin.total > 0 && record.margin.total < MIN_AMOUNT) {
+            warnings.push(`Marge Globale = ${formatForDisplay(record.margin.total)} € (< ${MIN_AMOUNT} €)`);
+        }
+        if (record.margin?.total && record.margin.total > MAX_AMOUNT) {
+            warnings.push(`Marge Globale = ${formatForDisplay(record.margin.total)} € (> 100 M€)`);
+        }
+        // Margin > Revenue
+        if (record.margin?.total && record.revenue.total > 0 && record.margin.total > record.revenue.total) {
+            warnings.push(`Marge (${formatForDisplay(record.margin.total)} €) supérieure au CA (${formatForDisplay(record.revenue.total)} €)`);
+        }
+
+        // Salaries
+        if (record.expenses.salaries > 0 && record.expenses.salaries < MIN_SALARY) {
+            warnings.push(`Masse Salariale = ${formatForDisplay(record.expenses.salaries)} € (< ${MIN_SALARY} €)`);
+        }
+        if (record.expenses.salaries > MAX_AMOUNT) {
+            warnings.push(`Masse Salariale = ${formatForDisplay(record.expenses.salaries)} € (> 100 M€)`);
+        }
+
+        // Hours worked
+        if (record.expenses.hoursWorked > 0 && record.expenses.hoursWorked < 10) {
+            warnings.push(`Heures Travaillées = ${record.expenses.hoursWorked} h (< 10 h)`);
+        }
+        if (record.expenses.hoursWorked > 50_000) {
+            warnings.push(`Heures Travaillées = ${formatForDisplay(record.expenses.hoursWorked)} h (> 50 000 h)`);
+        }
+
+        // Overtime > Total hours
+        if (record.expenses.overtimeHours > 0 && record.expenses.hoursWorked > 0 && record.expenses.overtimeHours > record.expenses.hoursWorked) {
+            warnings.push(`Heures Sup. (${record.expenses.overtimeHours} h) supérieures aux Heures Totales (${record.expenses.hoursWorked} h)`);
+        }
+
+        // BFR items
+        const bfrChecks = [
+            { val: record.bfr.receivables.clients, label: 'Créances Clients' },
+            { val: record.bfr.stock.goods, label: 'Stocks Marchandises' },
+            { val: record.bfr.debts.suppliers, label: 'Fournisseurs' },
+            { val: record.bfr.debts.state, label: 'Dettes Fiscales' },
+            { val: record.bfr.debts.social, label: 'Dettes Sociales' },
+        ];
+        for (const { val, label } of bfrChecks) {
+            if (val > 0 && val < MIN_AMOUNT) {
+                warnings.push(`${label} = ${formatForDisplay(val)} € (< ${MIN_AMOUNT} €)`);
+            }
+            if (val > MAX_AMOUNT) {
+                warnings.push(`${label} = ${formatForDisplay(val)} € (> 100 M€)`);
+            }
+        }
+
+        // Treasury
+        if (record.cashFlow.active > 0 && record.cashFlow.active < MIN_AMOUNT) {
+            warnings.push(`Soldes Créditeurs = ${formatForDisplay(record.cashFlow.active)} € (< ${MIN_AMOUNT} €)`);
+        }
+        if (record.cashFlow.active > MAX_AMOUNT) {
+            warnings.push(`Soldes Créditeurs = ${formatForDisplay(record.cashFlow.active)} € (> 100 M€)`);
+        }
+        if (record.cashFlow.passive > 0 && record.cashFlow.passive < MIN_AMOUNT) {
+            warnings.push(`Soldes Débiteurs = ${formatForDisplay(record.cashFlow.passive)} € (< ${MIN_AMOUNT} €)`);
+        }
+        if (record.cashFlow.passive > MAX_AMOUNT) {
+            warnings.push(`Soldes Débiteurs = ${formatForDisplay(record.cashFlow.passive)} € (> 100 M€)`);
+        }
+
+        // Fuel volumes
+        if (record.fuel) {
+            const fuelChecks = [
+                { val: record.fuel.details?.gasoil?.volume, label: 'Gasoil' },
+                { val: record.fuel.details?.sansPlomb?.volume, label: 'Sans Plomb' },
+                { val: record.fuel.details?.gnr?.volume, label: 'GNR' },
+            ];
+            for (const { val, label } of fuelChecks) {
+                if (val && val > 0 && val < 10) {
+                    warnings.push(`${label} = ${formatForDisplay(val)} L (< 10 L)`);
+                }
+                if (val && val > 1_000_000) {
+                    warnings.push(`${label} = ${formatForDisplay(val)} L (> 1 000 000 L)`);
+                }
+            }
+        }
+
+        return warnings;
+    };
+
     // Clean draft after successful save
     const originalOnSave = onSave;
-    const wrappedOnSave = useCallback((record: FinancialRecord) => {
+    const wrappedOnSave = useCallback(async (record: FinancialRecord) => {
+        // Check for aberrant values before saving
+        const warnings = detectAberrantValues(record);
+        if (warnings.length > 0) {
+            const ok = await confirm({
+                title: 'Valeurs inhabituelles détectées',
+                message: `Les montants suivants semblent anormaux :\n\n• ${warnings.join('\n• ')}\n\nVoulez-vous quand même enregistrer ?`,
+                variant: 'danger',
+                confirmLabel: 'Enregistrer quand même',
+            });
+            if (!ok) return;
+        }
         localStorage.removeItem(draftKey);
         originalOnSave(record);
-    }, [draftKey, originalOnSave]);
+    }, [draftKey, originalOnSave, confirm]);
 
     const handleReprendreM1 = async () => {
         if (!previousMonthRecord) return;

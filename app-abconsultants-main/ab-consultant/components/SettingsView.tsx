@@ -91,7 +91,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                     </button>
                 </div>
                 <div className="p-6">
-                    <form onSubmit={handleSaveClientForm}>
+                    <form key={`${client.companyName}-${client.legalForm}-${client.fiscalYearEnd}-${client.siret}-${client.address}`} onSubmit={handleSaveClientForm}>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             
                             {/* Company Info */}

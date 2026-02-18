@@ -167,9 +167,10 @@ const Sidebar: React.FC<SidebarProps> = ({
     // Calcul des notifications
     const unreadCount = clients.filter(c => c.hasUnreadMessages).length;
 
-    const NavItem = ({ view, icon: Icon, label, badge }: { view: View, icon: any, label: string, badge?: number }) => (
+    const NavItem = ({ view, icon: Icon, label, badge, tooltip }: { view: View, icon: any, label: string, badge?: number, tooltip?: string }) => (
         <button
             onClick={() => onNavigate(view)}
+            title={tooltip || label}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${currentView === view
                 ? (userRole === 'ab_consultant' ? 'bg-brand-700 text-white shadow-md ring-1 ring-white/10' : 'bg-brand-600 text-white shadow-md')
                 : 'text-brand-200 hover:bg-brand-800 hover:text-white'
@@ -223,6 +224,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                         {/* BOUTON VUE D'ENSEMBLE (Nouveau) */}
                          <button
                             onClick={() => { onClientSelect(null); onNavigate(View.Dashboard); }}
+                            title="Synthèse globale du portefeuille"
                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group mb-2 ${!selectedClient && currentView === View.Dashboard
                                 ? 'bg-brand-700 text-white shadow-md ring-1 ring-white/10'
                                 : 'text-brand-200 hover:bg-brand-800 hover:text-white'
@@ -232,11 +234,11 @@ const Sidebar: React.FC<SidebarProps> = ({
                             <span className="font-medium text-sm">Vue d'ensemble</span>
                         </button>
 
-                        <NavItem view={View.Clients} icon={Users} label="Portefeuille Clients" />
-                        <NavItem view={View.Messages} icon={MessageSquare} label="Messagerie" badge={unreadCount} />
+                        <NavItem view={View.Clients} icon={Users} label="Portefeuille Clients" tooltip="Gérer tous les dossiers clients" />
+                        <NavItem view={View.Messages} icon={MessageSquare} label="Messagerie" badge={unreadCount} tooltip="Messagerie interne avec les clients" />
                         {isSuperAdmin && (
                             <div className="mt-1">
-                                <NavItem view={View.Team} icon={Briefcase} label="Mon Équipe" />
+                                <NavItem view={View.Team} icon={Briefcase} label="Mon Équipe" tooltip="Gestion des collaborateurs du cabinet" />
                             </div>
                         )}
                     </div>
@@ -280,9 +282,12 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                                 {/* Navigation Links */}
                                 <div className="space-y-1">
-                                    <NavItem view={View.Dashboard} icon={LayoutDashboard} label="Tableau de Bord" />
-                                    <NavItem view={View.Entry} icon={FilePlus} label="Saisie Mensuelle" />
-                                    <NavItem view={View.History} icon={Database} label="Historique & Export" />
+                                    <NavItem view={View.Dashboard} icon={LayoutDashboard} label="Tableau de Bord" tooltip="Indicateurs clés et graphiques du dossier" />
+                                    <NavItem view={View.Entry} icon={FilePlus} label="Saisie Mensuelle" tooltip="Saisir ou modifier les données du mois" />
+                                    <NavItem view={View.History} icon={Database} label="Historique & Export" tooltip="Consulter l'historique et exporter les données" />
+                                    {userRole === 'ab_consultant' && (
+                                        <NavItem view={View.Settings} icon={Settings} label="Paramétrage Dossier" tooltip="Configurer les paramètres administratifs et analytiques" />
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -291,13 +296,10 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                 {/* SECTION 3: SYSTEM */}
                 <div className="mt-4 pt-4 border-t border-brand-800/50 animate-in slide-in-from-left-2">
-                    {userRole === 'ab_consultant' && selectedClient && (
-                        <NavItem view={View.Settings} icon={Settings} label="Configuration Dossier" />
-                    )}
-
                     {userRole === 'ab_consultant' && (
                         <button
                             onClick={onToggleSimulation}
+                            title="Voir l'interface telle que le client la voit"
                             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-brand-300 hover:bg-brand-800 hover:text-white transition-all duration-200 mt-2"
                         >
                             <Eye className="w-5 h-5" />
@@ -308,6 +310,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     {userRole === 'client' && isSuperAdmin && (
                         <button
                             onClick={onToggleSimulation}
+                            title="Revenir à l'interface consultant"
                             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-accent-400 hover:bg-brand-800 hover:text-accent-300 transition-all duration-200 mt-2 font-bold bg-brand-950/30"
                         >
                             <EyeOff className="w-5 h-5" />
@@ -320,6 +323,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                     <button
                         onClick={onLogout}
+                        title="Se déconnecter de l'application"
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-300 hover:bg-red-900/30 hover:text-red-200 transition-all duration-200 mt-4"
                     >
                         <LogOut className="w-5 h-5" />

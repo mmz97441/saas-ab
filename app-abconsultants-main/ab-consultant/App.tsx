@@ -246,18 +246,20 @@ const App: React.FC = () => {
       showNotification(clientData.id ? "Dossier modifié." : "Dossier créé avec succès.", 'success');
   };
 
-  const handleUpdateClientSettings = async (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
+  const handleUpdateClientSettings = async (formData: FormData) => {
       if (userRole !== 'ab_consultant' || !selectedClient) return;
-      const formData = new FormData(e.currentTarget);
       const updatedClient: Client = {
           ...selectedClient,
           companyName: formData.get('companyName') as string,
           siret: formData.get('siret') as string,
+          companyPhone: formData.get('companyPhone') as string,
           legalForm: formData.get('legalForm') as string,
           fiscalYearEnd: formData.get('fiscalYearEnd') as string,
+          address: formData.get('address') as string,
+          zipCode: formData.get('zipCode') as string,
           city: formData.get('city') as string,
           managerName: formData.get('managerName') as string,
+          managerPhone: formData.get('managerPhone') as string,
       };
       await saveClient(updatedClient);
       await refreshClients();

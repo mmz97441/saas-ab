@@ -6,7 +6,7 @@ import { useConfirmDialog } from '../contexts/ConfirmContext';
 
 interface SettingsViewProps {
     client: Client;
-    onUpdateClientSettings: (e: React.FormEvent<HTMLFormElement>) => void;
+    onUpdateClientSettings: (formData: FormData) => void;
     onUpdateProfitCenters: (pcs: ProfitCenter[]) => void;
     onUpdateFuelObjectives: (objectives: { gasoil: number, sansPlomb: number, gnr: number }) => void;
     onUpdateClientStatus: (client: Client, newStatus: 'active' | 'inactive') => void;
@@ -55,9 +55,12 @@ const SettingsView: React.FC<SettingsViewProps> = ({
     // Handler Wrappers
     const handleSaveClientForm = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        // Capture form data NOW before the async confirm dialog,
+        // because the React synthetic event will be recycled after await
+        const formData = new FormData(e.currentTarget);
         const ok = await confirm({ title: 'Modifier les informations ?', message: 'Les informations administratives du dossier seront mises à jour.', confirmLabel: 'Enregistrer' });
         if (!ok) return;
-        onUpdateClientSettings(e);
+        onUpdateClientSettings(formData);
         setIsEditingSettings(false);
     };
 

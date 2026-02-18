@@ -123,10 +123,13 @@ const App: React.FC = () => {
             setCurrentView(View.Dashboard);
         }
     } else {
-        // En mode consultant, on ne force plus la sélection du premier client.
-        // Si aucun client n'est sélectionné, App affichera le ConsultantDashboard.
-        if (!selectedClient && currentView !== View.Dashboard && currentView !== View.Messages && currentView !== View.Clients && currentView !== View.Team) {
-            // Pas d'auto-select
+        // Sync selectedClient with fresh data from clients list after refreshClients()
+        // This ensures the UI always reflects the latest saved data (name, settings, etc.)
+        if (selectedClient) {
+            const fresh = clients.find(c => c.id === selectedClient.id);
+            if (fresh && fresh !== selectedClient) {
+                setSelectedClient(fresh);
+            }
         }
     }
   }, [userRole, simulatedUserEmail, clients, selectedClient, currentView]);
@@ -262,13 +265,16 @@ const App: React.FC = () => {
           managerPhone: formData.get('managerPhone') as string,
       };
       await saveClient(updatedClient);
+      setSelectedClient(updatedClient);
       await refreshClients();
       showNotification("Dossier mis à jour.", 'success');
   };
 
   const handleUpdateProfitCenters = async (pcs: ProfitCenter[]) => {
       if (userRole !== 'ab_consultant' || !selectedClient) return;
-      await saveClient({ ...selectedClient, profitCenters: pcs });
+      const updated = { ...selectedClient, profitCenters: pcs };
+      await saveClient(updated);
+      setSelectedClient(updated);
       await refreshClients();
       showNotification("Activités mises à jour.", 'success');
   };

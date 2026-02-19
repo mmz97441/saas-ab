@@ -188,9 +188,24 @@ Expertise & Stratégie Financière`;
                 let dataFresh = false;
                 if (lastRecord) {
                     const lastMonthIdx = monthValues.indexOf(lastRecord.month as string);
-                    const nowMonthIdx = new Date().getMonth();
-                    if (lastRecord.year === currentYear && lastMonthIdx >= nowMonthIdx - 2) dataFresh = true;
-                    else if (lastRecord.year === currentYear - 1 && nowMonthIdx <= 1 && lastMonthIdx >= 10) dataFresh = true;
+                    const nowMonthIdx = new Date().getMonth(); // 0-indexed: 0=Jan, 1=Feb, ...
+                    // Expected month = M-1 (previous month). A client is "À jour" if they have
+                    // a submitted record with real data for M-1 or the current month.
+                    const expectedMonthIdx = nowMonthIdx - 1; // -1 in January, handled below
+                    const expectedYear = expectedMonthIdx < 0 ? currentYear - 1 : currentYear;
+                    const normalizedExpectedMonth = expectedMonthIdx < 0 ? 11 : expectedMonthIdx;
+
+                    // Check if a submitted record with revenue exists for M-1 or current month
+                    const hasExpectedData = records.some(r => {
+                        if (!r.isSubmitted && r.revenue.total === 0) return false; // Ignore empty drafts
+                        const rMonthIdx = monthValues.indexOf(r.month as string);
+                        // Match M-1
+                        if (r.year === expectedYear && rMonthIdx === normalizedExpectedMonth) return true;
+                        // Match current month
+                        if (r.year === currentYear && rMonthIdx === nowMonthIdx) return true;
+                        return false;
+                    });
+                    dataFresh = hasExpectedData;
                 }
 
                 const pendingValidation = !!records.find(r => r.isSubmitted && !r.isValidated);
@@ -340,7 +355,7 @@ Expertise & Stratégie Financière`;
                                             </button>
                                             <InfoTip text="Dernier solde bancaire connu. Rouge si négatif." />
                                         </th>
-                                        <th className="p-3 text-center">Données <InfoTip text="Fraîcheur des données (< 2 mois = à jour)." /></th>
+                                        <th className="p-3 text-center">Données <InfoTip text="À jour = données soumises pour M-1 ou le mois en cours." /></th>
                                         <th className="p-3 text-center">Statut</th>
                                         <th className="p-3 text-right pr-4">Actions</th>
                                     </tr>
@@ -417,18 +432,16 @@ Expertise & Stratégie Financière`;
 
                                                 {/* FRAICHEUR */}
                                                 <td className="p-3 text-center">
-                                                    {lastTreasury !== null ? (
-                                                        dataFresh ? (
-                                                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-600">
-                                                                <CheckCircle className="w-3 h-3" /> À jour
-                                                            </span>
-                                                        ) : (
-                                                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-orange-600">
-                                                                <CalendarClock className="w-3 h-3" /> Retard
-                                                            </span>
-                                                        )
-                                                    ) : (
+                                                    {lastActivity === 'Aucune' ? (
                                                         <span className="text-slate-300 text-[10px]">Aucune</span>
+                                                    ) : dataFresh ? (
+                                                        <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-600">
+                                                            <CheckCircle className="w-3 h-3" /> À jour
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-orange-600">
+                                                            <CalendarClock className="w-3 h-3" /> Retard
+                                                        </span>
                                                     )}
                                                 </td>
 

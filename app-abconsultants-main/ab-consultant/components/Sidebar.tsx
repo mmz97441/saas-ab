@@ -85,7 +85,7 @@ const HelpPanel: React.FC<{ userRole: 'ab_consultant' | 'client' }> = ({ userRol
         { term: 'Marge Moyenne', def: "Taux de marge commerciale brute pondéré par le CA. Calcul : (Ventes - Achats consommés) / CA total." },
         { term: 'Trésorerie Globale', def: "Somme des soldes bancaires (créditeurs - débiteurs) de chaque client, basée sur la dernière situation connue." },
         { term: 'Objectifs Atteints', def: "Nombre de clients dont le CA YTD dépasse 100% de l'objectif défini. Seuls les clients avec objectif paramétré sont comptés." },
-        { term: 'Données à Jour', def: "Pourcentage de dossiers ayant transmis des données dans les 2 derniers mois. Cliquez sur la carte pour filtrer les retardataires." },
+        { term: 'Données à Jour', def: "Pourcentage de dossiers ayant soumis des données réelles (CA > 0) pour le mois précédent (M-1) ou le mois en cours. Cliquez sur la carte pour filtrer les retardataires." },
         { term: 'Santé Portefeuille', def: "Score composite : un dossier est 'sain' s'il a une trésorerie positive, des données récentes ET un objectif ≥ 85%." },
         { term: '% Objectif', def: "Ratio CA réalisé / CA objectif sur la même période. Vert ≥ 100%, Orange ≥ 85%, Rouge < 85%." },
         { term: 'CA YTD', def: "Chiffre d'affaires HT cumulé d'un client sur l'exercice en cours." },

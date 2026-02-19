@@ -489,11 +489,12 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                     });
                 const lastRecord = recordsUpToPeriod.length > 0 ? recordsUpToPeriod[recordsUpToPeriod.length - 1] : null;
 
-                // Fraîcheur : le mois sélectionné a-t-il des données ?
-                const hasSelectedMonth = !!records.find(r => r.year === selectedYear && MONTHS.indexOf(r.month as string) === selectedMonthIdx);
+                // Fraîcheur : le client a-t-il soumis des données réelles pour M-1 ou le mois sélectionné ?
+                const isRealRecord = (r: any) => r.isSubmitted || r.revenue.total > 0;
+                const hasSelectedMonth = !!records.find(r => r.year === selectedYear && MONTHS.indexOf(r.month as string) === selectedMonthIdx && isRealRecord(r));
                 const hasPreviousMonth = selectedMonthIdx > 0
-                    ? !!records.find(r => r.year === selectedYear && MONTHS.indexOf(r.month as string) === selectedMonthIdx - 1)
-                    : !!records.find(r => r.year === selectedYear - 1 && MONTHS.indexOf(r.month as string) === 11);
+                    ? !!records.find(r => r.year === selectedYear && MONTHS.indexOf(r.month as string) === selectedMonthIdx - 1 && isRealRecord(r))
+                    : !!records.find(r => r.year === selectedYear - 1 && MONTHS.indexOf(r.month as string) === 11 && isRealRecord(r));
                 const dataFresh = hasSelectedMonth || hasPreviousMonth;
 
                 const treasuryAlert = lastRecord ? lastRecord.cashFlow.treasury < 0 : false;

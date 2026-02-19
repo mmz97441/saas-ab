@@ -256,6 +256,8 @@ export const getClients = async (filterByEmail?: string | null): Promise<Client[
                 address: data.address || "",
                 zipCode: data.zipCode || "",
                 city: data.city || "",
+                legalForm: data.legalForm || "",
+                fiscalYearEnd: data.fiscalYearEnd || "",
                 companyPhone: data.companyPhone || "",
                 managerName: data.managerName || "",
                 managerPhone: data.managerPhone || "",

@@ -1,8 +1,21 @@
 
 import React, { useState, useEffect } from 'react';
-import { Settings, Building, Lock, ShoppingBag, Plus, Trash2, Save, Droplets, AlertTriangle, Power, MapPin, Phone, Percent, PieChart } from 'lucide-react';
+import { Settings, Building, Lock, ShoppingBag, Plus, Trash2, Save, Droplets, AlertTriangle, Power, MapPin, Phone, Percent, PieChart, ChevronDown, Calendar } from 'lucide-react';
 import { Client, ProfitCenter } from '../types';
 import { useConfirmDialog } from '../contexts/ConfirmContext';
+
+const LEGAL_FORMS = [
+    '', 'SAS', 'SASU', 'SARL', 'EURL', 'SA', 'SNC', 'SCI', 'SCOP',
+    'Auto-entrepreneur', 'Micro-entreprise', 'EI', 'EIRL', 'Association', 'Autre'
+];
+
+const DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'));
+const MONTHS = [
+    { value: '01', label: 'Janvier' }, { value: '02', label: 'Février' }, { value: '03', label: 'Mars' },
+    { value: '04', label: 'Avril' }, { value: '05', label: 'Mai' }, { value: '06', label: 'Juin' },
+    { value: '07', label: 'Juillet' }, { value: '08', label: 'Août' }, { value: '09', label: 'Septembre' },
+    { value: '10', label: 'Octobre' }, { value: '11', label: 'Novembre' }, { value: '12', label: 'Décembre' },
+];
 
 export interface ClientAdminFields {
     companyName: string;
@@ -148,11 +161,59 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Forme Juridique</label>
-                                        <input value={formValues.legalForm} onChange={(e) => handleFieldChange('legalForm', e.target.value)} disabled={!isEditingSettings} className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
+                                        <div className="relative">
+                                            <select
+                                                value={formValues.legalForm}
+                                                onChange={(e) => handleFieldChange('legalForm', e.target.value)}
+                                                disabled={!isEditingSettings}
+                                                className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500 appearance-none pr-8"
+                                            >
+                                                <option value="">-- Choisir --</option>
+                                                {LEGAL_FORMS.filter(f => f !== '').map(f => (
+                                                    <option key={f} value={f}>{f}</option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown className="absolute right-2 top-2.5 w-4 h-4 text-slate-400 pointer-events-none" />
+                                        </div>
                                     </div>
                                     <div>
                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Clôture Exercice</label>
-                                        <input value={formValues.fiscalYearEnd} onChange={(e) => handleFieldChange('fiscalYearEnd', e.target.value)} disabled={!isEditingSettings} placeholder="JJ/MM" className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
+                                        <div className="flex gap-2">
+                                            <div className="relative flex-1">
+                                                <select
+                                                    value={formValues.fiscalYearEnd.split('/')[0] || ''}
+                                                    onChange={(e) => {
+                                                        const month = formValues.fiscalYearEnd.split('/')[1] || '';
+                                                        handleFieldChange('fiscalYearEnd', e.target.value && month ? `${e.target.value}/${month}` : e.target.value ? `${e.target.value}/` : '');
+                                                    }}
+                                                    disabled={!isEditingSettings}
+                                                    className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500 appearance-none pr-8"
+                                                >
+                                                    <option value="">Jour</option>
+                                                    {DAYS.map(d => (
+                                                        <option key={d} value={d}>{d}</option>
+                                                    ))}
+                                                </select>
+                                                <Calendar className="absolute right-2 top-2.5 w-4 h-4 text-slate-400 pointer-events-none" />
+                                            </div>
+                                            <div className="relative flex-[2]">
+                                                <select
+                                                    value={formValues.fiscalYearEnd.split('/')[1] || ''}
+                                                    onChange={(e) => {
+                                                        const day = formValues.fiscalYearEnd.split('/')[0] || '';
+                                                        handleFieldChange('fiscalYearEnd', day && e.target.value ? `${day}/${e.target.value}` : e.target.value ? `/${e.target.value}` : day ? `${day}/` : '');
+                                                    }}
+                                                    disabled={!isEditingSettings}
+                                                    className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500 appearance-none pr-8"
+                                                >
+                                                    <option value="">Mois</option>
+                                                    {MONTHS.map(m => (
+                                                        <option key={m.value} value={m.value}>{m.label}</option>
+                                                    ))}
+                                                </select>
+                                                <ChevronDown className="absolute right-2 top-2.5 w-4 h-4 text-slate-400 pointer-events-none" />
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

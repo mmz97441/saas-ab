@@ -4,9 +4,22 @@ import { Settings, Building, Lock, ShoppingBag, Plus, Trash2, Save, Droplets, Al
 import { Client, ProfitCenter } from '../types';
 import { useConfirmDialog } from '../contexts/ConfirmContext';
 
+export interface ClientAdminFields {
+    companyName: string;
+    siret: string;
+    companyPhone: string;
+    legalForm: string;
+    fiscalYearEnd: string;
+    address: string;
+    zipCode: string;
+    city: string;
+    managerName: string;
+    managerPhone: string;
+}
+
 interface SettingsViewProps {
     client: Client;
-    onUpdateClientSettings: (formData: FormData) => void;
+    onUpdateClientSettings: (fields: ClientAdminFields) => void;
     onUpdateProfitCenters: (pcs: ProfitCenter[]) => void;
     onUpdateFuelObjectives: (objectives: { gasoil: number, sansPlomb: number, gnr: number }) => void;
     onUpdateClientStatus: (client: Client, newStatus: 'active' | 'inactive') => void;
@@ -30,10 +43,27 @@ const SettingsView: React.FC<SettingsViewProps> = ({
     const [settingsProfitCenters, setSettingsProfitCenters] = useState<ProfitCenter[]>(client.profitCenters || []);
     const [settingsFuelObjectives, setSettingsFuelObjectives] = useState(client.settings?.fuelObjectives || { gasoil: 0, sansPlomb: 0, gnr: 0 });
 
-    // Sync state when client changes (e.g. navigation)
+    // Controlled form state for admin fields
+    const buildFormValues = (c: Client): ClientAdminFields => ({
+        companyName: c.companyName || '',
+        siret: c.siret || '',
+        companyPhone: c.companyPhone || '',
+        legalForm: c.legalForm || '',
+        fiscalYearEnd: c.fiscalYearEnd || '',
+        address: c.address || '',
+        zipCode: c.zipCode || '',
+        city: c.city || '',
+        managerName: c.managerName || '',
+        managerPhone: c.managerPhone || '',
+    });
+    const [formValues, setFormValues] = useState<ClientAdminFields>(buildFormValues(client));
+
+    // Sync ALL local state when client changes (navigation or after save)
     useEffect(() => {
         setSettingsProfitCenters(client.profitCenters || []);
         setSettingsFuelObjectives(client.settings?.fuelObjectives || { gasoil: 0, sansPlomb: 0, gnr: 0 });
+        setFormValues(buildFormValues(client));
+        setIsEditingSettings(false);
     }, [client]);
 
     // Profit Center Handlers
@@ -52,15 +82,18 @@ const SettingsView: React.FC<SettingsViewProps> = ({
         setSettingsProfitCenters(prev => prev.filter(pc => pc.id !== id));
     };
 
+    // Form field change handler
+    const handleFieldChange = (field: keyof ClientAdminFields, value: string) => {
+        setFormValues(prev => ({ ...prev, [field]: value }));
+    };
+
     // Handler Wrappers
     const handleSaveClientForm = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        // Capture form data NOW before the async confirm dialog,
-        // because the React synthetic event will be recycled after await
-        const formData = new FormData(e.currentTarget);
+        const snapshot = { ...formValues };
         const ok = await confirm({ title: 'Modifier les informations ?', message: 'Les informations administratives du dossier seront mises à jour.', confirmLabel: 'Enregistrer' });
         if (!ok) return;
-        onUpdateClientSettings(formData);
+        onUpdateClientSettings(snapshot);
         setIsEditingSettings(false);
     };
 
@@ -91,39 +124,39 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                     </button>
                 </div>
                 <div className="p-6">
-                    <form key={`${client.companyName}-${client.legalForm}-${client.fiscalYearEnd}-${client.siret}-${client.address}`} onSubmit={handleSaveClientForm}>
+                    <form onSubmit={handleSaveClientForm}>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            
+
                             {/* Company Info */}
                             <div className="space-y-4">
                                 <h4 className="text-xs font-bold text-slate-400 uppercase border-b pb-1">Société</h4>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Raison Sociale</label>
-                                    <input name="companyName" defaultValue={client.companyName} disabled={!isEditingSettings} className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
+                                    <input value={formValues.companyName} onChange={(e) => handleFieldChange('companyName', e.target.value)} disabled={!isEditingSettings} className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">SIRET</label>
-                                    <input name="siret" defaultValue={client.siret} disabled={!isEditingSettings} className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
+                                    <input value={formValues.siret} onChange={(e) => handleFieldChange('siret', e.target.value)} disabled={!isEditingSettings} className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Téléphone Standard</label>
                                     <div className="relative">
                                         <Phone className="absolute left-2 top-2 w-4 h-4 text-slate-400" />
-                                        <input name="companyPhone" defaultValue={client.companyPhone} disabled={!isEditingSettings} className="w-full pl-8 p-2 border rounded bg-slate-50 disabled:text-slate-500" />
+                                        <input value={formValues.companyPhone} onChange={(e) => handleFieldChange('companyPhone', e.target.value)} disabled={!isEditingSettings} className="w-full pl-8 p-2 border rounded bg-slate-50 disabled:text-slate-500" />
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Forme Juridique</label>
-                                        <input name="legalForm" defaultValue={client.legalForm} disabled={!isEditingSettings} className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
+                                        <input value={formValues.legalForm} onChange={(e) => handleFieldChange('legalForm', e.target.value)} disabled={!isEditingSettings} className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
                                     </div>
                                     <div>
                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Clôture Exercice</label>
-                                        <input name="fiscalYearEnd" defaultValue={client.fiscalYearEnd} disabled={!isEditingSettings} placeholder="JJ/MM" className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
+                                        <input value={formValues.fiscalYearEnd} onChange={(e) => handleFieldChange('fiscalYearEnd', e.target.value)} disabled={!isEditingSettings} placeholder="JJ/MM" className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
                                     </div>
                                 </div>
                             </div>
-                            
+
                             {/* Contact Info & Address */}
                             <div className="space-y-4">
                                 <h4 className="text-xs font-bold text-slate-400 uppercase border-b pb-1">Coordonnées</h4>
@@ -131,31 +164,31 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Adresse Complète</label>
                                     <div className="relative">
                                         <MapPin className="absolute left-2 top-2 w-4 h-4 text-slate-400" />
-                                        <input name="address" defaultValue={client.address} disabled={!isEditingSettings} placeholder="Rue, ZI..." className="w-full pl-8 p-2 border rounded bg-slate-50 disabled:text-slate-500" />
+                                        <input value={formValues.address} onChange={(e) => handleFieldChange('address', e.target.value)} disabled={!isEditingSettings} placeholder="Rue, ZI..." className="w-full pl-8 p-2 border rounded bg-slate-50 disabled:text-slate-500" />
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-3 gap-2">
                                     <div className="col-span-1">
                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Code Postal</label>
-                                        <input name="zipCode" defaultValue={client.zipCode} disabled={!isEditingSettings} className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
+                                        <input value={formValues.zipCode} onChange={(e) => handleFieldChange('zipCode', e.target.value)} disabled={!isEditingSettings} className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
                                     </div>
                                     <div className="col-span-2">
                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Ville</label>
-                                        <input name="city" defaultValue={client.city} disabled={!isEditingSettings} className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
+                                        <input value={formValues.city} onChange={(e) => handleFieldChange('city', e.target.value)} disabled={!isEditingSettings} className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
                                     </div>
                                 </div>
-                                
+
                                 <div className="pt-2"></div>
                                 <h4 className="text-xs font-bold text-slate-400 uppercase border-b pb-1">Dirigeant</h4>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nom Dirigeant</label>
-                                    <input name="managerName" defaultValue={client.managerName} disabled={!isEditingSettings} className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
+                                    <input value={formValues.managerName} onChange={(e) => handleFieldChange('managerName', e.target.value)} disabled={!isEditingSettings} className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Mobile</label>
                                     <div className="relative">
                                         <Phone className="absolute left-2 top-2 w-4 h-4 text-slate-400" />
-                                        <input name="managerPhone" defaultValue={client.managerPhone} disabled={!isEditingSettings} className="w-full pl-8 p-2 border rounded bg-slate-50 disabled:text-slate-500" />
+                                        <input value={formValues.managerPhone} onChange={(e) => handleFieldChange('managerPhone', e.target.value)} disabled={!isEditingSettings} className="w-full pl-8 p-2 border rounded bg-slate-50 disabled:text-slate-500" />
                                     </div>
                                 </div>
                             </div>

@@ -204,6 +204,15 @@ const App: React.FC = () => {
       showNotification("Rapport supprimé.", 'success');
   };
 
+  const handleBulkDelete = async (records: FinancialRecord[]) => {
+      if (userRole !== 'ab_consultant') return;
+      for (const record of records) {
+          await deleteRecord(record.id);
+      }
+      await refreshRecords();
+      showNotification(`${records.length} rapport(s) supprimé(s).`, 'success');
+  };
+
   const toggleValidation = async (record: FinancialRecord) => {
       if (userRole !== 'ab_consultant') return;
       await saveRecord({ ...record, isValidated: !record.isValidated });
@@ -551,7 +560,7 @@ const App: React.FC = () => {
                         console.error('Export CSV error:', err);
                         showNotification(err?.message || 'Erreur lors de l\'export CSV.', 'error');
                     }
-                }} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onValidate={toggleValidation} onPublish={togglePublication} onLockToggle={toggleClientLock} onImportExcel={() => setIsExcelImportOpen(true)}/>
+                }} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onValidate={toggleValidation} onPublish={togglePublication} onLockToggle={toggleClientLock} onBulkDelete={handleBulkDelete} onImportExcel={() => setIsExcelImportOpen(true)}/>
             )}
 
             {currentView === View.Settings && userRole === 'ab_consultant' && selectedClient && (

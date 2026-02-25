@@ -60,8 +60,10 @@ function parseMonth(raw: any): Month | null {
 
   // Handle strings
   let cleaned = String(raw).toLowerCase().trim().replace(/\./g, '');
-  // Strip year suffix: "janvier-25" → "janvier", "février-2025" → "février"
-  cleaned = cleaned.replace(/[-\/]\d{2,4}$/, '');
+  // Strip year suffix: "janvier-25" → "janvier", "février 2025" → "février", "jan/25" → "jan"
+  cleaned = cleaned.replace(/[-\/\s]\d{2,4}$/, '');
+  // Also handle no-separator: "janvier25" → "janvier"
+  cleaned = cleaned.replace(/\d{2,4}$/, '');
   // Numeric month (1-12) in string form
   const num = parseInt(cleaned);
   if (!isNaN(num) && num >= 1 && num <= 12) {
@@ -283,8 +285,8 @@ function findLabelColumn(headers: string[], monthCols: { colIndex: number; month
   return bestCol;
 }
 
-// Detect year from sheet data - look for a year pattern in headers (e.g. "janvier-25", "2025", etc.)
-function detectYear(sheet: ParsedSheet): number {
+// Detect year from sheet data - look for a year pattern in headers, raw data, fmtData, or sheet name
+export function detectYear(sheet: ParsedSheet): number {
   const currentYear = new Date().getFullYear();
 
   // Check headers for year (handles "janvier-25", Date objects, serials)
@@ -299,8 +301,35 @@ function detectYear(sheet: ParsedSheet): number {
     if (match) return parseInt(match[1]);
   }
 
+  // Check rawData header row for date serial numbers (extract year from date)
+  if (sheet.rawData) {
+    for (let i = 0; i < Math.min(sheet.rawData.length, 20); i++) {
+      const row = sheet.rawData[i];
+      if (!row) continue;
+      for (const cell of row) {
+        if (typeof cell === 'number' && cell > 28 && cell < 60000) {
+          const excelEpoch = new Date(1899, 11, 30);
+          const date = new Date(excelEpoch.getTime() + cell * 86400000);
+          if (!isNaN(date.getTime()) && date.getFullYear() >= 2020) return date.getFullYear();
+        }
+      }
+    }
+  }
+
+  // Check fmtData rows for year patterns (e.g. "janvier-25", "2025")
+  if (sheet.fmtData) {
+    for (let i = 0; i < Math.min(sheet.fmtData.length, 20); i++) {
+      const row = sheet.fmtData[i];
+      if (!row) continue;
+      for (const cell of row) {
+        const y = extractYearFromCell(cell);
+        if (y) return y;
+      }
+    }
+  }
+
   // Check first column of data rows
-  for (const row of sheet.rows) {
+  for (const row of sheet.rows.slice(0, 10)) {
     if (row[0]) {
       const match = String(row[0]).match(/(20[2-3]\d)/);
       if (match) return parseInt(match[1]);

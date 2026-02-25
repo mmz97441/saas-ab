@@ -6,6 +6,7 @@ import {
   SheetMapping,
   readExcelFile,
   detectSheetType,
+  detectYear,
   parseRevenueSheet,
   parseFuelSheet,
   buildImportData,
@@ -37,6 +38,7 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
   const [sheets, setSheets] = useState<ParsedSheet[]>([]);
   const [mappings, setMappings] = useState<SheetMapping[]>([]);
   const [year, setYear] = useState(defaultYear);
+  const [yearConfirmed, setYearConfirmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>('');
   const [expandedSheet, setExpandedSheet] = useState<string | null>(null);
@@ -48,6 +50,7 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
       setSheets([]);
       setMappings([]);
       setYear(defaultYear);
+      setYearConfirmed(false);
       setError(null);
       setFileName('');
       setExpandedSheet(null);
@@ -70,19 +73,25 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
 
       setSheets(parsed);
 
+      // Auto-detect year from the first meaningful sheet
+      const detectedYear = parsed.reduce<number | null>((found, sheet) => {
+        if (found) return found;
+        const y = detectYear(sheet);
+        return y !== new Date().getFullYear() ? y : null;
+      }, null) || parsed.length > 0 ? detectYear(parsed[0]) : defaultYear;
+      setYear(detectedYear);
+
       // Auto-detect mappings
       const detectionResults = parsed.map(sheet => ({
         sheetName: sheet.name,
         detectedType: detectSheetType(sheet),
       }));
-      console.log('[AutoDetect] Detection results:', detectionResults);
 
       const autoMappings: SheetMapping[] = detectionResults.map(d => ({
         sheetName: d.sheetName,
         type: d.detectedType === 'unknown' ? 'ignore' : d.detectedType,
       })) as SheetMapping[];
 
-      console.log('[AutoDetect] Final mappings:', autoMappings.map(m => `${m.sheetName} → ${m.type}`));
       setMappings(autoMappings);
       setStep('mapping');
     } catch (err: any) {
@@ -109,6 +118,10 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
   }, [step, sheets, mappings, year, clientId, existingRecords, existingProfitCenters]);
 
   const handleGoToPreview = useCallback(() => {
+    if (!yearConfirmed) {
+      setError("Veuillez confirmer l'année d'import avant de continuer.");
+      return;
+    }
     const hasMapping = mappings.some(m => m.type !== 'ignore');
     if (!hasMapping) {
       setError('Veuillez associer au moins une feuille.');
@@ -116,7 +129,7 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
     }
     setError(null);
     setStep('preview');
-  }, [mappings]);
+  }, [mappings, yearConfirmed]);
 
   const handleImport = useCallback(() => {
     if (!previewData) return;
@@ -211,19 +224,36 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
           {/* STEP 2: Mapping */}
           {step === 'mapping' && (
             <div className="space-y-4">
-              {/* Year selector */}
-              <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                <span className="text-sm font-bold text-slate-700">Année d'import :</span>
-                <select
-                  value={year}
-                  onChange={(e) => setYear(parseInt(e.target.value))}
-                  className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white font-bold text-sm text-slate-700 focus:ring-2 focus:ring-brand-500"
-                >
-                  {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
-                <span className="text-xs text-slate-500">({fileName})</span>
+              {/* Year selector - MANDATORY confirmation */}
+              <div className={`p-4 rounded-xl border-2 transition-colors ${yearConfirmed ? 'bg-emerald-50 border-emerald-300' : 'bg-amber-50 border-amber-300'}`}>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 flex-1">
+                    <AlertTriangle className={`w-5 h-5 shrink-0 ${yearConfirmed ? 'text-emerald-600' : 'text-amber-600'}`} />
+                    <span className={`text-sm font-bold ${yearConfirmed ? 'text-emerald-800' : 'text-amber-800'}`}>
+                      {yearConfirmed ? `Année confirmée : ${year}` : "Confirmez l'année d'import :"}
+                    </span>
+                  </div>
+                  <select
+                    value={year}
+                    onChange={(e) => { setYear(parseInt(e.target.value)); setYearConfirmed(false); }}
+                    className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white font-bold text-lg text-slate-800 focus:ring-2 focus:ring-brand-500"
+                  >
+                    {Array.from({ length: 7 }, (_, i) => new Date().getFullYear() - 4 + i).map(y => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                  {!yearConfirmed && (
+                    <button
+                      onClick={() => { setYearConfirmed(true); setError(null); }}
+                      className="px-4 py-1.5 bg-amber-600 text-white text-sm font-bold rounded-lg hover:bg-amber-700 transition flex items-center gap-1"
+                    >
+                      <CheckCircle className="w-4 h-4" /> Confirmer
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs mt-2 ml-7 text-slate-500">
+                  Fichier : {fileName}
+                </p>
               </div>
 
               {/* Sheet mappings */}

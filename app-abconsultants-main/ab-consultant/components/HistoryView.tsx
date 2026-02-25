@@ -17,6 +17,7 @@ interface HistoryViewProps {
     onLockToggle: (record: FinancialRecord) => void;
     onBulkValidate?: (records: FinancialRecord[]) => void;
     onBulkPublish?: (records: FinancialRecord[]) => void;
+    onBulkDelete?: (records: FinancialRecord[]) => void;
     onImportExcel?: () => void;
 }
 
@@ -32,6 +33,7 @@ const HistoryView: React.FC<HistoryViewProps> = ({
     onLockToggle,
     onBulkValidate,
     onBulkPublish,
+    onBulkDelete,
     onImportExcel
 }) => {
     const [historyYearFilter, setHistoryYearFilter] = useState<number | 'ALL'>('ALL');
@@ -111,6 +113,23 @@ const HistoryView: React.FC<HistoryViewProps> = ({
         setSelectedIds(new Set());
     };
 
+    const handleBulkDelete = async () => {
+        if (selectedRecords.length === 0) return;
+        const ok = await confirm({
+            title: `Supprimer ${selectedRecords.length} rapport(s) ?`,
+            message: `Cette action est irréversible. Les ${selectedRecords.length} rapports sélectionnés seront définitivement supprimés.`,
+            variant: 'danger',
+            confirmLabel: 'Tout supprimer',
+        });
+        if (!ok) return;
+        if (onBulkDelete) {
+            onBulkDelete(selectedRecords);
+        } else {
+            for (const r of selectedRecords) onDelete(r);
+        }
+        setSelectedIds(new Set());
+    };
+
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
@@ -170,6 +189,9 @@ const HistoryView: React.FC<HistoryViewProps> = ({
                         </button>
                         <button onClick={handleBulkPublish} className="px-3 py-1.5 bg-blue-500 text-white text-xs font-bold rounded-lg hover:bg-blue-600 transition flex items-center gap-1">
                             <Eye className="w-3.5 h-3.5" /> Publier tout
+                        </button>
+                        <button onClick={handleBulkDelete} className="px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600 transition flex items-center gap-1">
+                            <Trash2 className="w-3.5 h-3.5" /> Supprimer
                         </button>
                         <button onClick={() => setSelectedIds(new Set())} className="px-3 py-1.5 bg-white/20 text-white text-xs font-bold rounded-lg hover:bg-white/30 transition">
                             Annuler

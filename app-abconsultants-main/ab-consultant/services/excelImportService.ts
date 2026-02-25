@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx';
 import { Month, ProfitCenter, FinancialRecord } from '../types';
 
 // French month names mapping (handles various casing/accents)
+// Also includes English names because XLSX library may format dates in English locale
 const MONTH_MAP: Record<string, Month> = {
   'janvier': Month.Jan, 'janv': Month.Jan, 'jan': Month.Jan,
   'février': Month.Feb, 'fevrier': Month.Feb, 'fév': Month.Feb, 'fev': Month.Feb, 'feb': Month.Feb,
@@ -15,6 +16,19 @@ const MONTH_MAP: Record<string, Month> = {
   'octobre': Month.Oct, 'oct': Month.Oct,
   'novembre': Month.Nov, 'nov': Month.Nov,
   'décembre': Month.Dec, 'decembre': Month.Dec, 'déc': Month.Dec, 'dec': Month.Dec,
+  // English (XLSX library may format dates in English)
+  'january': Month.Jan,
+  'february': Month.Feb,
+  'march': Month.Mar,
+  'april': Month.Apr,
+  'may': Month.May,
+  'june': Month.Jun,
+  'july': Month.Jul,
+  'august': Month.Aug,
+  'september': Month.Sep,
+  'october': Month.Oct,
+  'november': Month.Nov,
+  'december': Month.Dec,
 };
 
 const MONTHS_BY_INDEX: Month[] = [
@@ -138,18 +152,24 @@ export interface ExcelImportResult {
 }
 
 // Find the row index that contains month names (the actual header row)
-// Scans up to the first 30 rows to find a row with at least 3 month names
-function findHeaderRowIndex(rawData: any[][]): number {
-  const maxScan = Math.min(rawData.length, 30);
+// Scans up to the first 30 rows to find a row with at least 3 month names.
+// Tries BOTH fmtData (formatted strings) and rawData (raw values with date serials as numbers).
+// This handles all scenarios: text month names, formatted dates, and Excel serial numbers.
+function findHeaderRowIndex(fmtData: any[][], rawData: any[][]): number {
+  const maxScan = Math.min(fmtData.length, rawData.length, 30);
   let bestRow = 0;
   let bestCount = 0;
 
   for (let i = 0; i < maxScan; i++) {
-    const row = rawData[i];
-    if (!row || !Array.isArray(row)) continue;
+    const fmtRow = fmtData[i];
+    const rawRow = rawData[i];
+    if ((!fmtRow || !Array.isArray(fmtRow)) && (!rawRow || !Array.isArray(rawRow))) continue;
+
     let monthCount = 0;
-    for (const cell of row) {
-      if (parseMonth(cell)) {
+    const maxCols = Math.max(fmtRow?.length || 0, rawRow?.length || 0);
+    for (let j = 0; j < maxCols; j++) {
+      // Try formatted string first, then raw value (serial number)
+      if (parseMonth(fmtRow?.[j]) || parseMonth(rawRow?.[j])) {
         monthCount++;
       }
     }
@@ -182,25 +202,33 @@ export function readExcelFile(file: File): Promise<ParsedSheet[]> {
           // formatted strings (Excel's display text, e.g. "janvier-25") – used for header detection
           const fmtData: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
 
-          // Find the header row using formatted text (most reliable for month detection)
-          const headerRowIdx = findHeaderRowIndex(fmtData);
+          // Find the header row using BOTH data sources for robustness
+          const headerRowIdx = findHeaderRowIndex(fmtData, rawData);
 
-          // Headers come from formatted data so "janvier-25" is a readable string
-          const headers = fmtData.length > headerRowIdx
+          // Build headers: prefer readable fmtData, but fall back to converting rawData
+          // (handles cases where fmtData has unreadable strings but rawData has serial numbers)
+          const fmtHeaders = fmtData.length > headerRowIdx
             ? fmtData[headerRowIdx].map((h: any) => String(h ?? '').trim())
             : [];
+          const rawHeaders = rawData.length > headerRowIdx
+            ? rawData[headerRowIdx]
+            : [];
+
+          // For each column, use fmtData header if it resolves to a month, otherwise try converting raw
+          const headers = fmtHeaders.map((fh: string, i: number) => {
+            if (parseMonth(fh)) return fh;
+            const rawCell = rawHeaders[i];
+            if (rawCell !== undefined && parseMonth(rawCell)) return cellToHeaderString(rawCell);
+            return fh;
+          });
 
           // Data rows use raw values for numeric accuracy
           const rows = rawData.slice(headerRowIdx + 1);
 
-          // DEBUG: log what we see for each sheet
-          console.log(`[ExcelImport] Sheet "${name}":`);
-          console.log(`  headerRowIdx: ${headerRowIdx}`);
-          console.log(`  fmtData first 5 rows:`, fmtData.slice(0, 5));
-          console.log(`  rawData first 5 rows:`, rawData.slice(0, 5));
-          console.log(`  headers (from fmtData):`, headers);
+          // DEBUG
+          console.log(`[ExcelImport] Sheet "${name}": headerRowIdx=${headerRowIdx}`);
           const monthsFound = headers.filter((h: string) => parseMonth(h) !== null);
-          console.log(`  months detected in headers:`, monthsFound, `(${monthsFound.length} total)`);
+          console.log(`  months detected:`, monthsFound.length, monthsFound);
 
           return { name, headers, rows, rawData, fmtData };
         });
@@ -350,11 +378,48 @@ export function parseRevenueSheet(
   sheet: ParsedSheet,
   year: number
 ): { families: string[]; monthlyData: Map<string, Map<string, number>>; totalRow: Map<string, number> | null } {
-  const monthCols = detectMonthColumns(sheet.headers);
+  let monthCols = detectMonthColumns(sheet.headers);
+  let dataRows = sheet.rows;
+  let effectiveHeaders = sheet.headers;
+
+  // Fallback: if headers don't have months, re-scan BOTH fmtData and rawData
+  if (monthCols.length < 3) {
+    const maxScan = Math.min(sheet.fmtData?.length || 0, sheet.rawData?.length || 0, 50);
+    let bestRow = -1;
+    let bestCount = 0;
+    for (let i = 0; i < maxScan; i++) {
+      const fmtRow = sheet.fmtData?.[i];
+      const rawRow = sheet.rawData?.[i];
+      if ((!fmtRow || !Array.isArray(fmtRow)) && (!rawRow || !Array.isArray(rawRow))) continue;
+      let count = 0;
+      const maxCols = Math.max(fmtRow?.length || 0, rawRow?.length || 0);
+      for (let j = 0; j < maxCols; j++) {
+        if (parseMonth(fmtRow?.[j]) || parseMonth(rawRow?.[j])) count++;
+      }
+      if (count > bestCount) {
+        bestCount = count;
+        bestRow = i;
+      }
+    }
+    if (bestCount >= 3 && bestRow >= 0) {
+      const fmtRow = sheet.fmtData?.[bestRow] || [];
+      const rawRow = sheet.rawData?.[bestRow] || [];
+      effectiveHeaders = fmtRow.map((fh: any, idx: number) => {
+        const fhStr = String(fh ?? '').trim();
+        if (parseMonth(fhStr)) return fhStr;
+        const rawCell = rawRow[idx];
+        if (rawCell !== undefined && parseMonth(rawCell)) return cellToHeaderString(rawCell);
+        return fhStr;
+      });
+      monthCols = detectMonthColumns(effectiveHeaders);
+      dataRows = sheet.rawData.slice(bestRow + 1);
+    }
+  }
+
   if (monthCols.length === 0) return { families: [], monthlyData: new Map(), totalRow: null };
 
   // Find the label column (the non-month column with the most text data)
-  const effectiveLabelCol = findLabelColumn(sheet.headers, monthCols, sheet.rows);
+  const effectiveLabelCol = findLabelColumn(effectiveHeaders, monthCols, dataRows);
 
   const families: string[] = [];
   const monthlyData = new Map<string, Map<string, number>>(); // month -> (family -> value)
@@ -376,7 +441,7 @@ export function parseRevenueSheet(
   let currentSection: 'ca' | 'other' | 'unknown' = 'unknown';
   let firstTotalSeen = false;
 
-  for (const row of sheet.rows) {
+  for (const row of dataRows) {
     const label = String(row[effectiveLabelCol] || '').trim();
     if (!label) continue;
 
@@ -460,17 +525,19 @@ export function parseFuelSheet(
   console.log(`[parseFuelSheet] Initial monthCols from headers:`, monthCols.length);
   console.log(`[parseFuelSheet] Headers:`, sheet.headers);
 
-  // Fallback: if headers don't have months, re-scan fmtData (formatted strings)
-  if (monthCols.length < 3 && sheet.fmtData) {
-    const maxScan = Math.min(sheet.fmtData.length, 50);
+  // Fallback: if headers don't have months, re-scan BOTH fmtData and rawData
+  if (monthCols.length < 3) {
+    const maxScan = Math.min(sheet.fmtData?.length || 0, sheet.rawData?.length || 0, 50);
     let bestRow = -1;
     let bestCount = 0;
     for (let i = 0; i < maxScan; i++) {
-      const row = sheet.fmtData[i];
-      if (!row || !Array.isArray(row)) continue;
+      const fmtRow = sheet.fmtData?.[i];
+      const rawRow = sheet.rawData?.[i];
+      if ((!fmtRow || !Array.isArray(fmtRow)) && (!rawRow || !Array.isArray(rawRow))) continue;
       let count = 0;
-      for (const cell of row) {
-        if (parseMonth(cell)) count++;
+      const maxCols = Math.max(fmtRow?.length || 0, rawRow?.length || 0);
+      for (let j = 0; j < maxCols; j++) {
+        if (parseMonth(fmtRow?.[j]) || parseMonth(rawRow?.[j])) count++;
       }
       if (count > bestCount) {
         bestCount = count;
@@ -478,7 +545,15 @@ export function parseFuelSheet(
       }
     }
     if (bestCount >= 3 && bestRow >= 0) {
-      effectiveHeaders = sheet.fmtData[bestRow].map((h: any) => String(h ?? '').trim());
+      const fmtRow = sheet.fmtData?.[bestRow] || [];
+      const rawRow = sheet.rawData?.[bestRow] || [];
+      effectiveHeaders = fmtRow.map((fh: any, idx: number) => {
+        const fhStr = String(fh ?? '').trim();
+        if (parseMonth(fhStr)) return fhStr;
+        const rawCell = rawRow[idx];
+        if (rawCell !== undefined && parseMonth(rawCell)) return cellToHeaderString(rawCell);
+        return fhStr;
+      });
       monthCols = detectMonthColumns(effectiveHeaders);
       dataRows = sheet.rawData.slice(bestRow + 1);
     }
@@ -605,18 +680,20 @@ export function parseAnalyseActiviteSheet(
   console.log(`[parseAnalyseActivite] Initial monthCols from headers:`, monthCols.length, monthCols);
   console.log(`[parseAnalyseActivite] Headers:`, sheet.headers);
 
-  // Fallback: if headers don't have months, re-scan fmtData (formatted strings) to find the real header row
-  // fmtData uses raw:false which gives Excel's display text – most reliable for month detection
-  if (monthCols.length < 3 && sheet.fmtData) {
-    const maxScan = Math.min(sheet.fmtData.length, 50);
+  // Fallback: if headers don't have months, re-scan BOTH fmtData and rawData to find the real header row.
+  // fmtData handles text month names, rawData handles Excel date serial numbers.
+  if (monthCols.length < 3) {
+    const maxScan = Math.min(sheet.fmtData?.length || 0, sheet.rawData?.length || 0, 50);
     let bestRow = -1;
     let bestCount = 0;
     for (let i = 0; i < maxScan; i++) {
-      const row = sheet.fmtData[i];
-      if (!row || !Array.isArray(row)) continue;
+      const fmtRow = sheet.fmtData?.[i];
+      const rawRow = sheet.rawData?.[i];
+      if ((!fmtRow || !Array.isArray(fmtRow)) && (!rawRow || !Array.isArray(rawRow))) continue;
       let count = 0;
-      for (const cell of row) {
-        if (parseMonth(cell)) count++;
+      const maxCols = Math.max(fmtRow?.length || 0, rawRow?.length || 0);
+      for (let j = 0; j < maxCols; j++) {
+        if (parseMonth(fmtRow?.[j]) || parseMonth(rawRow?.[j])) count++;
       }
       if (count > bestCount) {
         bestCount = count;
@@ -624,21 +701,21 @@ export function parseAnalyseActiviteSheet(
       }
     }
     if (bestCount >= 3 && bestRow >= 0) {
-      effectiveHeaders = sheet.fmtData[bestRow].map((h: any) => String(h ?? '').trim());
+      // Build headers: prefer fmtData for readability, fallback to raw conversion
+      const fmtRow = sheet.fmtData?.[bestRow] || [];
+      const rawRow = sheet.rawData?.[bestRow] || [];
+      effectiveHeaders = fmtRow.map((fh: any, idx: number) => {
+        const fhStr = String(fh ?? '').trim();
+        if (parseMonth(fhStr)) return fhStr;
+        const rawCell = rawRow[idx];
+        if (rawCell !== undefined && parseMonth(rawCell)) return cellToHeaderString(rawCell);
+        return fhStr;
+      });
       monthCols = detectMonthColumns(effectiveHeaders);
-      // Data rows use rawData for numeric accuracy
       dataRows = sheet.rawData.slice(bestRow + 1);
-      console.log(`[parseAnalyseActivite] Fallback found header row ${bestRow} with ${bestCount} months`);
-      console.log(`[parseAnalyseActivite] Fallback headers:`, effectiveHeaders);
-      console.log(`[parseAnalyseActivite] Fallback monthCols:`, monthCols.length);
+      console.log(`[parseAnalyseActivite] Fallback found header row ${bestRow} with ${bestCount} months, monthCols: ${monthCols.length}`);
     } else {
       console.log(`[parseAnalyseActivite] Fallback FAILED. Best: row ${bestRow}, count ${bestCount}`);
-      // Log the first 10 rows of fmtData to see what's there
-      if (sheet.fmtData) {
-        for (let i = 0; i < Math.min(sheet.fmtData.length, 10); i++) {
-          console.log(`[parseAnalyseActivite] fmtData row ${i}:`, sheet.fmtData[i]);
-        }
-      }
     }
   }
 

@@ -777,6 +777,51 @@ export function parseAnalyseActiviteSheet(
     return vals;
   };
 
+  // Dynamic section detection: uses numbered prefixes (1., 2., 3., 4.) + fuzzy keyword matching.
+  // This handles spelling variations and row count changes between different client files.
+  const detectMainSection = (label: string): MainSection | null => {
+    const ll = label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // strip accents for fuzzy matching
+    const llRaw = label.toLowerCase(); // keep accents for exact matches
+
+    // Primary: numbered chapter headers "N. text" or "N) text"
+    const numMatch = ll.match(/^(\d+)[\.\)]\s*(.*)/);
+    if (numMatch) {
+      const text = numMatch[2];
+      if (text.match(/\bca\b/) || text.includes('chiffre')) return 'ca';
+      if (text.includes('marge')) return 'marge';
+      if (text.includes('product') || text.includes('personnel')) return 'productivity';
+      if (text.includes('besoin') || text.includes('fonds') || text.includes('roulement')) return 'bfr';
+      if (text.includes('tresor')) return 'treasury';
+    }
+
+    // Fallback: non-numbered section headers (standalone keywords)
+    if ((llRaw.includes('ca ht') || llRaw.includes('ca ttc')) && !llRaw.includes('objectif')) return 'ca';
+    if (llRaw === 'marge' || (ll.match(/^marge\b/) && !llRaw.includes('objectif'))) return 'marge';
+    if (llRaw === 'bfr') return 'bfr';
+
+    return null;
+  };
+
+  // Apply section header data: when a section header row has values, capture them as totals
+  const applySectionHeaderData = (section: MainSection, vals: Map<string, number>) => {
+    const hasData = [...vals.values()].some(v => v !== 0);
+    if (!hasData) return;
+    switch (section) {
+      case 'ca':
+        for (const [m, v] of vals) result.get(m)!.revenueTotal = v;
+        break;
+      case 'marge':
+        for (const [m, v] of vals) result.get(m)!.marginTotal = v;
+        break;
+      case 'bfr':
+        for (const [m, v] of vals) result.get(m)!.bfr.total = v;
+        break;
+      case 'treasury':
+        for (const [m, v] of vals) result.get(m)!.cashFlow.treasury = v;
+        break;
+    }
+  };
+
   for (const row of dataRows) {
     const label = String(row[effectiveLabelCol] || '').trim();
     if (!label) continue;
@@ -785,42 +830,25 @@ export function parseAnalyseActiviteSheet(
     // Stop at N-1 section (only parse current year)
     if (ll.includes('n-1') || ll.includes('n - 1')) break;
 
-    // --- Detect main sections ---
-    // CA section: "1. CA HT", "CA HT", etc.
-    if ((ll.includes('ca ht') || ll.includes('ca ttc') || (ll.match(/^\d+[\.\)]?\s*ca\b/) !== null)) && !ll.includes('objectif')) {
-      mainSection = 'ca'; bfrSub = null; continue;
-    }
-    // Marge section: "2. MARGE", "MARGE"
-    if (ll.match(/^\d+[\.\)]?\s*marge/) || (ll === 'marge' && !ll.includes('objectif'))) {
-      mainSection = 'marge'; bfrSub = null; continue;
-    }
-    // Productivity section: "3. Productivité du personnel"
-    if (ll.includes('productivit') || ll.includes('personnel')) {
-      mainSection = 'productivity'; bfrSub = null; continue;
-    }
-    // BFR section: "BESOIN EN FONDS DE ROULEMENT", "BFR"
-    if (ll.includes('besoin en fonds') || ll.includes('fonds de roulement') || ll === 'bfr') {
-      mainSection = 'bfr'; bfrSub = null; continue;
-    }
-    // Treasury section: "4. TRESORERIE"
-    if (ll.match(/^\d+[\.\)]?\s*tr[eé]sor/) || (ll.includes('trésorerie') && !ll.includes('positive') && !ll.includes('négative') && !ll.includes('negative'))) {
-      // Only set section if this looks like a section header (not a data row)
-      const vals = getMonthValues(row);
-      const hasData = [...vals.values()].some(v => v !== 0);
-      if (!hasData) {
-        mainSection = 'treasury'; bfrSub = null; continue;
-      }
+    // --- Dynamic section detection ---
+    const detectedSection = detectMainSection(label);
+    if (detectedSection) {
+      mainSection = detectedSection;
+      bfrSub = null;
+      // Capture totals from header row itself (e.g., "1. CA HT" row often has the CA total)
+      applySectionHeaderData(detectedSection, getMonthValues(row));
+      continue;
     }
 
-    // --- BFR sub-sections ---
+    // --- BFR sub-sections (lettered: A., B., C. or keywords) ---
     if (mainSection === 'bfr') {
-      if (ll.includes('créance') || ll.includes('creance') || ll.match(/^a[\.\)]/)) {
+      if (ll.includes('créance') || ll.includes('creance') || ll.match(/^a[\.\)]\s/i)) {
         bfrSub = 'receivables'; continue;
       }
-      if (ll.includes('stock') || ll.match(/^b[\.\)]/)) {
+      if (ll.includes('stock') || ll.match(/^b[\.\)]\s/i)) {
         bfrSub = 'stock'; continue;
       }
-      if (ll.includes('dette') || ll.match(/^c[\.\)]/)) {
+      if (ll.includes('dette') || ll.match(/^c[\.\)]\s/i)) {
         bfrSub = 'debts'; continue;
       }
     }
@@ -846,15 +874,21 @@ export function parseAnalyseActiviteSheet(
       case 'marge':
         if (ll.includes('objectif')) {
           for (const [m, v] of vals) result.get(m)!.marginObjective = v;
-        } else if (ll.includes('marge')) {
-          for (const [m, v] of vals) result.get(m)!.marginTotal = v;
+        } else {
+          // First data row in marge section = marge total (e.g., "Marge N", "Marge", "Taux de marge")
+          // Override only if we don't have a value yet or this row explicitly says "marge"
+          if (ll.includes('marge') || result.get(monthCols[0].month)!.marginTotal === 0) {
+            for (const [m, v] of vals) result.get(m)!.marginTotal = v;
+          }
         }
         break;
 
       case 'productivity':
-        if (ll.includes('heure')) {
+        if (ll.includes('suppl')) {
+          // "Nombre d'heures supplémentaires" - skip or add to hours
+        } else if (ll.includes('heure')) {
           for (const [m, v] of vals) result.get(m)!.hoursWorked = v;
-        } else if (ll.includes('salaire') || ll.includes('charges') || ll.includes('masse')) {
+        } else if (ll.includes('salaire') || ll.includes('charges') || ll.includes('masse') || ll.includes('total')) {
           for (const [m, v] of vals) result.get(m)!.salaries = v;
         }
         break;
@@ -934,8 +968,11 @@ export function parseAnalyseActiviteSheet(
     if (data.bfr.total === 0) {
       data.bfr.total = data.bfr.receivables.total + data.bfr.stock.total - data.bfr.debts.total;
     }
-    // Treasury
-    data.cashFlow.treasury = data.cashFlow.active - data.cashFlow.passive;
+    // Treasury: only calculate from active - passive if we have active/passive data
+    // Don't overwrite a treasury total captured from the section header
+    if (data.cashFlow.active > 0 || data.cashFlow.passive > 0) {
+      data.cashFlow.treasury = data.cashFlow.active - data.cashFlow.passive;
+    }
   }
 
   return result;

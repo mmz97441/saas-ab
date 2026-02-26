@@ -1,5 +1,6 @@
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Client, FinancialRecord } from '../types';
 import { getRecordsByClient } from '../services/dataService';
 import {
@@ -10,21 +11,36 @@ import {
     Calendar, MapPin, FileCheck, FileX, ChevronUp
 } from 'lucide-react';
 
-// Tooltip d'aide sur hover — petit "?" discret avec bulle explicative
-const InfoTip: React.FC<{ text: string; position?: 'top' | 'bottom' }> = ({ text, position = 'bottom' }) => (
-    <span className="relative group/tip inline-flex ml-1 cursor-help" onClick={(e) => e.stopPropagation()}>
-        <HelpCircle className="w-3 h-3 text-slate-300 hover:text-brand-500 transition-colors" />
-        <span className={`
-            pointer-events-none absolute z-50 left-1/2 -translate-x-1/2
-            ${position === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'}
-            w-52 px-3 py-2 rounded-lg bg-slate-800 text-white text-[10px] leading-relaxed font-normal normal-case tracking-normal shadow-xl
-            opacity-0 group-hover/tip:opacity-100 transition-opacity duration-200
-        `}>
-            {text}
-            <span className={`absolute left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-800 rotate-45 ${position === 'top' ? 'top-full -mt-1' : 'bottom-full mb-0 -mb-1'}`} />
+// Tooltip d'aide sur hover — petit "?" discret avec bulle explicative (portal pour éviter le clipping)
+const InfoTip: React.FC<{ text: string; position?: 'top' | 'bottom' }> = ({ text }) => {
+    const [show, setShow] = useState(false);
+    const ref = useRef<HTMLSpanElement>(null);
+    const [pos, setPos] = useState({ x: 0, y: 0 });
+    const handleEnter = () => {
+        if (ref.current) {
+            const rect = ref.current.getBoundingClientRect();
+            setPos({ x: rect.left + rect.width / 2, y: rect.top });
+        }
+        setShow(true);
+    };
+    return (
+        <span ref={ref} className="inline-flex ml-1 cursor-help"
+              onMouseEnter={handleEnter} onMouseLeave={() => setShow(false)}
+              onClick={(e) => e.stopPropagation()}>
+            <HelpCircle className="w-3 h-3 text-slate-300 hover:text-brand-500 transition-colors" />
+            {show && createPortal(
+                <span
+                    className="fixed z-[9999] w-56 px-3 py-2 rounded-lg bg-slate-800 text-white text-[10px] leading-relaxed font-normal normal-case tracking-normal shadow-xl pointer-events-none whitespace-pre-line"
+                    style={{ left: pos.x, top: pos.y - 8, transform: 'translate(-50%, -100%)' }}
+                >
+                    {text}
+                    <span className="absolute left-1/2 -translate-x-1/2 top-full -mt-1 w-2 h-2 bg-slate-800 rotate-45" />
+                </span>,
+                document.body
+            )}
         </span>
-    </span>
-);
+    );
+};
 
 interface ConsultantDashboardProps {
     clients: Client[];
@@ -1037,8 +1053,8 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                                 <th className="p-3 text-center">% Objectif <InfoTip text="Ratio CA réalisé / Objectif CA sur la même période. Vert ≥ 100%, Orange ≥ 85%, Rouge &lt; 85%." position="top" /></th>
                                 <th className="p-3 text-right">Marge <InfoTip text="Taux de marge commerciale brute : (CA - Achats consommés) / CA, calculé sur l'exercice en cours." position="top" /></th>
                                 <th className="p-3 text-right">Trésorerie <InfoTip text="Dernier solde bancaire connu (actifs - passifs). Rouge si négatif." position="top" /></th>
-                                <th className="p-3 text-center">Données <InfoTip text="Indique si le client a transmis des données dans les 2 derniers mois. 'Retard' = données manquantes." position="top" /></th>
-                                <th className="p-3 text-center">Statut <InfoTip text="'À Valider' = rapport soumis en attente de validation. 'OK' = validé par le cabinet." position="top" /></th>
+                                <th className="p-3 text-center">Données <InfoTip text={"• À jour (vert) : données reçues pour M-1 ou le mois en cours.\n• Retard (orange) : aucune donnée pour M-1 ni le mois en cours.\n• Aucune (gris) : aucune donnée importée."} position="top" /></th>
+                                <th className="p-3 text-center">Statut <InfoTip text={"• À Valider (orange) : rapport soumis, en attente de validation par le cabinet.\n• OK (vert) : dernier rapport validé par le cabinet.\n• En attente (gris) : rapport non encore soumis."} position="top" /></th>
                                 <th className="p-3 text-right pr-4">Action</th>
                             </tr>
                         </thead>

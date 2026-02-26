@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Client, FinancialRecord, ProfitCenter } from '../types';
 import { getRecordsByClient } from '../services/dataService';
 import {
@@ -37,6 +38,7 @@ interface ClientWithKpis {
     treasuryAlert: boolean;
     dataFresh: boolean;
     pendingValidation: boolean;
+    lastRecordValidated: boolean;
     lastActivity: string;
 }
 
@@ -46,15 +48,35 @@ type PanelTab = 'timeline' | 'config';
 
 const fmtEur = (v: number) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
 
-const InfoTip: React.FC<{ text: string }> = ({ text }) => (
-    <span className="relative group/tip inline-flex ml-1 cursor-help" onClick={(e) => e.stopPropagation()}>
-        <HelpCircle className="w-3 h-3 text-slate-300 hover:text-brand-500 transition-colors" />
-        <span className="pointer-events-none absolute z-50 left-1/2 -translate-x-1/2 bottom-full mb-2 w-52 px-3 py-2 rounded-lg bg-slate-800 text-white text-[10px] leading-relaxed font-normal normal-case tracking-normal shadow-xl opacity-0 group-hover/tip:opacity-100 transition-opacity duration-200">
-            {text}
-            <span className="absolute left-1/2 -translate-x-1/2 top-full -mt-1 w-2 h-2 bg-slate-800 rotate-45" />
+const InfoTip: React.FC<{ text: string }> = ({ text }) => {
+    const [show, setShow] = useState(false);
+    const ref = useRef<HTMLSpanElement>(null);
+    const [pos, setPos] = useState({ x: 0, y: 0 });
+    const handleEnter = () => {
+        if (ref.current) {
+            const rect = ref.current.getBoundingClientRect();
+            setPos({ x: rect.left + rect.width / 2, y: rect.top });
+        }
+        setShow(true);
+    };
+    return (
+        <span ref={ref} className="inline-flex ml-1 cursor-help"
+              onMouseEnter={handleEnter} onMouseLeave={() => setShow(false)}
+              onClick={(e) => e.stopPropagation()}>
+            <HelpCircle className="w-3 h-3 text-slate-300 hover:text-brand-500 transition-colors" />
+            {show && createPortal(
+                <span
+                    className="fixed z-[9999] w-56 px-3 py-2 rounded-lg bg-slate-800 text-white text-[10px] leading-relaxed font-normal normal-case tracking-normal shadow-xl pointer-events-none whitespace-pre-line"
+                    style={{ left: pos.x, top: pos.y - 8, transform: 'translate(-50%, -100%)' }}
+                >
+                    {text}
+                    <span className="absolute left-1/2 -translate-x-1/2 top-full -mt-1 w-2 h-2 bg-slate-800 rotate-45" />
+                </span>,
+                document.body
+            )}
         </span>
-    </span>
-);
+    );
+};
 
 const getPerfColor = (p: number) => {
     if (p >= 100) return { text: 'text-emerald-700', bg: 'bg-emerald-100', bar: '#059669' };
@@ -209,9 +231,10 @@ Expertise & Stratégie Financière`;
                 }
 
                 const pendingValidation = !!records.find(r => r.isSubmitted && !r.isValidated);
+                const lastRecordValidated = lastRecord?.isValidated ?? false;
                 const lastActivity = lastRecord ? `${lastRecord.month} ${lastRecord.year}` : 'Aucune';
 
-                return { client, ytdRevenue, ytdObjective, objPerformance, lastTreasury, treasuryAlert, dataFresh, pendingValidation, lastActivity };
+                return { client, ytdRevenue, ytdObjective, objPerformance, lastTreasury, treasuryAlert, dataFresh, pendingValidation, lastRecordValidated, lastActivity };
             });
 
             setClientKpis(results);
@@ -355,13 +378,13 @@ Expertise & Stratégie Financière`;
                                             </button>
                                             <InfoTip text="Dernier solde bancaire connu. Rouge si négatif." />
                                         </th>
-                                        <th className="p-3 text-center">Données <InfoTip text="À jour = données soumises pour M-1 ou le mois en cours." /></th>
-                                        <th className="p-3 text-center">Statut</th>
+                                        <th className="p-3 text-center">Données <InfoTip text={"• À jour (vert) : données reçues pour M-1 ou le mois en cours.\n• Retard (orange) : aucune donnée pour M-1 ni le mois en cours.\n• Aucune (gris) : aucune donnée importée."} /></th>
+                                        <th className="p-3 text-center">Statut <InfoTip text={"• À Valider (orange) : rapport soumis, en attente de validation par le cabinet.\n• OK (vert) : dernier rapport validé par le cabinet.\n• En attente (gris) : rapport non encore soumis.\n• Archivé : dossier en veille."} /></th>
                                         <th className="p-3 text-right pr-4">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="text-sm divide-y divide-slate-100">
-                                    {sorted.map(({ client, ytdRevenue, ytdObjective, objPerformance, lastTreasury, treasuryAlert, dataFresh, pendingValidation, lastActivity }) => {
+                                    {sorted.map(({ client, ytdRevenue, ytdObjective, objPerformance, lastTreasury, treasuryAlert, dataFresh, pendingValidation, lastRecordValidated, lastActivity }) => {
                                         const perfCol = ytdObjective > 0 ? getPerfColor(objPerformance) : null;
                                         const isSelectedInPanel = panelClient?.id === client.id;
                                         return (
@@ -453,10 +476,12 @@ Expertise & Stratégie Financière`;
                                                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
                                                             <Clock className="w-3 h-3" /> À Valider
                                                         </span>
-                                                    ) : (
+                                                    ) : lastRecordValidated ? (
                                                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 opacity-70">
                                                             <CheckCircle className="w-3 h-3" /> OK
                                                         </span>
+                                                    ) : (
+                                                        <span className="text-slate-400 text-[10px]">En attente</span>
                                                     )}
                                                 </td>
 

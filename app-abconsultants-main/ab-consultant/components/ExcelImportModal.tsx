@@ -422,6 +422,8 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                           <>
                             <th className="px-3 py-2 text-right font-bold text-purple-600 border-b border-slate-200">Marge</th>
                             <th className="px-3 py-2 text-right font-bold text-purple-600 border-b border-slate-200">Salaires</th>
+                            <th className="px-3 py-2 text-right font-bold text-orange-600 border-b border-slate-200">BFR</th>
+                            <th className="px-3 py-2 text-right font-bold text-cyan-600 border-b border-slate-200">Tresorerie</th>
                           </>
                         )}
                         {previewData.allProfitCenters.slice(0, 4).map(pc => (
@@ -459,6 +461,12 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                                   </td>
                                   <td className="px-3 py-2 text-right font-mono text-purple-600 border-b border-slate-100">
                                     {record.expenses.salaries ? `${formatNum(record.expenses.salaries)} €` : '-'}
+                                  </td>
+                                  <td className="px-3 py-2 text-right font-mono text-orange-600 border-b border-slate-100">
+                                    {record.bfr?.total ? `${formatNum(record.bfr.total)} €` : '-'}
+                                  </td>
+                                  <td className="px-3 py-2 text-right font-mono text-cyan-600 border-b border-slate-100">
+                                    {record.cashFlow?.treasury ? `${formatNum(record.cashFlow.treasury)} €` : '-'}
                                   </td>
                                 </>
                               )}

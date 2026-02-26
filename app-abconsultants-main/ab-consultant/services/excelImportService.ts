@@ -941,6 +941,9 @@ export function parseAnalyseActiviteSheet(
           for (const [m, v] of vals) result.get(m)!.cashFlow.active = v;
         } else if (ll.includes('négative') || ll.includes('negative') || ll.includes('passif')) {
           for (const [m, v] of vals) result.get(m)!.cashFlow.passive = v;
+        } else if (ll.includes('solde') || ll.includes('net') || ll.includes('total') || ll.includes('tresor') || ll.includes('trésor')) {
+          // Catch-all: capture as treasury total (e.g., "Solde de trésorerie", "Total", "Trésorerie nette")
+          for (const [m, v] of vals) result.get(m)!.cashFlow.treasury = v;
         }
         break;
     }
@@ -1017,6 +1020,15 @@ export function buildImportData(
     if (mapping.type === 'analyse_activite') {
       analyseData = parseAnalyseActiviteSheet(sheet, year);
       console.log(`[buildImportData] analyseData result: ${analyseData.size} months`, [...analyseData.keys()]);
+      // Debug: log BFR and treasury data for each month
+      for (const [m, d] of analyseData.entries()) {
+        if (d.cashFlow.treasury !== 0 || d.cashFlow.active !== 0 || d.cashFlow.passive !== 0) {
+          console.log(`  [Treasury] ${m}: active=${d.cashFlow.active}, passive=${d.cashFlow.passive}, treasury=${d.cashFlow.treasury}`);
+        }
+        if (d.bfr.total !== 0 || d.bfr.receivables.total !== 0) {
+          console.log(`  [BFR] ${m}: total=${d.bfr.total}, recv=${d.bfr.receivables.total}, stock=${d.bfr.stock.total}, debts=${d.bfr.debts.total}`);
+        }
+      }
     } else if (mapping.type === 'revenue_by_family') {
       const parsed = parseRevenueSheet(sheet, year);
       allFamilies = [...allFamilies, ...parsed.families];
@@ -1104,7 +1116,8 @@ export function buildImportData(
 
     // Skip months where absolutely no data was found
     const hasAnyData = revenueTotal > 0 || caFromFamilies > 0
-      || (fuel && fuel.total > 0) || (analyse && (analyse.salaries > 0 || analyse.bfr.receivables.total > 0));
+      || (fuel && fuel.total > 0)
+      || (analyse && (analyse.salaries > 0 || analyse.bfr.receivables.total > 0 || analyse.bfr.total !== 0 || analyse.cashFlow.treasury !== 0));
     if (!hasAnyData) continue;
 
     // Build the record by merging all sources
@@ -1177,14 +1190,14 @@ export function buildImportData(
         };
       }
 
-      // BFR - only override if we have actual data
-      const hasBFRData = analyse.bfr.receivables.total > 0 || analyse.bfr.stock.total > 0 || analyse.bfr.debts.total > 0;
+      // BFR - override if we have actual data (check sub-totals OR the global total from section header)
+      const hasBFRData = analyse.bfr.receivables.total > 0 || analyse.bfr.stock.total > 0 || analyse.bfr.debts.total > 0 || analyse.bfr.total !== 0;
       if (hasBFRData) {
         baseRecord.bfr = analyse.bfr;
       }
 
-      // Treasury
-      if (analyse.cashFlow.active > 0 || analyse.cashFlow.passive > 0) {
+      // Treasury - override if we have active/passive OR a treasury total (from section header or catch-all row)
+      if (analyse.cashFlow.active > 0 || analyse.cashFlow.passive > 0 || analyse.cashFlow.treasury !== 0) {
         baseRecord.cashFlow = analyse.cashFlow;
       }
     }

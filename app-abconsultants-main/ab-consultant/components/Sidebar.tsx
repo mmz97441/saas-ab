@@ -199,18 +199,23 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-brand-800 rounded-full opacity-50 blur-2xl"></div>
 
                 <div className="flex items-center gap-3 relative z-10">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br from-brand-700 to-brand-950 border border-brand-700`}>
-                        <span className="font-extrabold text-white text-xl">{userRole === 'ab_consultant' ? 'AB' : (selectedClient ? selectedClient.companyName.substring(0, 2).toUpperCase() : 'C')}</span>
-                    </div>
-                    <div>
-                        <h1 className="text-lg font-bold tracking-tight leading-none mb-1 text-white">
-                            {userRole === 'ab_consultant' ? 'AB CONSULTANTS' : (selectedClient ? selectedClient.companyName : 'Espace Client')}
-                        </h1>
-                        <p className="text-[10px] text-brand-300 uppercase tracking-widest font-semibold flex items-center gap-1">
-                            {userRole === 'ab_consultant' ? <ShieldCheck className="w-3 h-3 text-accent-500" /> : null}
-                            {userRole === 'ab_consultant' ? 'Suite Financière' : 'Portail Consultant'}
-                        </p>
-                    </div>
+                    {userRole === 'ab_consultant' ? (
+                        <img src="/logo.svg" alt="AB Consultants" className="h-9 w-auto" />
+                    ) : (
+                        <>
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br from-brand-700 to-brand-950 border border-brand-700`}>
+                                <span className="font-extrabold text-white text-xl">{selectedClient ? selectedClient.companyName.substring(0, 2).toUpperCase() : 'C'}</span>
+                            </div>
+                            <div>
+                                <h1 className="text-lg font-bold tracking-tight leading-none mb-1 text-white">
+                                    {selectedClient ? selectedClient.companyName : 'Espace Client'}
+                                </h1>
+                                <p className="text-[10px] text-brand-300 uppercase tracking-widest font-semibold flex items-center gap-1">
+                                    Portail Consultant
+                                </p>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
 

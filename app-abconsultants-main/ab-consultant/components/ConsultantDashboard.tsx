@@ -195,14 +195,18 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ panel, summaries, portfolioKp
                             <span className="font-mono text-xs text-slate-400">{fmtEur(item.ytdObjective)}</span>
                         </td>
                         <td className="p-2.5 text-center">
-                            <div className="inline-flex flex-col items-center gap-0.5">
-                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${perfCol!.bg} ${perfCol!.text}`}>
-                                    {perf.toFixed(0)}%
-                                </span>
-                                <div className="h-1 w-10 bg-white/60 rounded-full overflow-hidden">
-                                    <div className="h-full rounded-full" style={{ width: `${Math.min(perf, 100)}%`, backgroundColor: perfCol!.bar }} />
+                            {perfCol ? (
+                                <div className="inline-flex flex-col items-center gap-0.5">
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${perfCol.bg} ${perfCol.text}`}>
+                                        {perf.toFixed(0)}%
+                                    </span>
+                                    <div className="h-1 w-10 bg-white/60 rounded-full overflow-hidden">
+                                        <div className="h-full rounded-full" style={{ width: `${Math.min(perf, 100)}%`, backgroundColor: perfCol.bar }} />
+                                    </div>
                                 </div>
-                            </div>
+                            ) : (
+                                <span className="text-slate-300 text-[10px]">N/A</span>
+                            )}
                         </td>
                     </>
                 )}
@@ -1094,13 +1098,13 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
 
                                     {/* % OBJECTIF */}
                                     <td className="p-3 text-center">
-                                        {item.ytdObjective > 0 ? (
+                                        {perfCol ? (
                                             <div className="inline-flex flex-col items-center gap-0.5">
-                                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${perfCol!.bg} ${perfCol!.text}`}>
+                                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${perfCol.bg} ${perfCol.text}`}>
                                                     {perf.toFixed(0)}%
                                                 </span>
                                                 <div className="h-1 w-10 bg-slate-100 rounded-full overflow-hidden">
-                                                    <div className="h-full rounded-full" style={{ width: `${Math.min(perf, 100)}%`, backgroundColor: perfCol!.bar }} />
+                                                    <div className="h-full rounded-full" style={{ width: `${Math.min(perf, 100)}%`, backgroundColor: perfCol.bar }} />
                                                 </div>
                                             </div>
                                         ) : (

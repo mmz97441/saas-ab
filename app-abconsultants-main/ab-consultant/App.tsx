@@ -213,6 +213,26 @@ const App: React.FC = () => {
       showNotification(`${records.length} rapport(s) supprimé(s).`, 'success');
   };
 
+  const handleBulkValidate = async (records: FinancialRecord[]) => {
+      if (userRole !== 'ab_consultant') return;
+      for (const record of records) {
+          await saveRecord({ ...record, isValidated: true });
+          if (selectedClient) await logActivity(selectedClient.id, 'data_validated', `${record.month} ${record.year} validé`, { month: record.month, year: record.year });
+      }
+      await refreshRecords();
+      showNotification(`${records.length} rapport(s) validé(s).`, 'success');
+  };
+
+  const handleBulkPublish = async (records: FinancialRecord[]) => {
+      if (userRole !== 'ab_consultant') return;
+      for (const record of records) {
+          await saveRecord({ ...record, isPublished: true });
+          if (selectedClient) await logActivity(selectedClient.id, 'data_published', `${record.month} ${record.year} publié`, { month: record.month, year: record.year });
+      }
+      await refreshRecords();
+      showNotification(`${records.length} rapport(s) publié(s).`, 'success');
+  };
+
   const toggleValidation = async (record: FinancialRecord) => {
       if (userRole !== 'ab_consultant') return;
       await saveRecord({ ...record, isValidated: !record.isValidated });
@@ -550,7 +570,7 @@ const App: React.FC = () => {
             )}
 
             {currentView === View.History && selectedClient && (
-                <HistoryView data={data} userRole={userRole} onNewRecord={handleNewRecord} onExportCSV={async () => {
+                <HistoryView data={userRole === 'client' ? dashboardData : data} userRole={userRole} onNewRecord={handleNewRecord} onExportCSV={async () => {
                     if (!selectedClient) return;
                     try {
                         const { exportClientCSV } = await import('./lib/cloudFunctions');
@@ -560,7 +580,7 @@ const App: React.FC = () => {
                         console.error('Export CSV error:', err);
                         showNotification(err?.message || 'Erreur lors de l\'export CSV.', 'error');
                     }
-                }} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onValidate={toggleValidation} onPublish={togglePublication} onLockToggle={toggleClientLock} onBulkDelete={handleBulkDelete} onImportExcel={() => setIsExcelImportOpen(true)}/>
+                }} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onValidate={toggleValidation} onPublish={togglePublication} onLockToggle={toggleClientLock} onBulkValidate={handleBulkValidate} onBulkPublish={handleBulkPublish} onBulkDelete={handleBulkDelete} onImportExcel={() => setIsExcelImportOpen(true)}/>
             )}
 
             {currentView === View.Settings && userRole === 'ab_consultant' && selectedClient && (

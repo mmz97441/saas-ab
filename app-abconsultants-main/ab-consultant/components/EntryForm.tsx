@@ -347,6 +347,13 @@ const EntryForm: React.FC<EntryFormProps> = ({
         return formData.revenue.total === 0 && formData.expenses.salaries === 0 && formData.cashFlow.treasury === 0;
     }, [formData.revenue.total, formData.expenses.salaries, formData.cashFlow.treasury]);
 
+    // Sync formData when initialData changes (e.g. switching between records without remount)
+    useEffect(() => {
+        if (initialData) {
+            setFormData(JSON.parse(JSON.stringify(initialData)));
+        }
+    }, [initialData?.id]);
+
     // --- AUTO-SAVE BROUILLON (localStorage) ---
     const draftKey = `draft-${clientId}-${formData.year}-${formData.month}`;
     const [hasDraft, setHasDraft] = useState(false);

@@ -425,13 +425,13 @@ Expertise & Stratégie Financière`;
 
                                                 {/* % OBJECTIF */}
                                                 <td className="p-3 text-center">
-                                                    {ytdObjective > 0 ? (
+                                                    {perfCol ? (
                                                         <div className="inline-flex flex-col items-center gap-0.5">
-                                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${perfCol!.bg} ${perfCol!.text}`}>
+                                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${perfCol.bg} ${perfCol.text}`}>
                                                                 {objPerformance.toFixed(0)}%
                                                             </span>
                                                             <div className="h-1 w-10 bg-slate-100 rounded-full overflow-hidden">
-                                                                <div className="h-full rounded-full" style={{ width: `${Math.min(objPerformance, 100)}%`, backgroundColor: perfCol!.bar }} />
+                                                                <div className="h-full rounded-full" style={{ width: `${Math.min(objPerformance, 100)}%`, backgroundColor: perfCol.bar }} />
                                                             </div>
                                                         </div>
                                                     ) : (

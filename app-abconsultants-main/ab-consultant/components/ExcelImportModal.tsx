@@ -111,8 +111,12 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
     if (step !== 'preview' || sheets.length === 0) return null;
 
     try {
-      return buildImportData(sheets, mappings, year, clientId, existingRecords, existingProfitCenters);
-    } catch (err) {
+      const result = buildImportData(sheets, mappings, year, clientId, existingRecords, existingProfitCenters);
+      setError(null);
+      return result;
+    } catch (err: any) {
+      console.error('Preview build error:', err);
+      setError(err?.message || 'Erreur lors de la construction des données. Vérifiez le mapping des feuilles.');
       return null;
     }
   }, [step, sheets, mappings, year, clientId, existingRecords, existingProfitCenters]);
@@ -343,6 +347,15 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {/* STEP 3: Preview - empty state */}
+          {step === 'preview' && !previewData && !error && (
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+              <AlertTriangle className="w-10 h-10 mb-3 text-amber-400" />
+              <p className="text-sm font-bold text-slate-600">Aucune donnée détectée</p>
+              <p className="text-xs mt-1">Vérifiez le mapping des feuilles et réessayez.</p>
             </div>
           )}
 

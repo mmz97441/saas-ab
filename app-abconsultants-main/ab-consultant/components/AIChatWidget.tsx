@@ -37,13 +37,21 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
   const SESSION_WARNING_MS = 80 * 60 * 1000; // Warning at 80 minutes
   const [sessionWarning, setSessionWarning] = useState(false);
 
-  // LOGIQUE BADGE : S'allume si le dernier message est du consultant ET qu'on ne l'a pas encore "vu" (ouvert)
+  // LOGIQUE BADGE : S'allume si un message du consultant n'a pas encore été lu
   const hasUnreadConsultantMessage = useMemo(() => {
       if (dbMessages.length === 0) return false;
-      const lastMsg = dbMessages[dbMessages.length - 1];
-      
-      // C'est un message du consultant ET son ID est différent de celui qu'on a lu en dernier
-      return lastMsg.sender === 'consultant' && lastMsg.id !== lastReadMessageId;
+
+      // Trouver l'index du dernier message lu
+      const lastReadIdx = lastReadMessageId
+          ? dbMessages.findIndex(m => m.id === lastReadMessageId)
+          : -1;
+
+      // Vérifier s'il y a des messages consultant APRÈS le dernier message lu
+      const unreadMessages = lastReadIdx >= 0
+          ? dbMessages.slice(lastReadIdx + 1)
+          : dbMessages; // Si rien n'a été lu, tous les messages sont "non lus"
+
+      return unreadMessages.some(m => m.sender === 'consultant');
   }, [dbMessages, lastReadMessageId]);
 
   useEffect(() => {

@@ -941,73 +941,137 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
 
                             {/* Contenu */}
                             {!isCollapsed && (
-                                <div className="bg-white divide-y divide-slate-100">
-                                    {items.map(item => {
-                                        const badge = getRdvStatusBadge(item, selectedMonthIdx, selectedYear);
-                                        const appt = item.client.nextAppointment;
-
-                                        return (
-                                            <div
-                                                key={item.client.id}
-                                                onClick={() => onSelectClient(item.client)}
-                                                className="flex items-center justify-between px-4 py-2.5 hover:bg-brand-50/30 transition-colors cursor-pointer group"
-                                            >
-                                                {/* Client info */}
-                                                <div className="flex items-center gap-3 min-w-0 flex-1">
-                                                    <div className="relative shrink-0">
-                                                        <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold border border-slate-200 text-[10px]">
-                                                            {item.client.companyName.substring(0, 2).toUpperCase()}
-                                                        </div>
-                                                        {item.client.hasUnreadMessages && (
-                                                            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full border border-white animate-pulse" />
-                                                        )}
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <div className="font-bold text-slate-800 text-xs truncate max-w-[180px]">{item.client.companyName}</div>
-                                                        <div className="text-[10px] text-slate-400 truncate max-w-[180px]">{item.client.managerName}</div>
-                                                    </div>
-                                                </div>
-
-                                                {/* RDV info */}
-                                                <div className="flex items-center gap-4 shrink-0">
-                                                    {/* Date RDV */}
-                                                    {appt?.date && (
-                                                        <div className="text-right hidden sm:block">
-                                                            <div className="text-[10px] font-bold text-slate-600">
-                                                                {formatRdvDate(appt.date)}
+                                <div className={`bg-white ${config.key === 'NO_RDV' || config.key === 'NOT_SUBMITTED' ? 'p-3' : ''}`}>
+                                    {/* Mode grille pour Sans RDV / En attente client (pas de date à afficher) */}
+                                    {(config.key === 'NO_RDV' || config.key === 'NOT_SUBMITTED') ? (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                                            {items.map(item => {
+                                                const badge = getRdvStatusBadge(item, selectedMonthIdx, selectedYear);
+                                                return (
+                                                    <div
+                                                        key={item.client.id}
+                                                        onClick={() => onSelectClient(item.client)}
+                                                        className="flex items-start gap-3 p-3 rounded-xl border border-slate-100 hover:border-brand-300 hover:bg-brand-50/30 hover:shadow-sm transition-all cursor-pointer group"
+                                                    >
+                                                        <div className="relative shrink-0 mt-0.5">
+                                                            <div className="w-9 h-9 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center font-bold border border-slate-200 text-[10px]">
+                                                                {item.client.companyName.substring(0, 2).toUpperCase()}
                                                             </div>
-                                                            <div className="text-[9px] text-slate-400 flex items-center justify-end gap-1">
-                                                                <Clock className="w-2.5 h-2.5" /> {appt.time}
-                                                                {appt.location && (
-                                                                    <>
-                                                                        <span className="mx-0.5">·</span>
-                                                                        <MapPin className="w-2.5 h-2.5" /> {appt.location}
-                                                                    </>
+                                                            {item.client.hasUnreadMessages && (
+                                                                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+                                                            )}
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="font-bold text-slate-800 text-xs truncate">{item.client.companyName}</div>
+                                                            <div className="text-[10px] text-slate-400 truncate">
+                                                                {item.client.managerName}
+                                                                {item.client.city && <span className="ml-1 text-slate-300">· {item.client.city}</span>}
+                                                            </div>
+                                                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                                                <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold ${badge.class}`}>
+                                                                    {badge.icon} {badge.label}
+                                                                </span>
+                                                                {item.ytdRevenue > 0 && (
+                                                                    <span className="font-mono text-[9px] font-bold text-slate-500">
+                                                                        CA {fmtEur(item.ytdRevenue)}
+                                                                    </span>
+                                                                )}
+                                                                {item.lastRecord && (
+                                                                    <span className={`font-mono text-[9px] font-bold ${item.treasuryAlert ? 'text-red-600' : 'text-emerald-600'}`}>
+                                                                        {fmtEur(item.lastRecord.cashFlow.treasury)}
+                                                                    </span>
                                                                 )}
                                                             </div>
                                                         </div>
-                                                    )}
-
-                                                    {/* Statut dossier */}
-                                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${badge.class}`}>
-                                                        {badge.icon} {badge.label}
-                                                    </span>
-
-                                                    {/* Trésorerie mini */}
-                                                    {item.lastRecord && (
-                                                        <span className={`hidden md:inline-block font-mono text-[10px] font-bold ${item.treasuryAlert ? 'text-red-600' : 'text-emerald-600'}`}>
-                                                            {fmtEur(item.lastRecord.cashFlow.treasury)}
+                                                        <span className="text-[10px] font-bold text-brand-500 opacity-0 group-hover:opacity-100 transition shrink-0 mt-0.5">
+                                                            <ArrowRight className="w-3.5 h-3.5" />
                                                         </span>
-                                                    )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        /* Mode liste classique pour les groupes avec date RDV */
+                                        <div className="divide-y divide-slate-100">
+                                            {items.map(item => {
+                                                const badge = getRdvStatusBadge(item, selectedMonthIdx, selectedYear);
+                                                const appt = item.client.nextAppointment;
 
-                                                    {/* Ouvrir */}
-                                                    <span className="text-[10px] font-bold text-brand-500 opacity-0 group-hover:opacity-100 transition inline-flex items-center gap-0.5">
-                                                        Ouvrir <ArrowRight className="w-3 h-3" />
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
+                                                return (
+                                                    <div
+                                                        key={item.client.id}
+                                                        onClick={() => onSelectClient(item.client)}
+                                                        className="flex items-center justify-between px-4 py-2.5 hover:bg-brand-50/30 transition-colors cursor-pointer group"
+                                                    >
+                                                        {/* Client info */}
+                                                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                            <div className="relative shrink-0">
+                                                                <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold border border-slate-200 text-[10px]">
+                                                                    {item.client.companyName.substring(0, 2).toUpperCase()}
+                                                                </div>
+                                                                {item.client.hasUnreadMessages && (
+                                                                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full border border-white animate-pulse" />
+                                                                )}
+                                                            </div>
+                                                            <div className="min-w-0 flex-1">
+                                                                <div className="font-bold text-slate-800 text-xs truncate">{item.client.companyName}</div>
+                                                                <div className="text-[10px] text-slate-400 truncate">
+                                                                    {item.client.sector && <span className="bg-slate-100 px-1 py-0.5 rounded text-[9px] mr-1">{item.client.sector}</span>}
+                                                                    {item.client.managerName}
+                                                                    {item.client.city && <span className="text-slate-300 ml-1">· {item.client.city}</span>}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* RDV info */}
+                                                        <div className="flex items-center gap-4 shrink-0">
+                                                            {/* CA YTD mini */}
+                                                            {item.ytdRevenue > 0 && (
+                                                                <span className="hidden lg:inline-block font-mono text-[10px] font-bold text-slate-400">
+                                                                    CA {fmtEur(item.ytdRevenue)}
+                                                                </span>
+                                                            )}
+
+                                                            {/* Date RDV */}
+                                                            {appt?.date && (
+                                                                <div className="text-right hidden sm:block">
+                                                                    <div className="text-[10px] font-bold text-slate-600">
+                                                                        {formatRdvDate(appt.date)}
+                                                                    </div>
+                                                                    <div className="text-[9px] text-slate-400 flex items-center justify-end gap-1">
+                                                                        <Clock className="w-2.5 h-2.5" /> {appt.time}
+                                                                        {appt.location && (
+                                                                            <>
+                                                                                <span className="mx-0.5">·</span>
+                                                                                <MapPin className="w-2.5 h-2.5" /> {appt.location}
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Statut dossier */}
+                                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${badge.class}`}>
+                                                                {badge.icon} {badge.label}
+                                                            </span>
+
+                                                            {/* Trésorerie mini */}
+                                                            {item.lastRecord && (
+                                                                <span className={`hidden md:inline-block font-mono text-[10px] font-bold ${item.treasuryAlert ? 'text-red-600' : 'text-emerald-600'}`}>
+                                                                    {fmtEur(item.lastRecord.cashFlow.treasury)}
+                                                                </span>
+                                                            )}
+
+                                                            {/* Ouvrir */}
+                                                            <span className="text-[10px] font-bold text-brand-500 opacity-0 group-hover:opacity-100 transition inline-flex items-center gap-0.5">
+                                                                Ouvrir <ArrowRight className="w-3 h-3" />
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>

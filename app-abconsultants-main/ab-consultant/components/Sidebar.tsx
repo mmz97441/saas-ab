@@ -1,10 +1,11 @@
 
 import React, { useState, useMemo } from 'react';
-import { LayoutDashboard, FilePlus, Settings, Database, Users, Briefcase, Eye, EyeOff, LogOut, ChevronRight, ShieldCheck, UserCircle, ChevronDown, ChevronUp, MessageSquare, PieChart, Search, HelpCircle, X, BookOpen } from 'lucide-react';
+import { LayoutDashboard, FilePlus, Settings, Database, Users, Briefcase, Eye, EyeOff, LogOut, ChevronRight, ShieldCheck, UserCircle, ChevronDown, ChevronUp, MessageSquare, PieChart, Search, HelpCircle, X, BookOpen, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { View, Client, APP_VERSION } from '../types';
 
 interface SidebarProps {
     isOpen: boolean;
+    isCollapsed: boolean;
     userRole: 'ab_consultant' | 'client';
     currentView: View;
     selectedClient: Client | null;
@@ -13,8 +14,9 @@ interface SidebarProps {
     accessibleCompanies: Client[];
     isSuperAdmin: boolean;
     onNavigate: (view: View) => void;
-    onClientSelect: (client: Client | null) => void; // Update type to allow null
+    onClientSelect: (client: Client | null) => void;
     onToggleSimulation: () => void;
+    onToggleCollapse: () => void;
     onLogout: () => void;
 }
 
@@ -40,7 +42,7 @@ const ClientCompanySelector: React.FC<{ companies: Client[], selectedId: string,
                 <ChevronDown className={`w-4 h-4 text-brand-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>
             {isOpen && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-brand-800 border border-brand-600 rounded-lg shadow-xl z-50 overflow-hidden">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-brand-800 border border-brand-600 rounded-lg shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
                     {companies.length >= 5 && (
                         <div className="p-2 border-b border-brand-700">
                             <div className="relative">
@@ -151,6 +153,7 @@ const HelpPanel: React.FC<{ userRole: 'ab_consultant' | 'client' }> = ({ userRol
 
 const Sidebar: React.FC<SidebarProps> = ({
     isOpen,
+    isCollapsed,
     userRole,
     currentView,
     selectedClient,
@@ -161,6 +164,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     onNavigate,
     onClientSelect,
     onToggleSimulation,
+    onToggleCollapse,
     onLogout
 }) => {
 
@@ -171,12 +175,12 @@ const Sidebar: React.FC<SidebarProps> = ({
         <button
             onClick={() => onNavigate(view)}
             title={tooltip || label}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${currentView === view
+            className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-lg transition-all duration-200 group ${currentView === view
                 ? (userRole === 'ab_consultant' ? 'bg-brand-700 text-white shadow-md ring-1 ring-white/10' : 'bg-brand-600 text-white shadow-md')
                 : 'text-brand-200 hover:bg-brand-800 hover:text-white'
                 }`}
         >
-            <div className="relative">
+            <div className="relative flex-shrink-0">
                 <Icon className={`w-5 h-5 ${currentView === view ? 'text-accent-500' : 'text-brand-400 group-hover:text-accent-500'}`} />
                 {badge && badge > 0 && (
                     <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[11px] font-bold px-1.5 py-0.5 rounded-full border border-brand-900 animate-pulse">
@@ -184,59 +188,66 @@ const Sidebar: React.FC<SidebarProps> = ({
                     </span>
                 )}
             </div>
-            <span className="font-medium text-sm">{label}</span>
-            {currentView === view && <ChevronRight className="w-4 h-4 ml-auto opacity-50" />}
+            {!isCollapsed && <span className="font-medium text-sm">{label}</span>}
+            {!isCollapsed && currentView === view && <ChevronRight className="w-4 h-4 ml-auto opacity-50" />}
         </button>
     );
 
     return (
         <aside className={`
-            fixed lg:static inset-y-0 left-0 z-40 w-72 bg-brand-900 text-white transform transition-transform duration-300 ease-in-out flex flex-col shadow-2xl
+            fixed lg:static inset-y-0 left-0 z-40 bg-brand-900 text-white transform transition-all duration-300 ease-in-out flex flex-col shadow-2xl
+            ${isCollapsed ? 'lg:w-[68px] w-72' : 'w-72'}
             ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}>
             {/* Header Branding */}
-            <div className="p-6 relative overflow-hidden">
-                <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-brand-800 rounded-full opacity-50 blur-2xl"></div>
+            <div className={`${isCollapsed ? 'p-3' : 'p-6'} relative overflow-hidden`}>
+                {!isCollapsed && <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-brand-800 rounded-full opacity-50 blur-2xl"></div>}
 
-                <div className="flex items-center gap-3 relative z-10">
+                <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} relative z-10`}>
                     {userRole === 'ab_consultant' ? (
-                        <img src="/logo.svg" alt="AB Consultants" className="h-9 w-auto" />
+                        isCollapsed
+                            ? <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-brand-700 to-brand-950 border border-brand-700 shadow-lg">
+                                <span className="font-extrabold text-white text-sm">AB</span>
+                              </div>
+                            : <img src="/logo.svg" alt="AB Consultants" className="h-9 w-auto" />
                     ) : (
                         <>
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br from-brand-700 to-brand-950 border border-brand-700`}>
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br from-brand-700 to-brand-950 border border-brand-700 flex-shrink-0">
                                 <span className="font-extrabold text-white text-xl">{selectedClient ? selectedClient.companyName.substring(0, 2).toUpperCase() : 'C'}</span>
                             </div>
-                            <div>
-                                <h1 className="text-lg font-bold tracking-tight leading-none mb-1 text-white">
-                                    {selectedClient ? selectedClient.companyName : 'Espace Client'}
-                                </h1>
-                                <p className="text-[11px] text-brand-300 uppercase tracking-widest font-semibold flex items-center gap-1">
-                                    Portail Consultant
-                                </p>
-                            </div>
+                            {!isCollapsed && (
+                                <div>
+                                    <h1 className="text-lg font-bold tracking-tight leading-none mb-1 text-white">
+                                        {selectedClient ? selectedClient.companyName : 'Espace Client'}
+                                    </h1>
+                                    <p className="text-[11px] text-brand-300 uppercase tracking-widest font-semibold flex items-center gap-1">
+                                        Portail Consultant
+                                    </p>
+                                </div>
+                            )}
                         </>
                     )}
                 </div>
             </div>
 
-            <nav className="flex-1 px-4 pb-4 space-y-6 overflow-y-auto custom-scrollbar">
+            <nav className={`flex-1 ${isCollapsed ? 'px-2' : 'px-4'} pb-4 space-y-6 overflow-y-auto custom-scrollbar`}>
 
                 {/* SECTION 1: ADMIN - Visible only to Consultant */}
                 {userRole === 'ab_consultant' && (
                     <div className="animate-in slide-in-from-left-2">
-                        <h3 className="text-[11px] font-bold text-brand-300 uppercase tracking-wider mb-3 px-2">Pilotage Cabinet</h3>
-                        
+                        {!isCollapsed && <h3 className="text-[11px] font-bold text-brand-300 uppercase tracking-wider mb-3 px-2">Pilotage Cabinet</h3>}
+
                         {/* BOUTON VUE D'ENSEMBLE (Nouveau) */}
                          <button
                             onClick={() => { onClientSelect(null); onNavigate(View.Dashboard); }}
                             title="Synthèse globale du portefeuille"
-                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group mb-2 ${!selectedClient && currentView === View.Dashboard
+                            className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-lg transition-all duration-200 group mb-2 ${!selectedClient && currentView === View.Dashboard
                                 ? 'bg-brand-700 text-white shadow-md ring-1 ring-white/10'
                                 : 'text-brand-200 hover:bg-brand-800 hover:text-white'
                             }`}
                         >
-                            <PieChart className={`w-5 h-5 ${!selectedClient && currentView === View.Dashboard ? 'text-accent-500' : 'text-brand-400'}`} />
-                            <span className="font-medium text-sm">Vue d'ensemble</span>
+                            <PieChart className={`w-5 h-5 flex-shrink-0 ${!selectedClient && currentView === View.Dashboard ? 'text-accent-500' : 'text-brand-400'}`} />
+                            {!isCollapsed && <span className="font-medium text-sm">Vue d'ensemble</span>}
                         </button>
 
                         <NavItem view={View.Clients} icon={Users} label="Portefeuille Clients" tooltip="Gérer tous les dossiers clients" />
@@ -252,19 +263,26 @@ const Sidebar: React.FC<SidebarProps> = ({
                 {/* SECTION 2: CLIENT CONTEXT */}
                 {(selectedClient || userRole === 'client') && (
                     <div className="animate-in slide-in-from-left-2 duration-300">
-                        {userRole === 'ab_consultant' && (
+                        {userRole === 'ab_consultant' && !isCollapsed && (
                             <div className="flex items-center justify-between px-2 mb-3 mt-2">
                                 <h3 className="text-[11px] font-bold text-brand-300 uppercase tracking-wider">Espace Dossier</h3>
                                 {selectedClient && <span className="text-[11px] bg-brand-800 text-brand-300 px-1.5 py-0.5 rounded border border-brand-700">{selectedClient.id}</span>}
                             </div>
                         )}
+                        {isCollapsed && selectedClient && (
+                            <div className="flex justify-center my-2">
+                                <div className="w-8 h-8 rounded-full bg-white text-brand-900 flex items-center justify-center font-bold text-xs shadow-sm" title={selectedClient.companyName}>
+                                    {selectedClient.companyName.substring(0, 2).toUpperCase()}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Client Card / Multi-Company Selector */}
                         {selectedClient && (
-                            <div className={`rounded-xl p-4 border border-brand-700/30 mb-3 shadow-inner ${userRole === 'ab_consultant' ? 'bg-brand-800/20' : 'bg-transparent border-0 p-0'}`}>
+                            <div className={`${isCollapsed ? '' : 'rounded-xl p-4 border border-brand-700/30 mb-3 shadow-inner'} ${!isCollapsed && userRole === 'ab_consultant' ? 'bg-brand-800/20' : !isCollapsed ? 'bg-transparent border-0 p-0' : ''}`}>
 
                                 {/* Consultant View: Static Info */}
-                                {userRole === 'ab_consultant' && (
+                                {userRole === 'ab_consultant' && !isCollapsed && (
                                     <div className="flex items-center gap-3 mb-4 pb-4 border-b border-brand-700/30">
                                         <div className="w-10 h-10 rounded-full bg-white text-brand-900 flex items-center justify-center font-bold text-lg shadow-sm">
                                             {selectedClient.companyName.substring(0, 2).toUpperCase()}
@@ -277,7 +295,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                 )}
 
                                 {/* Client View: Multi-Company Selector */}
-                                {userRole === 'client' && accessibleCompanies.length > 1 && (
+                                {userRole === 'client' && !isCollapsed && accessibleCompanies.length > 1 && (
                                     <ClientCompanySelector
                                         companies={accessibleCompanies}
                                         selectedId={selectedClient.id}
@@ -305,10 +323,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                         <button
                             onClick={onToggleSimulation}
                             title="Voir l'interface telle que le client la voit"
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-brand-300 hover:bg-brand-800 hover:text-white transition-all duration-200 mt-2"
+                            className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-lg text-brand-300 hover:bg-brand-800 hover:text-white transition-all duration-200 mt-2`}
                         >
-                            <Eye className="w-5 h-5" />
-                            <span className="font-medium text-sm">Aperçu Mode Client</span>
+                            <Eye className="w-5 h-5 flex-shrink-0" />
+                            {!isCollapsed && <span className="font-medium text-sm">Aperçu Mode Client</span>}
                         </button>
                     )}
 
@@ -316,31 +334,39 @@ const Sidebar: React.FC<SidebarProps> = ({
                         <button
                             onClick={onToggleSimulation}
                             title="Revenir à l'interface consultant"
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-accent-400 hover:bg-brand-800 hover:text-accent-300 transition-all duration-200 mt-2 font-bold bg-brand-950/30"
+                            className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-lg text-accent-400 hover:bg-brand-800 hover:text-accent-300 transition-all duration-200 mt-2 font-bold bg-brand-950/30`}
                         >
-                            <EyeOff className="w-5 h-5" />
-                            <span className="font-medium text-sm">Quitter l'aperçu</span>
+                            <EyeOff className="w-5 h-5 flex-shrink-0" />
+                            {!isCollapsed && <span className="font-medium text-sm">Quitter l'aperçu</span>}
                         </button>
                     )}
 
                     {/* HELP PANEL (all users) */}
-                    <HelpPanel userRole={userRole} />
+                    {!isCollapsed && <HelpPanel userRole={userRole} />}
 
                     <button
                         onClick={onLogout}
                         title="Se déconnecter de l'application"
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-300 hover:bg-red-900/30 hover:text-red-200 transition-all duration-200 mt-4"
+                        className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-lg text-red-300 hover:bg-red-900/30 hover:text-red-200 transition-all duration-200 mt-4`}
                     >
-                        <LogOut className="w-5 h-5" />
-                        <span className="font-medium text-sm">Déconnexion</span>
+                        <LogOut className="w-5 h-5 flex-shrink-0" />
+                        {!isCollapsed && <span className="font-medium text-sm">Déconnexion</span>}
                     </button>
                 </div>
 
             </nav>
-            
-            {/* FOOTER VERSION */}
-            <div className="p-4 text-center border-t border-brand-800/30">
-                <p className="text-[11px] text-brand-300 font-mono">v{APP_VERSION}</p>
+
+            {/* COLLAPSE TOGGLE (desktop only) + VERSION */}
+            <div className={`${isCollapsed ? 'p-2' : 'p-4'} text-center border-t border-brand-800/30`}>
+                <button
+                    onClick={onToggleCollapse}
+                    title={isCollapsed ? 'Étendre la sidebar' : 'Réduire la sidebar'}
+                    className="hidden lg:flex w-full items-center justify-center gap-2 px-2 py-1.5 rounded-lg text-brand-400 hover:bg-brand-800 hover:text-white transition-all duration-200 mb-2"
+                >
+                    {isCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+                    {!isCollapsed && <span className="text-[11px] font-medium">Réduire</span>}
+                </button>
+                {!isCollapsed && <p className="text-[11px] text-brand-300 font-mono">v{APP_VERSION}</p>}
             </div>
         </aside>
     );

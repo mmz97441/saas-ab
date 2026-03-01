@@ -173,7 +173,7 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
         {/* Steps indicator */}
         <div className="px-6 py-3 bg-white border-b border-slate-100">
           <div className="flex items-center gap-2 text-xs">
-            {['Fichier', 'Mapping', 'Apercu'].map((label, i) => {
+            {['Fichier', 'Mapping', 'Aperçu'].map((label, i) => {
               const stepIdx = ['upload', 'mapping', 'preview', 'importing'].indexOf(step);
               const isActive = i <= stepIdx;
               const isCurrent = i === Math.min(stepIdx, 2);
@@ -315,7 +315,7 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
 
                       {/* Preview when expanded */}
                       {isExpanded && (
-                        <div className="border-t border-slate-100 bg-slate-50 p-4 overflow-x-auto">
+                        <div className="border-t border-slate-100 bg-slate-50 p-4 overflow-x-auto animate-in fade-in slide-in-from-top-2 duration-200">
                           <table className="min-w-full text-xs">
                             <thead>
                               <tr>
@@ -366,12 +366,12 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="p-4 bg-brand-50 rounded-xl border border-brand-200 text-center">
                   <div className="text-2xl font-bold text-brand-700">{previewData.summary.monthCount}</div>
-                  <div className="text-xs font-bold text-brand-600">mois importes</div>
+                  <div className="text-xs font-bold text-brand-600">mois importés</div>
                 </div>
                 {previewData.summary.hasAnalyseActivite && (
                   <div className="p-4 bg-purple-50 rounded-xl border border-purple-200 text-center">
                     <div className="text-2xl font-bold text-purple-700"><ClipboardList className="w-6 h-6 mx-auto" /></div>
-                    <div className="text-xs font-bold text-purple-600">Donnees completes</div>
+                    <div className="text-xs font-bold text-purple-600">Données complètes</div>
                   </div>
                 )}
                 {previewData.summary.familyCount > 0 && (
@@ -422,7 +422,7 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                 <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
                   <span className="text-sm font-bold text-slate-700">
                     <Eye className="w-4 h-4 inline mr-1" />
-                    Apercu des donnees ({year})
+                    Aperçu des données ({year})
                   </span>
                 </div>
                 <div className="overflow-x-auto">
@@ -436,7 +436,7 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                             <th className="px-3 py-2 text-right font-bold text-purple-600 border-b border-slate-200">Marge</th>
                             <th className="px-3 py-2 text-right font-bold text-purple-600 border-b border-slate-200">Salaires</th>
                             <th className="px-3 py-2 text-right font-bold text-orange-600 border-b border-slate-200">BFR</th>
-                            <th className="px-3 py-2 text-right font-bold text-cyan-600 border-b border-slate-200">Tresorerie</th>
+                            <th className="px-3 py-2 text-right font-bold text-cyan-600 border-b border-slate-200">Trésorerie</th>
                           </>
                         )}
                         {previewData.allProfitCenters.slice(0, 4).map(pc => (
@@ -515,7 +515,7 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
             <div className="flex flex-col items-center justify-center py-16">
               <Loader2 className="w-12 h-12 text-brand-500 animate-spin mb-4" />
               <p className="text-lg font-bold text-slate-700">Import en cours...</p>
-              <p className="text-sm text-slate-500">Sauvegarde des donnees financieres</p>
+              <p className="text-sm text-slate-500">Sauvegarde des données financières</p>
             </div>
           )}
         </div>
@@ -541,7 +541,7 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                 onClick={handleGoToPreview}
                 className="px-5 py-2 text-sm text-white font-bold bg-brand-600 hover:bg-brand-700 rounded-lg shadow-sm transition flex items-center gap-2"
               >
-                Apercu <ArrowRight className="w-4 h-4" />
+                Aperçu <ArrowRight className="w-4 h-4" />
               </button>
             )}
             {step === 'preview' && previewData && (

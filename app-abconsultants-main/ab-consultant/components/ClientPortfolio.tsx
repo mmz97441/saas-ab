@@ -1,16 +1,16 @@
 
-import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Client, FinancialRecord, ProfitCenter } from '../types';
 import { getRecordsByClient } from '../services/dataService';
 import {
     Users, Plus, Edit2, Search, Briefcase, Archive, X, Loader2,
     ArrowUpDown, ArrowUp, ArrowDown, TrendingDown, CheckCircle,
-    Clock, CalendarClock, HelpCircle, MoreVertical, Send, Copy, Power,
+    Clock, CalendarClock, MoreVertical, Send, Copy, Power,
     PanelRightOpen, Activity, Settings
 } from 'lucide-react';
 import ActivityTimeline from './ActivityTimeline';
 import QuickConfigPanel from './QuickConfigPanel';
+import InfoTip, { getPerfColor } from './ui/InfoTip';
 
 interface ClientPortfolioProps {
     clients: Client[];
@@ -48,41 +48,6 @@ type PanelTab = 'timeline' | 'config';
 
 const fmtEur = (v: number) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
 
-const InfoTip: React.FC<{ text: string }> = ({ text }) => {
-    const [show, setShow] = useState(false);
-    const ref = useRef<HTMLSpanElement>(null);
-    const [pos, setPos] = useState({ x: 0, y: 0 });
-    const handleEnter = () => {
-        if (ref.current) {
-            const rect = ref.current.getBoundingClientRect();
-            setPos({ x: rect.left + rect.width / 2, y: rect.top });
-        }
-        setShow(true);
-    };
-    return (
-        <span ref={ref} className="inline-flex ml-1 cursor-help"
-              onMouseEnter={handleEnter} onMouseLeave={() => setShow(false)}
-              onClick={(e) => e.stopPropagation()}>
-            <HelpCircle className="w-3 h-3 text-slate-400 hover:text-brand-500 transition-colors" />
-            {show && createPortal(
-                <span
-                    className="fixed z-[9999] w-56 px-3 py-2 rounded-lg bg-slate-800 text-white text-[11px] leading-relaxed font-normal normal-case tracking-normal shadow-xl pointer-events-none whitespace-pre-line"
-                    style={{ left: pos.x, top: pos.y - 8, transform: 'translate(-50%, -100%)' }}
-                >
-                    {text}
-                    <span className="absolute left-1/2 -translate-x-1/2 top-full -mt-1 w-2 h-2 bg-slate-800 rotate-45" />
-                </span>,
-                document.body
-            )}
-        </span>
-    );
-};
-
-const getPerfColor = (p: number) => {
-    if (p >= 100) return { text: 'text-emerald-700', bg: 'bg-emerald-100', bar: '#059669' };
-    if (p >= 85) return { text: 'text-amber-600', bg: 'bg-amber-100', bar: '#d97706' };
-    return { text: 'text-red-600', bg: 'bg-red-100', bar: '#dc2626' };
-};
 
 const ClientPortfolio: React.FC<ClientPortfolioProps> = ({
     clients, clientViewMode, clientSearchQuery,

@@ -35,6 +35,7 @@ const App: React.FC = () => {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [userRole, setUserRole] = useState<UserRole>('client');
   const [simulatedUserEmail, setSimulatedUserEmail] = useState<string | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
@@ -317,11 +318,11 @@ const App: React.FC = () => {
       await refreshRecords();
       setIsExcelImportOpen(false);
 
-      const parts = [`${records.length} mois importes`];
+      const parts = [`${records.length} mois importés`];
       if (newProfitCenters.length > 0) {
-        parts.push(`${newProfitCenters.length} familles creees`);
+        parts.push(`${newProfitCenters.length} familles créées`);
       }
-      showNotification(`Import Excel reussi : ${parts.join(', ')}.`, 'success');
+      showNotification(`Import Excel réussi : ${parts.join(', ')}.`, 'success');
     } catch (err: any) {
       console.error('Excel import error:', err);
       showNotification(err?.message || 'Erreur lors de l\'import Excel.', 'error');
@@ -475,8 +476,17 @@ const App: React.FC = () => {
         </button>
       )}
 
+      {/* Overlay mobile : empêche l'interaction avec le contenu sous la sidebar */}
+      {isSidebarOpen && !isPresentationMode && (
+        <div
+          className="fixed inset-0 z-30 bg-brand-900/40 backdrop-blur-sm lg:hidden print:hidden transition-opacity duration-300"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {!isPresentationMode && <Sidebar
           isOpen={isSidebarOpen}
+          isCollapsed={isSidebarCollapsed}
           userRole={userRole}
           currentView={currentView}
           selectedClient={selectedClient}
@@ -503,6 +513,7 @@ const App: React.FC = () => {
                   await refreshClients('ab_consultant', currentUserEmail || undefined);
               }
           }}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
           onLogout={handleLogout}
       />}
 
@@ -579,23 +590,30 @@ const App: React.FC = () => {
 
             {/* VUE 1 : DASHBOARD CLIENT INDIVIDUEL */}
             {currentView === View.Dashboard && selectedClient && (
+                <div key={`dash-${selectedClient.id}`} className="animate-in fade-in duration-200">
                 <Dashboard data={dashboardData} client={selectedClient} userRole={userRole} onSaveComment={handleSaveRecord} isPresentationMode={isPresentationMode} onTogglePresentation={() => setIsPresentationMode(p => !p)}/>
+                </div>
             )}
 
             {/* VUE 2 : DASHBOARD GLOBAL CONSULTANT */}
             {currentView === View.Dashboard && !selectedClient && userRole === 'ab_consultant' && (
-                <ConsultantDashboard 
-                    clients={clients} 
+                <div key="consultant-dash" className="animate-in fade-in duration-200">
+                <ConsultantDashboard
+                    clients={clients}
                     onSelectClient={(client) => setSelectedClient(client)}
                     onNavigateToMessages={() => setCurrentView(View.Messages)}
                 />
+                </div>
             )}
 
             {currentView === View.Entry && selectedClient && (
+                <div key="entry" className="animate-in fade-in duration-200">
                 <EntryForm clientId={selectedClient.id} initialData={editingRecord} existingRecords={data} profitCenters={selectedClient.profitCenters || []} showCommercialMargin={selectedClient.settings?.showCommercialMargin ?? true} showFuelTracking={selectedClient.settings?.showFuelTracking ?? false} onSave={handleSaveRecord} onCancel={() => { setEditingRecord(null); setCurrentView(View.History); }} userRole={userRole} defaultFuelObjectives={selectedClient.settings?.fuelObjectives} clientStatus={selectedClient.status} onImportExcel={() => setIsExcelImportOpen(true)}/>
+                </div>
             )}
 
             {currentView === View.History && selectedClient && (
+                <div key="history" className="animate-in fade-in duration-200">
                 <HistoryView data={userRole === 'client' ? dashboardData : data} userRole={userRole} onNewRecord={handleNewRecord} onExportCSV={async () => {
                     if (!selectedClient) return;
                     try {
@@ -607,24 +625,32 @@ const App: React.FC = () => {
                         showNotification(err?.message || 'Erreur lors de l\'export CSV.', 'error');
                     }
                 }} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onValidate={toggleValidation} onPublish={togglePublication} onLockToggle={toggleClientLock} onBulkValidate={handleBulkValidate} onBulkPublish={handleBulkPublish} onBulkDelete={handleBulkDelete} onImportExcel={() => setIsExcelImportOpen(true)}/>
+                </div>
             )}
 
             {currentView === View.Settings && userRole === 'ab_consultant' && selectedClient && (
+                <div key="settings" className="animate-in fade-in duration-200">
                 <SettingsView client={selectedClient} onUpdateClientSettings={handleUpdateClientSettings} onUpdateProfitCenters={handleUpdateProfitCenters} onUpdateFuelObjectives={handleUpdateFuelObjectives} onUpdateClientStatus={(c, s) => { setStatusModal({isOpen: true, client: c}); }} onResetDatabase={handleResetDatabase} onToggleFuelModule={handleToggleFuelModule} onToggleCommercialMargin={handleToggleCommercialMargin} />
+                </div>
             )}
             
             {/* VUE MESSAGERIE CONSULTANT */}
             {currentView === View.Messages && userRole === 'ab_consultant' && (
+                <div key="messages" className="animate-in fade-in duration-200">
                 <ConsultantMessaging clients={clients} onMarkAsRead={handleClientRead} />
+                </div>
             )}
 
             {/* VUE EQUIPE (TEAM) */}
             {currentView === View.Team && userRole === 'ab_consultant' && (
+                <div key="team" className="animate-in fade-in duration-200">
                 <TeamManagement currentUserEmail={currentUserEmail} />
+                </div>
             )}
 
             {/* VUE LISTE CLIENTS */}
             {currentView === View.Clients && userRole === 'ab_consultant' && (
+                <div key="clients" className="animate-in fade-in duration-200">
                 <ClientPortfolio
                     clients={clients}
                     clientViewMode={clientViewMode}
@@ -673,6 +699,7 @@ const App: React.FC = () => {
                     }}
                     onUpdateClientStatus={handleUpdateClientStatus}
                 />
+                </div>
             )}
            </Suspense>
          </div>

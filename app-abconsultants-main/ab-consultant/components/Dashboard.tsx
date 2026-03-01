@@ -473,13 +473,13 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
           Moyenne_N1: null,
           BFR: recordN ? recordN.bfr.total : null,
           BFR_N1: recordN1 ? recordN1.bfr.total : null,
-          Tresorerie: recordN ? recordN.cashFlow.treasury : null,
-          Tresorerie_N1: recordN1 ? recordN1.cashFlow.treasury : null,
+          Trésorerie: recordN ? recordN.cashFlow.treasury : null,
+          Trésorerie_N1: recordN1 ? recordN1.cashFlow.treasury : null,
           Productivity: recordN ? recordN.expenses.hoursWorked : null,
           Productivity_N1: recordN1 ? recordN1.expenses.hoursWorked : null,
           ProductivityRate: productivityRate,
           ProductivityRate_N1: productivityRateN1,
-          BFR_Creances: recordN ? recordN.bfr.receivables.total : null,
+          BFR_Créances: recordN ? recordN.bfr.receivables.total : null,
           BFR_Stocks: recordN ? recordN.bfr.stock.total : null,
           BFR_Dettes: recordN ? -recordN.bfr.debts.total : null,
           Fuel_Total: recordN ? recordN.fuel?.volume : null,
@@ -529,13 +529,13 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
         Moyenne_N1: annualAverageN1,
         BFR: recordN ? recordN.bfr.total : null,
         BFR_N1: recordN1 ? recordN1.bfr.total : null,
-        Tresorerie: recordN ? recordN.cashFlow.treasury : null,
-        Tresorerie_N1: recordN1 ? recordN1.cashFlow.treasury : null,
+        Trésorerie: recordN ? recordN.cashFlow.treasury : null,
+        Trésorerie_N1: recordN1 ? recordN1.cashFlow.treasury : null,
         Productivity: recordN ? recordN.expenses.hoursWorked : null,
         Productivity_N1: recordN1 ? recordN1.expenses.hoursWorked : null,
         ProductivityRate: productivityRate,
         ProductivityRate_N1: productivityRateN1,
-        BFR_Creances: recordN ? recordN.bfr.receivables.total : null,
+        BFR_Créances: recordN ? recordN.bfr.receivables.total : null,
         BFR_Stocks: recordN ? recordN.bfr.stock.total : null,
         BFR_Dettes: recordN ? -recordN.bfr.debts.total : null,
         Fuel_Total: recordN ? recordN.fuel?.volume : null,
@@ -634,8 +634,8 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
         const v = calcVariation(data.BFR, data.BFR_N1);
         if (v !== null) { variation = v; hasN1 = true; }
     } 
-    else if (isTreasury && data.Tresorerie_N1) {
-        const v = calcVariation(data.Tresorerie, data.Tresorerie_N1);
+    else if (isTreasury && data.Trésorerie_N1) {
+        const v = calcVariation(data.Trésorerie, data.Trésorerie_N1);
         if (v !== null) { variation = v; hasN1 = true; }
     }
     else if (isProductivity && data.Productivity_N1) {
@@ -725,7 +725,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
     return chartData.map(d => ({
       name: d.name,
       fullMonth: d.fullMonth,
-      Creances: d.BFR_Creances ?? 0,
+      Créances: d.BFR_Créances ?? 0,
       Stocks: d.BFR_Stocks ?? 0,
       Dettes: d.BFR_Dettes ?? 0,
       BFR_Net: d.BFR ?? 0,
@@ -1048,7 +1048,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
       )}
 
       {/* ============================================= */}
-      {/* ROW 1: CA + Tresorerie side by side           */}
+      {/* ROW 1: CA + Trésorerie side by side           */}
       {/* ============================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
          {/* CA Chart */}
@@ -1079,12 +1079,12 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
             </div>
          </div>
 
-         {/* Tresorerie Chart */}
+         {/* Trésorerie Chart */}
          <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2">
                     <Landmark className={`w-4 h-4 ${kpis.treasury >= 0 ? 'text-emerald-600' : 'text-red-600'}`} />
-                    Tresorerie
+                    Trésorerie
                 </h3>
                 <div className="flex items-center gap-2 text-[11px]">
                     <span className="flex items-center gap-1"><div className={`w-2 h-2 rounded-sm ${kpis.treasury >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`}></div> N</span>
@@ -1105,8 +1105,8 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                                 <stop offset="95%" stopColor={kpis.treasury >= 0 ? "#10b981" : "#ef4444"} stopOpacity={0}/>
                             </linearGradient>
                         </defs>
-                        <Area type="monotone" dataKey="Tresorerie" fill="url(#colorTreasury)" stroke={kpis.treasury >= 0 ? "#10b981" : "#ef4444"} strokeWidth={2} name="Tresorerie" />
-                        <Line type="monotone" dataKey="Tresorerie_N1" stroke="#94a3b8" strokeWidth={1.5} dot={false} strokeDasharray="4 4" name="Tresorerie N-1" />
+                        <Area type="monotone" dataKey="Trésorerie" fill="url(#colorTreasury)" stroke={kpis.treasury >= 0 ? "#10b981" : "#ef4444"} strokeWidth={2} name="Trésorerie" />
+                        <Line type="monotone" dataKey="Trésorerie_N1" stroke="#94a3b8" strokeWidth={1.5} dot={false} strokeDasharray="4 4" name="Trésorerie N-1" />
                     </ComposedChart>
                 </ResponsiveContainer>
             </div>
@@ -1123,10 +1123,10 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2">
                     <Briefcase className="w-4 h-4 text-cyan-600" />
-                    Evolution du BFR
+                    Évolution du BFR
                 </h3>
                 <div className="flex items-center gap-2 text-[11px]">
-                    <span className="flex items-center gap-1"><div className="w-2 h-2 bg-cyan-500 rounded-sm"></div> Creances</span>
+                    <span className="flex items-center gap-1"><div className="w-2 h-2 bg-cyan-500 rounded-sm"></div> Créances</span>
                     <span className="flex items-center gap-1"><div className="w-2 h-2 bg-amber-500 rounded-sm"></div> Stocks</span>
                     <span className="flex items-center gap-1"><div className="w-2 h-2 bg-rose-500 rounded-sm"></div> Dettes</span>
                     <span className="flex items-center gap-1"><div className="w-2 h-0.5 bg-slate-800"></div> BFR Net</span>
@@ -1140,7 +1140,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                         <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={(val: any) => { const v = Number(val); return !isNaN(v) && Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(val); }} />
                         <Tooltip formatter={(value: any, name: string) => [formatCurrency(Number(value)), name]} />
                         <ReferenceLine y={0} stroke="#cbd5e1" />
-                        <Bar dataKey="Creances" stackId="bfr" fill="#06b6d4" radius={[0, 0, 0, 0]} barSize={24} name="Creances" />
+                        <Bar dataKey="Créances" stackId="bfr" fill="#06b6d4" radius={[0, 0, 0, 0]} barSize={24} name="Créances" />
                         <Bar dataKey="Stocks" stackId="bfr" fill="#f59e0b" radius={[0, 0, 0, 0]} barSize={24} name="Stocks" />
                         <Bar dataKey="Dettes" stackId="bfr" fill="#f43f5e" radius={[0, 0, 0, 0]} barSize={24} name="Dettes (-)" />
                         <Line type="monotone" dataKey="BFR_Net" stroke="#0f172a" strokeWidth={2.5} dot={{ r: 3, fill: '#0f172a' }} name="BFR Net" />
@@ -1237,7 +1237,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                <div className="flex justify-between items-center mb-4">
                   <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2">
                       <Users className="w-4 h-4 text-orange-600" />
-                      Productivite
+                      Productivité
                   </h3>
                   <div className="flex items-center gap-2 text-[11px]">
                       <span className="flex items-center gap-1"><div className="w-2 h-2 bg-orange-500 rounded-sm"></div> Heures</span>
@@ -1267,7 +1267,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
           {kpis.topActivities.length > 0 && (
             <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
                <h3 className="text-sm font-bold text-brand-900 mb-4 flex items-center gap-2 uppercase tracking-wide">
-                  <ShoppingBag className="w-4 h-4 text-purple-500" /> Repartition Activite
+                  <ShoppingBag className="w-4 h-4 text-purple-500" /> Répartition Activité
                </h3>
                <div className="space-y-3">
                  {kpis.topActivities.map((act, idx) => (
@@ -1301,7 +1301,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2">
                 <Activity className="w-4 h-4 text-indigo-500" />
-                Evolution des Ratios (jours)
+                Évolution des Ratios (jours)
               </h3>
               <div className="flex items-center gap-2 text-[11px]">
                 <span className="flex items-center gap-1"><div className="w-2 h-0.5 bg-cyan-500"></div> DSO</span>

@@ -185,7 +185,7 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
 
         {/* Formulaire de contre-proposition */}
         {isScheduling && (
-          <div className="mt-4 pt-4 border-t border-amber-200">
+          <div className="mt-4 pt-4 border-t border-amber-200 animate-in fade-in slide-in-from-top-2 duration-200">
             {renderForm('Reprogrammer', () => setIsScheduling(false))}
           </div>
         )}
@@ -218,7 +218,7 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
           </div>
 
           {isScheduling && (
-            <div className="mt-4 pt-4 border-t border-slate-200">
+            <div className="mt-4 pt-4 border-t border-slate-200 animate-in fade-in slide-in-from-top-2 duration-200">
               {renderForm('Programmer', () => setIsScheduling(false))}
             </div>
           )}
@@ -259,7 +259,7 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
 
         {/* Formulaire de reprogrammation */}
         {isScheduling && (
-          <div className={`mt-4 pt-4 border-t ${isConfirmed ? 'border-emerald-200' : 'border-blue-200'}`}>
+          <div className={`mt-4 pt-4 border-t animate-in fade-in slide-in-from-top-2 duration-200 ${isConfirmed ? 'border-emerald-200' : 'border-blue-200'}`}>
             <p className="text-xs text-slate-500 font-medium mb-3">Reprogrammer le RDV (un nouvel email sera envoyé) :</p>
             {renderForm('Reprogrammer', () => setIsScheduling(false))}
           </div>

@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { Client, FinancialRecord, ProfitCenter } from '../types';
 import { getRecordsByClient } from '../services/dataService';
 import {

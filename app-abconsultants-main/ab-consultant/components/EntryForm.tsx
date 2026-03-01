@@ -93,12 +93,12 @@ const SmartNumberInput = ({
                 {/* N-1 Comparison Column */}
                 {n1Value !== undefined && (
                     <div className="flex flex-col justify-center px-3 border-l border-slate-100 bg-slate-50 min-w-[80px] text-right" title={`Valeur N-1 : ${formatForDisplay(n1Value)}`}>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">N-1</span>
+                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-tight">N-1</span>
                         <div className="text-xs font-bold text-slate-600">
                             {formatForDisplay(n1Value)}
                         </div>
                         {variation !== null && (
-                            <span className={`text-[9px] font-bold ${varColor}`}>
+                            <span className={`text-[11px] font-bold ${varColor}`}>
                                 {variation > 0 ? '+' : ''}{variation.toFixed(0)}%
                             </span>
                         )}
@@ -727,7 +727,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                 <div className="flex items-center gap-3">
                     {/* AUTO-SAVE INDICATOR */}
                     {draftSaved && (
-                        <span className="text-[10px] text-slate-400 flex items-center gap-1 animate-in fade-in duration-200">
+                        <span className="text-[11px] text-slate-400 flex items-center gap-1 animate-in fade-in duration-200">
                             <CheckCircle className="w-3 h-3 text-emerald-400" /> Brouillon sauvé
                         </span>
                     )}
@@ -808,7 +808,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                             return labels.map((label, i) => (
                                 <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
                                     <div className={`h-1.5 w-full rounded-full transition-colors ${i < filled ? 'bg-brand-500' : 'bg-slate-200'}`} />
-                                    <span className={`text-[9px] font-bold ${i < filled ? 'text-brand-600' : 'text-slate-300'}`}>{label}</span>
+                                    <span className={`text-[11px] font-bold ${i < filled ? 'text-brand-600' : 'text-slate-300'}`}>{label}</span>
                                 </div>
                             ));
                         })()}
@@ -919,7 +919,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                                 <span className="text-xs font-bold text-slate-600 uppercase mb-1 flex items-center gap-1">CA Global HT <HelpCircle className="w-3.5 h-3.5 text-slate-400 cursor-help" /></span>
                                 <SmartBigInput value={formData.revenue.total || 0} onChange={(val: number) => handleChange('revenue', 'total', val)} disabled={isLocked} colorClass="text-brand-700" borderColorClass="border-brand-200" />
                                 <div className="mt-2 text-center">
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">N-1</span>
+                                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">N-1</span>
                                     <span className="text-xs font-bold text-slate-600">{comparisonRecord ? formatCurrency(comparisonRecord.revenue.total) : '-'}</span>
                                 </div>
                             </div>
@@ -930,7 +930,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                                         <span className="text-xs font-bold text-slate-600 uppercase mb-1 flex items-center gap-1">Marge Globale (€) <HelpCircle className="w-3.5 h-3.5 text-slate-400 cursor-help" /></span>
                                         <SmartBigInput value={formData.margin?.total || 0} onChange={(val: number) => handleChange('margin', 'total', val)} disabled={isLocked} colorClass="text-purple-700" borderColorClass="border-purple-200" />
                                         <div className="mt-2 text-center">
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">N-1</span>
+                                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">N-1</span>
                                             <span className="text-xs font-bold text-slate-600">{comparisonRecord?.margin?.total ? formatCurrency(comparisonRecord.margin.total) : '-'}</span>
                                         </div>
                                     </div>
@@ -940,7 +940,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                                             <PieChart className="w-5 h-5 text-purple-500" />
                                             <span className="text-2xl font-bold text-slate-800">{formData.margin?.rate?.toFixed(1) || 0}%</span>
                                         </div>
-                                        <span className="text-[10px] text-slate-500 font-medium mt-1">Calculé (Marge € / CA €)</span>
+                                        <span className="text-[11px] text-slate-500 font-medium mt-1">Calculé (Marge € / CA €)</span>
                                     </div>
                                 </>
                             )}
@@ -949,7 +949,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                         {profitCenters.length > 0 ? (
                             <div className="space-y-4">
                                 <h4 className="text-sm font-bold text-slate-700 border-b border-slate-200 pb-2 mb-4 flex items-center gap-2"><Briefcase className="w-4 h-4 text-brand-500" /> Détail par Activité (Comparatif N-1 inclus)</h4>
-                                <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 px-2">
+                                <div className="grid grid-cols-12 gap-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 px-2">
                                     <div className={showCommercialMargin ? "col-span-3" : "col-span-6"}>Activité</div>
                                     <div className={showCommercialMargin ? "col-span-3 text-center" : "col-span-6 text-center"}>CA HT (N)</div>
                                     {showCommercialMargin && <div className="col-span-3 text-center">Marge € (N)</div>}
@@ -965,7 +965,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                                             <div key={pc.id} className="grid grid-cols-12 gap-3 items-center bg-slate-50 p-3 rounded-lg border border-slate-200 hover:border-brand-300 hover:shadow-sm transition-all">
                                                 <div className={showCommercialMargin ? "col-span-3" : "col-span-6"}>
                                                     <span className="block text-sm font-bold text-slate-800 truncate" title={pc.name}>{pc.name}</span>
-                                                    <span className="text-[9px] bg-white border border-slate-200 px-1.5 py-0.5 rounded text-slate-500 font-semibold uppercase">{pc.type === 'goods' ? 'Marchandise' : 'Service'}</span>
+                                                    <span className="text-[11px] bg-white border border-slate-200 px-1.5 py-0.5 rounded text-slate-500 font-semibold uppercase">{pc.type === 'goods' ? 'Marchandise' : 'Service'}</span>
                                                 </div>
                                                 <div className={showCommercialMargin ? "col-span-3" : "col-span-6"}>
                                                     <div className="relative border border-slate-300 rounded bg-white overflow-hidden flex">
@@ -974,8 +974,8 @@ const EntryForm: React.FC<EntryFormProps> = ({
                                                         </div>
                                                         {n1CA !== undefined && (
                                                             <div className="bg-slate-100 border-l border-slate-200 px-2 flex flex-col justify-center min-w-[60px] text-right" title="CA N-1">
-                                                                <span className="text-[9px] text-slate-400 font-bold">N-1</span>
-                                                                <span className="text-[10px] text-slate-600 font-bold">{n1CA > 999 ? (n1CA/1000).toFixed(0) + 'k' : n1CA}</span>
+                                                                <span className="text-[11px] text-slate-400 font-bold">N-1</span>
+                                                                <span className="text-[11px] text-slate-600 font-bold">{n1CA > 999 ? (n1CA/1000).toFixed(0) + 'k' : n1CA}</span>
                                                             </div>
                                                         )}
                                                     </div>
@@ -1084,12 +1084,12 @@ const EntryForm: React.FC<EntryFormProps> = ({
                             <div className="space-y-4">
                                 <div className="flex items-center gap-2 text-emerald-700 border-b border-emerald-100 pb-2"><div className="p-1.5 bg-emerald-100 rounded-lg"><TrendingUp className="w-4 h-4" /></div><span className="font-bold text-sm uppercase tracking-wide">Disponibilités</span></div>
                                 <SmartNumberInput label="Soldes Créditeurs" value={formData.cashFlow.active} onChange={(val: number) => handleChange('cashFlow', 'active', val)} className="border-emerald-200 focus:ring-emerald-500 focus:border-emerald-500 bg-emerald-50 text-emerald-900 font-bold" disabled={isLocked} definition={DEFINITIONS.treasuryPositive} n1Value={comparisonRecord?.cashFlow.active} prefix={<span className="text-emerald-500 font-bold">+</span>} />
-                                <p className="text-[10px] text-slate-500 font-medium leading-tight">Comptes courants créditeurs, caisse espèces, livrets et placements disponibles.</p>
+                                <p className="text-[11px] text-slate-500 font-medium leading-tight">Comptes courants créditeurs, caisse espèces, livrets et placements disponibles.</p>
                             </div>
                             <div className="space-y-4 lg:border-l lg:border-r border-slate-100 lg:px-8">
                                 <div className="flex items-center gap-2 text-red-700 border-b border-red-100 pb-2"><div className="p-1.5 bg-red-100 rounded-lg"><TrendingDown className="w-4 h-4" /></div><span className="font-bold text-sm uppercase tracking-wide">Concours Bancaires</span></div>
                                 <SmartNumberInput label="Soldes Débiteurs" value={formData.cashFlow.passive} onChange={(val: number) => handleChange('cashFlow', 'passive', val)} className="border-red-200 focus:ring-red-500 focus:border-red-500 bg-red-50 text-red-900 font-bold" disabled={isLocked} definition={DEFINITIONS.treasuryNegative} n1Value={comparisonRecord?.cashFlow.passive} prefix={<span className="text-red-500 font-bold">-</span>} />
-                                <p className="text-[10px] text-slate-500 font-medium leading-tight">Découverts autorisés ou non, facilités de caisse, emprunts court terme.</p>
+                                <p className="text-[11px] text-slate-500 font-medium leading-tight">Découverts autorisés ou non, facilités de caisse, emprunts court terme.</p>
                             </div>
                             <div className="flex flex-col h-full justify-center">
                                 <ResultCard label="Trésorerie Nette" value={formatCurrency(formData.cashFlow.treasury)} subtext="Active - Passive" icon={Landmark} colorClass={formData.cashFlow.treasury >= 0 ? 'text-emerald-800' : 'text-red-800'} bgClass={formData.cashFlow.treasury >= 0 ? 'bg-emerald-50' : 'bg-red-50'} />

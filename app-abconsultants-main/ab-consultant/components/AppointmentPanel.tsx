@@ -111,7 +111,7 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
     <form onSubmit={handleSchedule} className="space-y-3">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
-          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Date</label>
+          <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Date</label>
           <DatePickerCalendar
             value={formData.date}
             onChange={(date) => setFormData({ ...formData, date })}
@@ -120,11 +120,11 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
           />
         </div>
         <div>
-          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Heure</label>
+          <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Heure</label>
           <input type="time" value={formData.time} onChange={(e) => setFormData({ ...formData, time: e.target.value })} required className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 outline-none" />
         </div>
         <div>
-          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Lieu</label>
+          <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Lieu</label>
           <input type="text" value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} placeholder="Sainte-Clotilde" className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 outline-none" />
         </div>
       </div>
@@ -152,12 +152,12 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
 
             <div className="mt-3 grid grid-cols-2 gap-3">
               <div className="bg-white/60 rounded-lg p-3">
-                <p className="text-[10px] font-bold text-amber-600 uppercase mb-1">Date actuelle</p>
+                <p className="text-[11px] font-bold text-amber-600 uppercase mb-1">Date actuelle</p>
                 <p className="text-sm font-bold text-slate-800">{formatDate(appointment.date)}</p>
                 <p className="text-xs text-slate-500">{appointment.time} — {appointment.location || 'Lieu non précisé'}</p>
               </div>
               <div className="bg-white/60 rounded-lg p-3 border-2 border-amber-300">
-                <p className="text-[10px] font-bold text-amber-600 uppercase mb-1">Date proposée</p>
+                <p className="text-[11px] font-bold text-amber-600 uppercase mb-1">Date proposée</p>
                 <p className="text-sm font-bold text-slate-800">{formatDate(appointment.proposedDate)}</p>
                 <p className="text-xs text-slate-500">{appointment.proposedTime}</p>
               </div>
@@ -232,7 +232,7 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold uppercase ${
                 isConfirmed ? 'bg-emerald-200 text-emerald-800' : 'bg-blue-200 text-blue-800'
               }`}>
                 {isConfirmed ? <><Check className="w-3 h-3" /> Confirmé</> : <><Clock className="w-3 h-3" /> En attente de confirmation</>}

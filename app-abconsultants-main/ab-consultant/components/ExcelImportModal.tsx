@@ -286,9 +286,9 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                         {/* Sheet name */}
                         <div className="flex-1">
                           <span className="text-sm font-bold text-slate-800">{sheet.name}</span>
-                          <span className="text-[10px] text-slate-400 ml-2">({sheet.rows.length} lignes, {sheet.headers.length} colonnes)</span>
+                          <span className="text-[11px] text-slate-400 ml-2">({sheet.rows.length} lignes, {sheet.headers.length} colonnes)</span>
                           {autoType !== 'unknown' && (
-                            <span className="ml-2 text-[9px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded-full font-bold">auto-détecté</span>
+                            <span className="ml-2 text-[11px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded-full font-bold">auto-détecté</span>
                           )}
                         </div>
 
@@ -339,7 +339,7 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                             </tbody>
                           </table>
                           {sheet.rows.length > 8 && (
-                            <p className="text-[10px] text-slate-400 mt-2">... et {sheet.rows.length - 8} lignes de plus</p>
+                            <p className="text-[11px] text-slate-400 mt-2">... et {sheet.rows.length - 8} lignes de plus</p>
                           )}
                         </div>
                       )}
@@ -411,7 +411,7 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                       </span>
                     ))}
                   </div>
-                  <p className="text-[10px] text-amber-600 mt-2">
+                  <p className="text-[11px] text-amber-600 mt-2">
                     Ces familles seront ajoutees aux activites du client. Vous pourrez modifier leur type (Marchandise/Service) dans les parametres.
                   </p>
                 </div>
@@ -495,9 +495,9 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                               )}
                               <td className="px-3 py-2 text-center border-b border-slate-100">
                                 {existing ? (
-                                  <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">Mise a jour</span>
+                                  <span className="text-[11px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">Mise a jour</span>
                                 ) : (
-                                  <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">Nouveau</span>
+                                  <span className="text-[11px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">Nouveau</span>
                                 )}
                               </td>
                             </tr>

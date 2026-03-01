@@ -162,7 +162,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ currentUserEmail }) => 
                                             <Mail className="w-3 h-3" /> {c.email}
                                         </div>
                                         {/* ID TECHNIQUE POUR DEBUG (Utile si problème de login) */}
-                                        <div className="text-[10px] text-slate-300 font-mono">
+                                        <div className="text-[11px] text-slate-300 font-mono">
                                             ID: {c.id}
                                         </div>
                                     </div>
@@ -247,7 +247,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ currentUserEmail }) => 
                                     />
                                 </div>
                                 {newEmail && (
-                                    <div className="text-[10px] text-slate-400 font-mono">
+                                    <div className="text-[11px] text-slate-400 font-mono">
                                         ID généré : {normalizeId(newEmail)}
                                     </div>
                                 )}

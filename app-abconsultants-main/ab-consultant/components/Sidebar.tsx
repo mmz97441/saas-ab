@@ -31,7 +31,7 @@ const ClientCompanySelector: React.FC<{ companies: Client[], selectedId: string,
 
     return (
         <div className="mb-4 relative">
-            <label className="text-[10px] font-bold text-brand-400 uppercase mb-1 block">Sélectionner un dossier</label>
+            <label className="text-[11px] font-bold text-brand-400 uppercase mb-1 block">Sélectionner un dossier</label>
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className="w-full flex items-center justify-between bg-brand-800 text-white text-sm font-bold px-3 py-2.5 rounded-lg border border-brand-600 hover:bg-brand-700 transition-colors"
@@ -117,14 +117,14 @@ const HelpPanel: React.FC<{ userRole: 'ab_consultant' | 'client' }> = ({ userRol
                 <div className="mt-2 mx-1 bg-brand-800/60 rounded-xl border border-brand-700/50 overflow-hidden animate-in slide-in-from-top-2 duration-200">
                     {/* GLOSSAIRE */}
                     <div className="p-3 border-b border-brand-700/40">
-                        <p className="text-[10px] font-bold text-brand-400 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                        <p className="text-[11px] font-bold text-brand-400 uppercase tracking-wider flex items-center gap-1.5 mb-2">
                             <BookOpen className="w-3 h-3" /> Glossaire des indicateurs
                         </p>
                         <div className="space-y-2 max-h-56 overflow-y-auto custom-scrollbar pr-1">
                             {glossary.map((item) => (
                                 <div key={item.term}>
                                     <p className="text-[11px] font-bold text-accent-400">{item.term}</p>
-                                    <p className="text-[10px] text-brand-300 leading-relaxed">{item.def}</p>
+                                    <p className="text-[11px] text-brand-300 leading-relaxed">{item.def}</p>
                                 </div>
                             ))}
                         </div>
@@ -132,13 +132,13 @@ const HelpPanel: React.FC<{ userRole: 'ab_consultant' | 'client' }> = ({ userRol
 
                     {/* CONTACT */}
                     <div className="p-3">
-                        <p className="text-[10px] font-bold text-brand-400 uppercase tracking-wider mb-2">Contact</p>
-                        <p className="text-[10px] text-brand-300 leading-relaxed">
+                        <p className="text-[11px] font-bold text-brand-400 uppercase tracking-wider mb-2">Contact</p>
+                        <p className="text-[11px] text-brand-300 leading-relaxed">
                             Un doute ou une question ? Contactez-nous :
                         </p>
                         <button
                             onClick={() => window.open(`mailto:contact@ab-consultants.fr?subject=Aide - ${userRole === 'client' ? 'Client' : 'Consultant'}`, '_blank')}
-                            className="mt-2 w-full text-center text-[10px] font-bold bg-brand-700 hover:bg-brand-600 text-white py-1.5 rounded-lg transition-colors"
+                            className="mt-2 w-full text-center text-[11px] font-bold bg-brand-700 hover:bg-brand-600 text-white py-1.5 rounded-lg transition-colors"
                         >
                             contact@ab-consultants.fr
                         </button>
@@ -179,7 +179,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             <div className="relative">
                 <Icon className={`w-5 h-5 ${currentView === view ? 'text-accent-500' : 'text-brand-400 group-hover:text-accent-500'}`} />
                 {badge && badge > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-brand-900 animate-pulse">
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[11px] font-bold px-1.5 py-0.5 rounded-full border border-brand-900 animate-pulse">
                         {badge}
                     </span>
                 )}
@@ -210,7 +210,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                 <h1 className="text-lg font-bold tracking-tight leading-none mb-1 text-white">
                                     {selectedClient ? selectedClient.companyName : 'Espace Client'}
                                 </h1>
-                                <p className="text-[10px] text-brand-300 uppercase tracking-widest font-semibold flex items-center gap-1">
+                                <p className="text-[11px] text-brand-300 uppercase tracking-widest font-semibold flex items-center gap-1">
                                     Portail Consultant
                                 </p>
                             </div>
@@ -224,7 +224,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 {/* SECTION 1: ADMIN - Visible only to Consultant */}
                 {userRole === 'ab_consultant' && (
                     <div className="animate-in slide-in-from-left-2">
-                        <h3 className="text-[10px] font-bold text-brand-400 uppercase tracking-wider mb-3 px-2">Pilotage Cabinet</h3>
+                        <h3 className="text-[11px] font-bold text-brand-300 uppercase tracking-wider mb-3 px-2">Pilotage Cabinet</h3>
                         
                         {/* BOUTON VUE D'ENSEMBLE (Nouveau) */}
                          <button
@@ -254,8 +254,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <div className="animate-in slide-in-from-left-2 duration-300">
                         {userRole === 'ab_consultant' && (
                             <div className="flex items-center justify-between px-2 mb-3 mt-2">
-                                <h3 className="text-[10px] font-bold text-brand-400 uppercase tracking-wider">Espace Dossier</h3>
-                                {selectedClient && <span className="text-[10px] bg-brand-800 text-brand-300 px-1.5 py-0.5 rounded border border-brand-700">{selectedClient.id}</span>}
+                                <h3 className="text-[11px] font-bold text-brand-300 uppercase tracking-wider">Espace Dossier</h3>
+                                {selectedClient && <span className="text-[11px] bg-brand-800 text-brand-300 px-1.5 py-0.5 rounded border border-brand-700">{selectedClient.id}</span>}
                             </div>
                         )}
 
@@ -271,7 +271,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                         </div>
                                         <div className="overflow-hidden">
                                             <h4 className="text-sm font-bold text-white truncate">{selectedClient.companyName}</h4>
-                                            <p className="text-[10px] text-brand-300 truncate">{selectedClient.managerName}</p>
+                                            <p className="text-[11px] text-brand-300 truncate">{selectedClient.managerName}</p>
                                         </div>
                                     </div>
                                 )}
@@ -340,7 +340,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             
             {/* FOOTER VERSION */}
             <div className="p-4 text-center border-t border-brand-800/30">
-                <p className="text-[10px] text-brand-500 font-mono opacity-60">v{APP_VERSION}</p>
+                <p className="text-[11px] text-brand-300 font-mono">v{APP_VERSION}</p>
             </div>
         </aside>
     );

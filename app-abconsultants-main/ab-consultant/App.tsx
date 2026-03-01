@@ -26,6 +26,7 @@ type UserRole = 'ab_consultant' | 'client';
 
 const App: React.FC = () => {
   const [isAuthCheckLoading, setIsAuthCheckLoading] = useState(true);
+  const [authTimeout, setAuthTimeout] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentView, setCurrentView] = useState<View>(View.Dashboard);
   const [data, setData] = useState<FinancialRecord[]>([]);
@@ -60,7 +61,9 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    const timeout = setTimeout(() => setAuthTimeout(true), 15000);
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        clearTimeout(timeout);
         setIsAuthCheckLoading(true);
         if (user) {
             const email = user.email?.toLowerCase() || '';
@@ -101,7 +104,7 @@ const App: React.FC = () => {
         }
         setIsAuthCheckLoading(false);
     });
-    return () => unsubscribe();
+    return () => { unsubscribe(); clearTimeout(timeout); };
   }, []);
 
   useEffect(() => {
@@ -403,13 +406,34 @@ const App: React.FC = () => {
       );
   }, [clients, clientViewMode, clientSearchQuery]);
 
-  if (isAuthCheckLoading) return <div className="min-h-screen flex items-center justify-center bg-brand-50"><Loader2 className="w-8 h-8 animate-spin text-brand-600"/></div>;
+  if (isAuthCheckLoading) return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-brand-50 gap-4">
+      <img src="/logo.svg" alt="AB Consultants" className="h-10 mb-2 opacity-80" />
+      <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+      <p className="text-sm text-brand-500 font-medium">Connexion en cours...</p>
+      {authTimeout && (
+        <div className="mt-4 text-center">
+          <p className="text-sm text-slate-500">La connexion prend plus de temps que prévu.</p>
+          <button onClick={() => window.location.reload()} className="mt-2 px-4 py-2 bg-brand-600 text-white text-sm font-bold rounded-lg hover:bg-brand-700 transition">
+            Réessayer
+          </button>
+        </div>
+      )}
+    </div>
+  );
   if (!isAuthenticated) return <LoginScreen onLogin={handleLoginSuccess} />;
 
   return (
     <div className="min-h-screen flex bg-brand-50 relative">
       {notification && (
-          <div className="fixed top-4 right-4 z-50 px-6 py-4 bg-white rounded-lg shadow-xl border border-brand-200 animate-in slide-in-from-right-10">
+          <div role="alert" className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-xl border animate-in slide-in-from-right-10 flex items-center gap-3 ${
+              notification.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' :
+              notification.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' :
+              'bg-blue-50 border-blue-200 text-blue-800'
+          }`}>
+              {notification.type === 'success' && <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />}
+              {notification.type === 'error' && <X className="w-5 h-5 text-red-500 shrink-0" />}
+              {notification.type === 'info' && <Bell className="w-5 h-5 text-blue-500 shrink-0" />}
               <p className="font-medium text-sm">{notification.message}</p>
           </div>
       )}

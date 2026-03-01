@@ -313,7 +313,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                     </p>
 
                     <div className="space-y-3">
-                        <div className="grid grid-cols-12 gap-2 text-[10px] uppercase font-bold text-slate-400 px-2">
+                        <div className="grid grid-cols-12 gap-2 text-[11px] uppercase font-bold text-slate-400 px-2">
                             <div className="col-span-5">Nom de l'Activité</div>
                             <div className="col-span-3">Type</div>
                             <div className="col-span-3">Marge Théorique (%)</div>

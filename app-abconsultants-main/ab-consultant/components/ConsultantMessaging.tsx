@@ -123,7 +123,7 @@ const ConsultantMessaging: React.FC<ConsultantMessagingProps> = ({ clients, onMa
                                     <div className="flex justify-between items-center mb-0.5">
                                         <h4 className="font-bold text-sm text-slate-800 truncate pr-2">{client.companyName}</h4>
                                         {client.lastMessageTime && (
-                                            <span className="text-[10px] text-slate-400 shrink-0">
+                                            <span className="text-[11px] text-slate-400 shrink-0">
                                                 {new Date(client.lastMessageTime?.toMillis?.() || Date.now()).toLocaleDateString([], {day:'2-digit', month:'2-digit'})}
                                             </span>
                                         )}
@@ -176,7 +176,7 @@ const ConsultantMessaging: React.FC<ConsultantMessagingProps> = ({ clients, onMa
                                                     : 'bg-slate-200 text-slate-700 rounded-bl-none'
                                         }`}>
                                             {/* Header du message */}
-                                            <div className="flex items-center gap-2 mb-1 opacity-70 text-[10px] font-bold uppercase tracking-wider">
+                                            <div className="flex items-center gap-2 mb-1 opacity-70 text-[11px] font-bold uppercase tracking-wider">
                                                 {msg.sender === 'user' && <User className="w-3 h-3" />}
                                                 {msg.sender === 'consultant' && <Shield className="w-3 h-3" />}
                                                 {msg.sender === 'ai' && <Bot className="w-3 h-3" />}
@@ -226,7 +226,7 @@ const ConsultantMessaging: React.FC<ConsultantMessagingProps> = ({ clients, onMa
                                     <Send className="w-5 h-5" />
                                 </button>
                             </div>
-                            <p className="text-[10px] text-slate-400 mt-2 text-center items-center justify-center gap-1 hidden md:flex">
+                            <p className="text-[11px] text-slate-400 mt-2 text-center items-center justify-center gap-1 hidden md:flex">
                                 <Shield className="w-3 h-3" /> Votre réponse apparaîtra directement dans le chat du client.
                             </p>
                         </div>

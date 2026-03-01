@@ -29,8 +29,11 @@ export default {
           950: '#061626',
         },
         accent: {
+          300: '#fcd34d',
+          400: '#fbbf24',
           500: '#f59e0b',
           600: '#d97706',
+          700: '#b45309',
         }
       },
       keyframes: {
@@ -44,5 +47,5 @@ export default {
       }
     }
   },
-  plugins: [],
+  plugins: [require('tailwindcss-animate')],
 }

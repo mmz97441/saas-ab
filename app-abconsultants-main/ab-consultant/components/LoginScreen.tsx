@@ -241,7 +241,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                     <div className="flex justify-between items-center mb-1">
                         <label className="block text-xs font-bold text-brand-700 uppercase">Mot de passe</label>
                         {!isSignUp && (
-                            <button type="button" onClick={handleResetPassword} className="text-[10px] font-bold text-brand-500 hover:text-brand-700 flex items-center gap-1">
+                            <button type="button" onClick={handleResetPassword} className="text-[11px] font-bold text-brand-500 hover:text-brand-700 flex items-center gap-1">
                                 <KeyRound className="w-3 h-3" /> Oublié ?
                             </button>
                         )}

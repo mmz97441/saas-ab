@@ -215,7 +215,7 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
                 <h3 className="font-bold text-sm">Consultant Stratégique</h3>
                 <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                    <p className="text-[10px] text-brand-300">En ligne • Gemini 3 Pro</p>
+                    <p className="text-[11px] text-brand-300">En ligne • Gemini 3 Pro</p>
                 </div>
               </div>
             </div>
@@ -258,7 +258,7 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
                   `}
                 >
                   {msg.sender === 'consultant' && (
-                      <div className="text-[10px] font-bold text-accent-600 mb-1 uppercase tracking-wider flex items-center gap-1">
+                      <div className="text-[11px] font-bold text-accent-600 mb-1 uppercase tracking-wider flex items-center gap-1">
                           <UserCircle className="w-3 h-3" /> Consultant
                       </div>
                   )}
@@ -298,7 +298,7 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
               <button onClick={handleSend} disabled={isLoading || !input.trim()} className="p-3 bg-brand-700 text-white rounded-xl hover:bg-brand-800 disabled:opacity-50 transition-all shadow-md"><Send className="w-4 h-4" /></button>
             </div>
             <div className="mt-2 text-center">
-                <button onClick={() => handleManualHandoff()} className="text-[10px] text-brand-400 hover:text-brand-700 flex items-center justify-center gap-1 mx-auto transition-colors font-medium group">Besoin d'aide humaine ? <span className="underline decoration-dotted group-hover:decoration-brand-700">Alerter mon consultant</span> <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" /></button>
+                <button onClick={() => handleManualHandoff()} className="text-[11px] text-brand-400 hover:text-brand-700 flex items-center justify-center gap-1 mx-auto transition-colors font-medium group">Besoin d'aide humaine ? <span className="underline decoration-dotted group-hover:decoration-brand-700">Alerter mon consultant</span> <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" /></button>
             </div>
           </div>
         </div>

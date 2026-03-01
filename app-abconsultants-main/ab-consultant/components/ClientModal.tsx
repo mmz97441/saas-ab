@@ -381,7 +381,7 @@ Expertise & Stratégie Financière`;
                                         className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-brand-200 bg-brand-50/50 focus:ring-2 focus:ring-brand-500 outline-none font-bold text-brand-900"
                                     />
                                 </div>
-                                <p className="text-[10px] text-slate-400 mt-1 ml-1">C'est l'identifiant unique que le client utilisera pour activer son accès.</p>
+                                <p className="text-[11px] text-slate-400 mt-1 ml-1">C'est l'identifiant unique que le client utilisera pour activer son accès.</p>
                             </div>
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

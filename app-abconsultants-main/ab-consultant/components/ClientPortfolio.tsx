@@ -303,8 +303,73 @@ Expertise & Stratégie Financière`;
                     </div>
                 </div>
 
-                {/* Table */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                {/* Mobile Cards View */}
+                <div className="md:hidden space-y-3">
+                    {isLoading ? (
+                        <div className="flex items-center justify-center py-16 text-brand-500 bg-white rounded-xl border border-slate-200">
+                            <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                            <span className="text-sm font-medium">Chargement...</span>
+                        </div>
+                    ) : sorted.length > 0 ? (
+                        sorted.map(({ client, ytdRevenue, objPerformance, ytdObjective, lastTreasury, treasuryAlert, dataFresh, pendingValidation, lastRecordValidated, lastActivity }) => {
+                            const perfCol = ytdObjective > 0 ? getPerfColor(objPerformance) : null;
+                            return (
+                                <div key={client.id} onClick={() => onSelectClient(client)} className={`bg-white rounded-xl shadow-sm border border-slate-200 p-4 active:bg-slate-50 transition cursor-pointer ${client.status === 'inactive' ? 'opacity-60' : ''}`}>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold border text-sm shrink-0 ${client.status === 'inactive' ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-brand-50 text-brand-700 border-brand-200'}`}>
+                                                {client.companyName.substring(0, 2).toUpperCase()}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className="font-bold text-slate-800 text-sm truncate">{client.companyName}</div>
+                                                <div className="text-[11px] text-slate-400 truncate">{client.managerName}{client.city ? ` — ${client.city}` : ''}</div>
+                                            </div>
+                                        </div>
+                                        {pendingValidation ? (
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700 shrink-0">
+                                                <Clock className="w-3 h-3" /> A Valider
+                                            </span>
+                                        ) : lastRecordValidated ? (
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700 shrink-0">
+                                                <CheckCircle className="w-3 h-3" /> OK
+                                            </span>
+                                        ) : null}
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-3 text-center">
+                                        <div>
+                                            <p className="text-[11px] text-slate-400 uppercase font-bold">CA YTD</p>
+                                            <p className="font-mono font-bold text-slate-700 text-xs">{ytdRevenue > 0 ? fmtEur(ytdRevenue) : '—'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[11px] text-slate-400 uppercase font-bold">Objectif</p>
+                                            {perfCol ? (
+                                                <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full ${perfCol.bg} ${perfCol.text}`}>{objPerformance.toFixed(0)}%</span>
+                                            ) : (
+                                                <span className="text-slate-300 text-xs">N/A</span>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <p className="text-[11px] text-slate-400 uppercase font-bold">Tréso.</p>
+                                            {lastTreasury !== null ? (
+                                                <p className={`font-mono font-bold text-xs ${treasuryAlert ? 'text-red-600' : 'text-emerald-600'}`}>{fmtEur(lastTreasury)}</p>
+                                            ) : (
+                                                <span className="text-slate-300 text-xs">—</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    ) : (
+                        <div className="p-12 text-center text-slate-400 bg-white rounded-xl border border-slate-200">
+                            <Archive className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                            <p className="font-medium">Aucun dossier dans cette catégorie.</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Desktop Table */}
+                <div className="hidden md:block bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     {isLoading ? (
                         <div className="flex items-center justify-center py-16 text-brand-500">
                             <Loader2 className="w-6 h-6 animate-spin mr-2" />
@@ -314,7 +379,7 @@ Expertise & Stratégie Financière`;
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="text-[11px] font-bold text-slate-400 uppercase bg-slate-50 border-b border-slate-100">
+                                    <tr className="text-[11px] font-bold text-slate-500 uppercase bg-slate-50 border-b border-slate-100">
                                         <th className="p-3 pl-4">
                                             <button onClick={() => handleSort('name')} className="inline-flex items-center gap-0.5 hover:text-slate-600 transition">
                                                 Dossier Client <SortIcon col="name" />
@@ -456,14 +521,14 @@ Expertise & Stratégie Financière`;
                                                         {/* Quick panel button */}
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); handleOpenPanel(client, 'timeline'); }}
-                                                            className={`p-1.5 rounded-full transition ${isSelectedInPanel && panelTab === 'timeline' ? 'bg-brand-100 text-brand-600' : 'text-slate-300 hover:text-brand-500 hover:bg-brand-50'} opacity-0 group-hover:opacity-100`}
+                                                            className={`p-1.5 rounded-full transition ${isSelectedInPanel && panelTab === 'timeline' ? 'bg-brand-100 text-brand-600' : 'text-slate-300 hover:text-brand-500 hover:bg-brand-50'} opacity-40 group-hover:opacity-100`}
                                                             title="Timeline d'activité"
                                                         >
                                                             <Activity className="w-3.5 h-3.5" />
                                                         </button>
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); handleOpenPanel(client, 'config'); }}
-                                                            className={`p-1.5 rounded-full transition ${isSelectedInPanel && panelTab === 'config' ? 'bg-brand-100 text-brand-600' : 'text-slate-300 hover:text-brand-500 hover:bg-brand-50'} opacity-0 group-hover:opacity-100`}
+                                                            className={`p-1.5 rounded-full transition ${isSelectedInPanel && panelTab === 'config' ? 'bg-brand-100 text-brand-600' : 'text-slate-300 hover:text-brand-500 hover:bg-brand-50'} opacity-40 group-hover:opacity-100`}
                                                             title="Configuration rapide"
                                                         >
                                                             <Settings className="w-3.5 h-3.5" />
@@ -472,7 +537,7 @@ Expertise & Stratégie Financière`;
                                                         <div className="relative inline-block">
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === client.id ? null : client.id); }}
-                                                                className="p-2 text-slate-400 hover:text-brand-600 bg-white rounded-full shadow-sm border border-slate-100 opacity-0 group-hover:opacity-100 transition"
+                                                                className="p-2 text-slate-400 hover:text-brand-600 bg-white rounded-full shadow-sm border border-slate-100 opacity-40 group-hover:opacity-100 transition"
                                                                 title="Actions"
                                                             >
                                                                 <MoreVertical className="w-3.5 h-3.5" />

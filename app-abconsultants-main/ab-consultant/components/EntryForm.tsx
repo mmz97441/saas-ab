@@ -155,8 +155,8 @@ const SmartTableInput = ({ value, onChange, disabled, placeholder = "0", align =
 
 
 // Reusable Layout Components
-const SectionCard = ({ children, className = "" }: { children?: React.ReactNode, className?: string }) => (
-    <div className={`bg-white rounded-xl shadow-sm border border-slate-200 p-6 lg:p-8 transition-all hover:shadow-md ${className}`}>
+const SectionCard = ({ children, className = "", id }: { children?: React.ReactNode, className?: string, id?: string }) => (
+    <div id={id} className={`bg-white rounded-xl shadow-sm border border-slate-200 p-6 lg:p-8 transition-all hover:shadow-md ${className}`}>
         {children}
     </div>
 );
@@ -797,8 +797,11 @@ const EntryForm: React.FC<EntryFormProps> = ({
                     {!isLocked && (userRole !== 'client' || isAdminOverride) && (
                         <button
                             onClick={async () => {
-                                const ok = await confirm({ title: 'Enregistrer les données ?', message: `Les données de ${formData.month} ${formData.year} seront sauvegardées.`, variant: 'success', confirmLabel: 'Enregistrer' });
-                                if (ok) wrappedOnSave(formData);
+                                if (isAdminOverride) {
+                                    const ok = await confirm({ title: 'Forcer l\'enregistrement ?', message: `Attention : ce rapport est ${formData.isValidated ? 'validé' : 'soumis'}. Vos modifications écraseront la version actuelle.`, variant: 'danger', confirmLabel: 'Forcer' });
+                                    if (!ok) return;
+                                }
+                                wrappedOnSave(formData);
                             }}
                             className={`px-4 py-2 text-white rounded-lg shadow-md hover:shadow-lg transition flex items-center gap-2 font-medium ${isAdminOverride ? 'bg-amber-600 hover:bg-amber-700' : 'bg-brand-600 hover:bg-brand-700'}`}
                         >
@@ -808,29 +811,33 @@ const EntryForm: React.FC<EntryFormProps> = ({
                 </div>
             </div>
 
-            {/* PROGRESS BAR */}
-            {!isLocked && (
-                <div className="px-6 pt-3 pb-0 bg-slate-50/30 border-b border-slate-100 print:hidden">
-                    <div className="flex items-center gap-1 mb-2">
-                        {(() => {
-                            const totalSteps = 4 + (showFuelTracking ? 1 : 0);
-                            let filled = 0;
-                            if (formData.revenue.total > 0 || (formData.margin?.total || 0) > 0) filled++;
-                            if (showFuelTracking && (formData.fuel?.volume || 0) > 0) filled++;
-                            if (formData.expenses.salaries > 0 || formData.expenses.hoursWorked > 0) filled++;
-                            if (formData.bfr.receivables.total > 0 || formData.bfr.debts.total > 0 || formData.bfr.stock.total > 0) filled++;
-                            if (formData.cashFlow.active > 0 || formData.cashFlow.passive > 0) filled++;
-                            const labels = ['Activité', ...(showFuelTracking ? ['Carburant'] : []), 'Charges', 'BFR', 'Trésorerie'];
-                            return labels.map((label, i) => (
-                                <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
-                                    <div className={`h-1.5 w-full rounded-full transition-colors ${i < filled ? 'bg-brand-500' : 'bg-slate-200'}`} />
-                                    <span className={`text-[11px] font-bold ${i < filled ? 'text-brand-600' : 'text-slate-300'}`}>{label}</span>
-                                </div>
-                            ));
-                        })()}
-                    </div>
+            {/* SECTION NAVIGATOR (clickable stepper) */}
+            <div className="px-6 pt-3 pb-2 bg-white border-b border-slate-100 print:hidden sticky top-0 z-10 shadow-sm">
+                <div className="flex items-center gap-1">
+                    {(() => {
+                        const sectionIds = ['section-activite', ...(showFuelTracking ? ['section-carburant'] : []), 'section-charges', 'section-bfr', 'section-tresorerie'];
+                        const labels = ['Activité', ...(showFuelTracking ? ['Carburant'] : []), 'Charges', 'BFR', 'Trésorerie'];
+                        const filled = [
+                            formData.revenue.total > 0 || (formData.margin?.total || 0) > 0,
+                            ...(showFuelTracking ? [(formData.fuel?.volume || 0) > 0] : []),
+                            formData.expenses.salaries > 0 || formData.expenses.hoursWorked > 0,
+                            formData.bfr.receivables.total > 0 || formData.bfr.debts.total > 0 || formData.bfr.stock.total > 0,
+                            formData.cashFlow.active > 0 || formData.cashFlow.passive > 0,
+                        ];
+                        return labels.map((label, i) => (
+                            <button
+                                key={i}
+                                type="button"
+                                onClick={() => document.getElementById(sectionIds[i])?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                                className="flex-1 flex flex-col items-center gap-0.5 group cursor-pointer"
+                            >
+                                <div className={`h-1.5 w-full rounded-full transition-colors ${filled[i] ? 'bg-brand-500' : 'bg-slate-200 group-hover:bg-brand-300'}`} />
+                                <span className={`text-[11px] font-bold transition-colors ${filled[i] ? 'text-brand-600' : 'text-slate-400 group-hover:text-brand-500'}`}>{label}</span>
+                            </button>
+                        ));
+                    })()}
                 </div>
-            )}
+            </div>
             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-slate-50/30">
                 {isClientInactive && userRole === 'client' && (
                      <div className="mb-6 bg-red-50 border border-red-200 text-red-800 px-4 py-4 rounded-lg flex items-center gap-4 shadow-sm">
@@ -927,7 +934,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                 </SectionCard>
 
                 <div className="space-y-6">
-                    <SectionCard>
+                    <SectionCard className="scroll-mt-20" id="section-activite">
                         <SectionHeader number="1" title="Activité & Rentabilité" icon={ShoppingBag} />
                         {/* CONDITIONAL GRID COLUMNS BASED ON MARGIN VISIBILITY */}
                         <div className={`grid grid-cols-1 ${showCommercialMargin ? 'md:grid-cols-3' : 'md:grid-cols-1 md:w-1/2 md:mx-auto'} gap-6 mb-8 p-4 bg-slate-50 rounded-xl border border-slate-200`}>
@@ -1041,7 +1048,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                     </SectionCard>
 
                     {showFuelTracking && (
-                        <SectionCard>
+                        <SectionCard className="scroll-mt-20" id="section-carburant">
                             <SectionHeader number="2" title="Carburant (Litrage)" icon={Droplets} colorClass="text-blue-700" bgClass="bg-blue-100" />
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                                 <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1056,7 +1063,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                         </SectionCard>
                     )}
 
-                    <SectionCard>
+                    <SectionCard className="scroll-mt-20" id="section-charges">
                         <SectionHeader number={2 + (showFuelTracking ? 1 : 0)} title="Charges & Productivité" icon={Users} colorClass="text-orange-700" bgClass="bg-orange-100" />
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                             <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
@@ -1072,7 +1079,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                         </div>
                     </SectionCard>
 
-                    <SectionCard>
+                    <SectionCard className="scroll-mt-20" id="section-bfr">
                         <SectionHeader number={3 + (showFuelTracking ? 1 : 0)} title="BFR (Besoin en Fonds de Roulement)" icon={Scale} colorClass="text-cyan-700" bgClass="bg-cyan-100" />
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
                              <div className="space-y-4">
@@ -1094,7 +1101,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                         </div>
                     </SectionCard>
 
-                    <SectionCard className={isLocked ? "opacity-90 grayscale-[0.2]" : ""}>
+                    <SectionCard className={`scroll-mt-20 ${isLocked ? "opacity-90 grayscale-[0.2]" : ""}`} id="section-tresorerie">
                         <SectionHeader number={4 + (showFuelTracking ? 1 : 0)} title="Situation de Trésorerie" icon={Landmark} colorClass="text-brand-700" bgClass="bg-brand-100" />
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
                             <div className="space-y-4">

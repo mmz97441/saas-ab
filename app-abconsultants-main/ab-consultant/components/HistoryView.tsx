@@ -325,10 +325,15 @@ const HistoryView: React.FC<HistoryViewProps> = ({
                                             </div>
                                         </td>
                                         <td className="p-4 text-right">
-                                            <div className="flex justify-end gap-2 opacity-100 transition-opacity">
+                                            <div className="flex justify-end items-center gap-1.5 transition-opacity">
                                                 {/* ACTION BUTTONS */}
                                                 {userRole === 'ab_consultant' ? (
                                                     <>
+                                                        {/* Primary actions: Edit + Validate */}
+                                                        <button onClick={() => onEdit(record)} className="p-2 bg-brand-50 text-brand-600 rounded-lg hover:bg-brand-100 transition" title="Modifier">
+                                                            <Edit2 className="w-4 h-4" />
+                                                        </button>
+
                                                         <button
                                                             onClick={async () => {
                                                                 const ok = await confirm({
@@ -343,6 +348,22 @@ const HistoryView: React.FC<HistoryViewProps> = ({
                                                             title={record.isValidated ? "Invalider" : "Valider"}
                                                         >
                                                             <ShieldCheck className="w-4 h-4" />
+                                                        </button>
+
+                                                        <button
+                                                            onClick={async () => {
+                                                                const ok = await confirm({
+                                                                    title: record.isPublished ? 'Masquer au client ?' : 'Publier ce rapport ?',
+                                                                    message: record.isPublished ? 'Le client ne verra plus ce rapport.' : 'Le client pourra consulter ce rapport.',
+                                                                    variant: 'info',
+                                                                    confirmLabel: record.isPublished ? 'Masquer' : 'Publier',
+                                                                });
+                                                                if (ok) onPublish(record);
+                                                            }}
+                                                            className={`p-2 rounded-lg transition ${record.isPublished ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-400 hover:bg-blue-50 hover:text-blue-600'}`}
+                                                            title={record.isPublished ? "Masquer au client" : "Publier au client"}
+                                                        >
+                                                            {record.isPublished ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                                                         </button>
 
                                                         {/* CLIENT UNLOCK BUTTON */}
@@ -364,27 +385,21 @@ const HistoryView: React.FC<HistoryViewProps> = ({
                                                             </button>
                                                         )}
 
+                                                        {/* Separator + Delete (isolated) */}
+                                                        <div className="w-px h-5 bg-slate-200 mx-1" />
                                                         <button
                                                             onClick={async () => {
                                                                 const ok = await confirm({
-                                                                    title: record.isPublished ? 'Masquer au client ?' : 'Publier ce rapport ?',
-                                                                    message: record.isPublished ? 'Le client ne verra plus ce rapport.' : 'Le client pourra consulter ce rapport.',
-                                                                    variant: 'info',
-                                                                    confirmLabel: record.isPublished ? 'Masquer' : 'Publier',
+                                                                    title: 'Supprimer ce rapport ?',
+                                                                    message: `Le rapport de ${record.month} ${record.year} sera définitivement supprimé. Cette action est irréversible.`,
+                                                                    variant: 'danger',
+                                                                    confirmLabel: 'Supprimer définitivement',
                                                                 });
-                                                                if (ok) onPublish(record);
+                                                                if (ok) onDelete(record);
                                                             }}
-                                                            className={`p-2 rounded-lg transition ${record.isPublished ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-400 hover:bg-blue-50 hover:text-blue-600'}`}
-                                                            title={record.isPublished ? "Masquer au client" : "Publier au client"}
+                                                            className="p-2 bg-white text-slate-300 rounded-lg hover:bg-red-50 hover:text-red-600 transition border border-transparent hover:border-red-200"
+                                                            title="Supprimer"
                                                         >
-                                                            {record.isPublished ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                                                        </button>
-
-                                                        <button onClick={() => onEdit(record)} className="p-2 bg-brand-50 text-brand-600 rounded-lg hover:bg-brand-100 transition" title="Modifier">
-                                                            <Edit2 className="w-4 h-4" />
-                                                        </button>
-
-                                                        <button onClick={() => onDelete(record)} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition" title="Supprimer">
                                                             <Trash2 className="w-4 h-4" />
                                                         </button>
                                                     </>

@@ -71,6 +71,10 @@ const SettingsView: React.FC<SettingsViewProps> = ({
     });
     const [formValues, setFormValues] = useState<ClientAdminFields>(buildFormValues(client));
 
+    // Track dirty state for unsaved changes warning
+    const isProfitCentersDirty = JSON.stringify(settingsProfitCenters) !== JSON.stringify(client.profitCenters || []);
+    const isFuelObjectivesDirty = JSON.stringify(settingsFuelObjectives) !== JSON.stringify(client.settings?.fuelObjectives || { gasoil: 0, sansPlomb: 0, gnr: 0 });
+
     // Sync ALL local state when client changes (navigation or after save)
     useEffect(() => {
         setSettingsProfitCenters(client.profitCenters || []);
@@ -104,8 +108,6 @@ const SettingsView: React.FC<SettingsViewProps> = ({
     const handleSaveClientForm = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const snapshot = { ...formValues };
-        const ok = await confirm({ title: 'Modifier les informations ?', message: 'Les informations administratives du dossier seront mises à jour.', confirmLabel: 'Enregistrer' });
-        if (!ok) return;
         onUpdateClientSettings(snapshot);
         setIsEditingSettings(false);
     };
@@ -298,6 +300,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                 <div className="p-4 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center">
                     <h3 className="font-bold text-indigo-900 flex items-center gap-2">
                         <ShoppingBag className="w-4 h-4" /> Ventilation Analytique
+                        {isProfitCentersDirty && <span className="text-[11px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full animate-pulse">Non sauvegardé</span>}
                     </h3>
                     <button
                         onClick={handleAddProfitCenter}
@@ -372,10 +375,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
 
                     <div className="mt-6 flex justify-end">
                         <button
-                            onClick={async () => {
-                                const ok = await confirm({ title: 'Enregistrer la structure ?', message: 'La ventilation analytique sera mise à jour pour ce dossier.', variant: 'success', confirmLabel: 'Enregistrer' });
-                                if (ok) onUpdateProfitCenters(settingsProfitCenters);
-                            }}
+                            onClick={() => onUpdateProfitCenters(settingsProfitCenters)}
                             className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 font-bold shadow-sm transition flex items-center gap-2"
                         >
                             <Save className="w-4 h-4" /> Enregistrer la structure analytique
@@ -389,6 +389,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                 <div className="p-4 bg-blue-50 border-b border-blue-100 flex justify-between items-center">
                     <h3 className="font-bold text-blue-900 flex items-center gap-2">
                         <Droplets className="w-4 h-4" /> Suivi Carburant
+                        {isFuelObjectivesDirty && <span className="text-[11px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full animate-pulse">Non sauvegardé</span>}
                     </h3>
                     <button
                         onClick={async () => {
@@ -436,10 +437,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                         </div>
                         <div className="mt-4 flex justify-end">
                             <button
-                                onClick={async () => {
-                                    const ok = await confirm({ title: 'Mettre à jour les objectifs ?', message: 'Les objectifs mensuels de consommation seront modifiés.', confirmLabel: 'Mettre à jour' });
-                                    if (ok) onUpdateFuelObjectives(settingsFuelObjectives);
-                                }}
+                                onClick={() => onUpdateFuelObjectives(settingsFuelObjectives)}
                                 className="text-xs font-bold text-blue-700 hover:bg-blue-50 px-3 py-2 rounded transition border border-transparent hover:border-blue-100"
                             >
                                 Mettre à jour les objectifs
@@ -449,17 +447,16 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                 )}
             </div>
 
-            {/* DANGER ZONE */}
+            {/* DANGER ZONE - Client status only */}
             <div className="pt-8 mt-8 border-t border-slate-200">
-                <h4 className="text-sm font-bold text-red-600 mb-4 uppercase tracking-wider flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4" /> Zone de danger
+                <h4 className="text-sm font-bold text-slate-500 mb-4 uppercase tracking-wider flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4" /> Statut du dossier
                 </h4>
 
                 <div className="flex gap-4">
                     {/* STATUS TOGGLE BUTTON */}
                     <button
                         onClick={() => {
-                            // La confirmation est gérée par la Modale dans App.tsx, c'est OK.
                             const newStatus = client.status === 'inactive' ? 'active' : 'inactive';
                             onUpdateClientStatus(client, newStatus);
                         }}
@@ -470,14 +467,6 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                     >
                         <Power className="w-4 h-4" />
                         {client.status === 'inactive' ? 'Réactiver le dossier' : 'Mettre en veille (Archiver)'}
-                    </button>
-
-                    {/* RESET DB BUTTON */}
-                    <button
-                        onClick={onResetDatabase}
-                        className="px-4 py-2 border border-red-200 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 text-sm font-bold transition flex items-center gap-2"
-                    >
-                        <Trash2 className="w-4 h-4" /> Réinitialiser TOUTE la base
                     </button>
                 </div>
             </div>

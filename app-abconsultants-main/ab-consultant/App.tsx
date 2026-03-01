@@ -57,9 +57,9 @@ const App: React.FC = () => {
   const SUPER_ADMIN_EMAIL = 'nice.guillaume@gmail.com';
   const confirm = useConfirmDialog();
 
-  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info', duration?: number) => {
       setNotification({ message, type });
-      setTimeout(() => setNotification(null), 4000);
+      setTimeout(() => setNotification(null), duration || (type === 'error' ? 6000 : 4000));
   };
 
   useEffect(() => {
@@ -527,19 +527,19 @@ const App: React.FC = () => {
 
             {/* BREADCRUMB NAVIGATION */}
             {!isPresentationMode && (
-              <nav className="flex items-center gap-1.5 text-xs text-slate-400 mb-4 print:hidden">
+              <nav className="flex items-center gap-2 text-sm mb-5 print:hidden bg-white px-4 py-2.5 rounded-lg shadow-sm border border-slate-100">
                 <button
                   onClick={() => { setSelectedClient(null); setCurrentView(View.Dashboard); }}
-                  className="hover:text-brand-600 transition flex items-center gap-1"
+                  className="text-slate-400 hover:text-brand-600 transition flex items-center gap-1.5"
                 >
-                  <Home className="w-3 h-3" /> Accueil
+                  <Home className="w-3.5 h-3.5" /> <span className="text-xs font-medium">Accueil</span>
                 </button>
                 {selectedClient && (
                   <>
-                    <ChevronRight className="w-3 h-3" />
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
                     <button
                       onClick={() => setCurrentView(View.Dashboard)}
-                      className="hover:text-brand-600 transition font-medium text-slate-500"
+                      className="hover:text-brand-600 transition font-semibold text-slate-600 text-xs"
                     >
                       {selectedClient.companyName}
                     </button>
@@ -547,8 +547,8 @@ const App: React.FC = () => {
                 )}
                 {currentView !== View.Dashboard && (
                   <>
-                    <ChevronRight className="w-3 h-3" />
-                    <span className="font-bold text-slate-600">
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+                    <span className="font-bold text-brand-700 text-xs">
                       {currentView === View.Entry ? (editingRecord ? 'Modification' : 'Nouvelle saisie') :
                        currentView === View.History ? 'Historique' :
                        currentView === View.Settings ? 'Paramètres' :

@@ -286,7 +286,12 @@ export const getClients = async (filterByEmail?: string | null): Promise<Client[
 };
 
 export const saveClient = async (client: Client): Promise<void> => {
-    await setDoc(doc(db, COLL_CLIENTS, client.id), client);
+    try {
+        await setDoc(doc(db, COLL_CLIENTS, client.id), client);
+    } catch (error: any) {
+        console.error("Erreur sauvegarde client", error);
+        throw new Error(error?.code === 'permission-denied' ? 'Permission refusée. Vérifiez vos droits.' : 'Impossible de sauvegarder le dossier. Vérifiez votre connexion.');
+    }
 };
 
 export const updateClientStatus = async (clientId: string, newStatus: 'active' | 'inactive'): Promise<void> => {
@@ -407,11 +412,21 @@ export const getRecordsByClient = async (clientId: string): Promise<FinancialRec
 };
 
 export const saveRecord = async (record: FinancialRecord): Promise<void> => {
-    await setDoc(doc(db, COLL_RECORDS, record.id), record);
+    try {
+        await setDoc(doc(db, COLL_RECORDS, record.id), record);
+    } catch (error: any) {
+        console.error("Erreur sauvegarde record", error);
+        throw new Error(error?.code === 'permission-denied' ? 'Permission refusée. Vérifiez vos droits.' : 'Impossible de sauvegarder les données. Vérifiez votre connexion.');
+    }
 };
 
 export const deleteRecord = async (id: string): Promise<void> => {
-    await deleteDoc(doc(db, COLL_RECORDS, id));
+    try {
+        await deleteDoc(doc(db, COLL_RECORDS, id));
+    } catch (error: any) {
+        console.error("Erreur suppression record", error);
+        throw new Error('Impossible de supprimer l\'enregistrement. Vérifiez votre connexion.');
+    }
 };
 
 export const resetDatabase = async (): Promise<void> => {

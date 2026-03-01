@@ -502,6 +502,17 @@ const EntryForm: React.FC<EntryFormProps> = ({
         return warnings;
     };
 
+    const validateRequiredFields = useCallback((record: FinancialRecord): string[] => {
+        const errors: string[] = [];
+        if (record.revenue.total <= 0 && record.revenue.goods <= 0 && record.revenue.services <= 0) {
+            errors.push('Le chiffre d\'affaires est vide');
+        }
+        if (record.expenses.salaries <= 0) {
+            errors.push('Les charges salariales ne sont pas renseignées');
+        }
+        return errors;
+    }, []);
+
     // Clean draft after successful save
     const originalOnSave = onSave;
     const wrappedOnSave = useCallback(async (record: FinancialRecord) => {
@@ -769,6 +780,11 @@ const EntryForm: React.FC<EntryFormProps> = ({
                             </button>
                             <button
                                 onClick={async () => {
+                                    const validationErrors = validateRequiredFields(formData);
+                                    if (validationErrors.length > 0) {
+                                        await confirm({ title: 'Données incomplètes', message: `Merci de compléter les champs suivants avant de soumettre :\n\n• ${validationErrors.join('\n• ')}`, variant: 'danger', confirmLabel: 'Compris' });
+                                        return;
+                                    }
                                     const ok = await confirm({ title: 'Soumettre au cabinet ?', message: `Vos données de ${formData.month} ${formData.year} seront transmises au consultant.\n\nUne fois soumises, vous ne pourrez plus les modifier sans l'accord du cabinet.`, variant: 'info', confirmLabel: 'Soumettre' });
                                     if (ok) wrappedOnSave(formData);
                                 }}

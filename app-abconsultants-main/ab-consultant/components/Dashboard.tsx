@@ -1198,7 +1198,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                   </div>
 
                   {/* Detail table — two columns side by side */}
-                  <div className="grid grid-cols-2 gap-4 text-[11px] border-t border-slate-100 pt-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-[11px] border-t border-slate-100 pt-3">
                     {/* Actif detail */}
                     <div className="space-y-1">
                       <div className="font-bold text-cyan-700 text-[11px] uppercase tracking-wider mb-1">Détail Actif</div>

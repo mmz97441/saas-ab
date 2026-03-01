@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, Building, User, Mail, MapPin, Hash, Save, AlertCircle, ShieldCheck, Phone, Briefcase, Check, Send, Copy, ExternalLink, Power, Archive } from 'lucide-react';
 import { Client, Consultant } from '../types';
 import { getConsultants } from '../services/dataService';
@@ -71,6 +71,10 @@ const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSave, init
             setError('');
         }
     }, [initialData, isOpen]);
+
+    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (e.key === 'Escape') onClose();
+    }, [onClose]);
 
     if (!isOpen) return null;
 
@@ -166,8 +170,8 @@ Expertise & Stratégie Financière`;
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-brand-100 flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+            <div role="dialog" aria-modal="true" aria-label={initialData ? 'Modifier le dossier' : 'Nouveau dossier'} onKeyDown={handleKeyDown} className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-brand-100 flex flex-col max-h-[90vh]">
                 
                 {/* Header */}
                 <div className="bg-brand-50 p-6 border-b border-brand-100 flex justify-between items-center shrink-0">

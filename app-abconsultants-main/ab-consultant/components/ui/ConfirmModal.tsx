@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 
 /**
@@ -47,24 +47,67 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
   onCancel,
   showCancel = true,
 }) => {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const confirmBtnRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      confirmBtnRef.current?.focus();
+    }
+  }, [isOpen]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      onCancel();
+      return;
+    }
+    if (e.key === 'Tab' && dialogRef.current) {
+      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  }, [onCancel]);
+
   if (!isOpen) return null;
 
   const styles = VARIANT_STYLES[variant];
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-200">
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-title"
+        aria-describedby="confirm-message"
+        onKeyDown={handleKeyDown}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-200"
+      >
         {/* Header */}
         <div className="p-6 pb-4 flex items-start gap-4">
           <div className={`p-3 rounded-xl ${styles.icon} shrink-0`}>
             <AlertTriangle className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-bold text-slate-900">{title}</h3>
-            <p className="text-sm text-slate-600 mt-1 whitespace-pre-line">{message}</p>
+            <h3 id="confirm-title" className="text-lg font-bold text-slate-900">{title}</h3>
+            <p id="confirm-message" className="text-sm text-slate-600 mt-1 whitespace-pre-line">{message}</p>
           </div>
           <button
             onClick={onCancel}
+            aria-label="Fermer"
             className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition shrink-0"
           >
             <X className="w-4 h-4" />
@@ -82,6 +125,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
             </button>
           )}
           <button
+            ref={confirmBtnRef}
             onClick={onConfirm}
             className={`px-6 py-2.5 rounded-lg text-white font-bold shadow-md hover:shadow-lg transition ${styles.button}`}
           >

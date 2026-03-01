@@ -10,6 +10,7 @@ import {
     DollarSign, Percent, Landmark, Target, Activity, CalendarClock, HelpCircle,
     Calendar, MapPin, FileCheck, FileX, ChevronUp
 } from 'lucide-react';
+import { DashboardSkeleton } from './ui/Skeleton';
 
 // Tooltip d'aide sur hover — petit "?" discret avec bulle explicative (portal pour éviter le clipping)
 const InfoTip: React.FC<{ text: string; position?: 'top' | 'bottom' }> = ({ text }) => {
@@ -647,12 +648,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
         return { withRdv: withRdv.length, thisWeekCount, toValidate, notSubmitted, doneCount, noRdv };
     }, [summaries, rdvGroups]);
 
-    if (isLoading) return (
-        <div className="flex flex-col items-center justify-center h-[50vh] text-brand-500">
-            <Loader2 className="w-8 h-8 animate-spin mb-4" />
-            <p className="text-sm font-medium">Analyse du portefeuille en cours...</p>
-        </div>
-    );
+    if (isLoading) return <DashboardSkeleton />;
 
     if (summaries.length === 0) return (
         <div className="flex flex-col items-center justify-center h-[50vh] text-slate-400">

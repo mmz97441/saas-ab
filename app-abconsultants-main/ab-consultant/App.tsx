@@ -1,21 +1,22 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, Suspense, lazy } from 'react';
 import { Menu, X, UserCircle, CheckCircle, Eye, EyeOff, Users, Plus, Edit2, Trash2, Search, Briefcase, Phone, Mail, MapPin, Archive, Send, Power, Loader2, UserPlus, Crown, ShieldCheck, ChevronRight, Home, Bell } from 'lucide-react';
-import Dashboard from './components/Dashboard';
-import EntryForm from './components/EntryForm';
-import LoginScreen from './components/LoginScreen'; 
-import AIChatWidget from './components/AIChatWidget';
+import LoginScreen from './components/LoginScreen';
 import Sidebar from './components/Sidebar';
-import HistoryView from './components/HistoryView';
-import SettingsView from './components/SettingsView';
-import ConsultantMessaging from './components/ConsultantMessaging'; 
-import ConsultantDashboard from './components/ConsultantDashboard';
-import ClientPortfolio from './components/ClientPortfolio';
-import ClientModal from './components/ClientModal';
-import TeamManagement from './components/TeamManagement';
-import ExcelImportModal from './components/ExcelImportModal';
-import AppointmentPanel from './components/AppointmentPanel';
 import { useConfirmDialog } from './contexts/ConfirmContext';
+
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const EntryForm = lazy(() => import('./components/EntryForm'));
+const AIChatWidget = lazy(() => import('./components/AIChatWidget'));
+const HistoryView = lazy(() => import('./components/HistoryView'));
+const SettingsView = lazy(() => import('./components/SettingsView'));
+const ConsultantMessaging = lazy(() => import('./components/ConsultantMessaging'));
+const ConsultantDashboard = lazy(() => import('./components/ConsultantDashboard'));
+const ClientPortfolio = lazy(() => import('./components/ClientPortfolio'));
+const ClientModal = lazy(() => import('./components/ClientModal'));
+const TeamManagement = lazy(() => import('./components/TeamManagement'));
+const ExcelImportModal = lazy(() => import('./components/ExcelImportModal'));
+const AppointmentPanel = lazy(() => import('./components/AppointmentPanel'));
 
 import { FinancialRecord, Client, Month, ProfitCenter, Consultant, View } from './types';
 import { getClients, saveClient, updateClientStatus, getRecordsByClient, resetDatabase, MONTH_ORDER, toShortMonth, getConsultants, addConsultant, deleteConsultant, deleteRecord, checkConsultantEmailExists, checkClientEmailExists, saveRecord, logActivity } from './services/dataService';
@@ -511,6 +512,7 @@ const App: React.FC = () => {
          </div>
          
          <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24 lg:pb-8">
+           <Suspense fallback={<div className="flex items-center justify-center h-[40vh]"><Loader2 className="w-6 h-6 animate-spin text-brand-400" /></div>}>
 
             {/* BREADCRUMB NAVIGATION */}
             {!isPresentationMode && (
@@ -672,6 +674,7 @@ const App: React.FC = () => {
                     onUpdateClientStatus={handleUpdateClientStatus}
                 />
             )}
+           </Suspense>
          </div>
       </main>
       

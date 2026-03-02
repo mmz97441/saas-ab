@@ -265,8 +265,9 @@ export const getClients = async (filterByEmail?: string | null): Promise<Client[
                     name: ownerData.name || data.managerName || 'Dirigeant',
                     email: ownerData.email || ''
                 },
-                status: data.status || 'active', 
+                status: data.status || 'active',
                 joinedDate: data.joinedDate || new Date().toISOString(),
+                sector: data.sector || "",
                 assignedConsultantEmail: data.assignedConsultantEmail || "",
                 settings: data.settings || { 
                     showCommercialMargin: true, 

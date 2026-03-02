@@ -150,64 +150,82 @@ Expertise & Stratégie Financière`;
 
     // Charger les KPIs pour les clients affichés
     useEffect(() => {
+        let cancelled = false;
+
         const loadKpis = async () => {
             setIsLoading(true);
-            const statusFiltered = clients.filter(c =>
-                clientViewMode === 'active' ? (c.status || 'active') === 'active' : c.status === 'inactive'
-            );
+            try {
+                const statusFiltered = clients.filter(c =>
+                    clientViewMode === 'active' ? (c.status || 'active') === 'active' : c.status === 'inactive'
+                );
 
-            const allRecords = await Promise.all(
-                statusFiltered.map(c => getRecordsByClient(c.id))
-            );
+                const allRecords = await Promise.all(
+                    statusFiltered.map(c => getRecordsByClient(c.id))
+                );
 
-            const results: ClientWithKpis[] = statusFiltered.map((client, i) => {
-                const records = allRecords[i];
-                const lastRecord = records.length > 0 ? records[records.length - 1] : null;
+                if (cancelled) return;
 
-                const yearRecords = records.filter(r => r.year === currentYear && r.revenue.total > 0);
-                const ytdRevenue = yearRecords.reduce((acc, r) => acc + r.revenue.total, 0);
-                const ytdObjective = yearRecords.reduce((acc, r) => acc + r.revenue.objective, 0);
-                const objPerformance = ytdObjective > 0 ? (ytdRevenue / ytdObjective) * 100 : 0;
+                const results: ClientWithKpis[] = statusFiltered.map((client, i) => {
+                    const records = allRecords[i] || [];
+                    const lastRecord = records.length > 0 ? records[records.length - 1] : null;
 
-                const lastTreasury = lastRecord ? lastRecord.cashFlow.treasury : null;
-                const treasuryAlert = lastTreasury !== null && lastTreasury < 0;
+                    const yearRecords = records.filter(r => r.year === currentYear && r.revenue.total > 0);
+                    const ytdRevenue = yearRecords.reduce((acc, r) => acc + r.revenue.total, 0);
+                    const ytdObjective = yearRecords.reduce((acc, r) => acc + r.revenue.objective, 0);
+                    const objPerformance = ytdObjective > 0 ? (ytdRevenue / ytdObjective) * 100 : 0;
 
-                let dataFresh = false;
-                if (lastRecord) {
-                    const lastMonthIdx = monthValues.indexOf(lastRecord.month as string);
-                    const nowMonthIdx = new Date().getMonth(); // 0-indexed: 0=Jan, 1=Feb, ...
-                    // Expected month = M-1 (previous month). A client is "À jour" if they have
-                    // a submitted record with real data for M-1 or the current month.
-                    const expectedMonthIdx = nowMonthIdx - 1; // -1 in January, handled below
-                    const expectedYear = expectedMonthIdx < 0 ? currentYear - 1 : currentYear;
-                    const normalizedExpectedMonth = expectedMonthIdx < 0 ? 11 : expectedMonthIdx;
+                    const lastTreasury = lastRecord ? lastRecord.cashFlow.treasury : null;
+                    const treasuryAlert = lastTreasury !== null && lastTreasury < 0;
 
-                    // Check if a submitted record with revenue exists for M-1 or current month
-                    const hasExpectedData = records.some(r => {
-                        if (!r.isSubmitted && r.revenue.total === 0) return false; // Ignore empty drafts
-                        const rMonthIdx = monthValues.indexOf(r.month as string);
-                        // Match M-1
-                        if (r.year === expectedYear && rMonthIdx === normalizedExpectedMonth) return true;
-                        // Match current month
-                        if (r.year === currentYear && rMonthIdx === nowMonthIdx) return true;
-                        return false;
-                    });
-                    dataFresh = hasExpectedData;
+                    let dataFresh = false;
+                    if (lastRecord) {
+                        const lastMonthIdx = monthValues.indexOf(lastRecord.month as string);
+                        const nowMonthIdx = new Date().getMonth(); // 0-indexed: 0=Jan, 1=Feb, ...
+                        // Expected month = M-1 (previous month). A client is "À jour" if they have
+                        // a submitted record with real data for M-1 or the current month.
+                        const expectedMonthIdx = nowMonthIdx - 1; // -1 in January, handled below
+                        const expectedYear = expectedMonthIdx < 0 ? currentYear - 1 : currentYear;
+                        const normalizedExpectedMonth = expectedMonthIdx < 0 ? 11 : expectedMonthIdx;
+
+                        // Check if a submitted record with revenue exists for M-1 or current month
+                        const hasExpectedData = records.some(r => {
+                            if (!r.isSubmitted && r.revenue.total === 0) return false; // Ignore empty drafts
+                            const rMonthIdx = monthValues.indexOf(r.month as string);
+                            // Match M-1
+                            if (r.year === expectedYear && rMonthIdx === normalizedExpectedMonth) return true;
+                            // Match current month
+                            if (r.year === currentYear && rMonthIdx === nowMonthIdx) return true;
+                            return false;
+                        });
+                        dataFresh = hasExpectedData;
+                    }
+
+                    const pendingValidation = !!records.find(r => r.isSubmitted && !r.isValidated);
+                    const lastRecordValidated = lastRecord?.isValidated ?? false;
+                    const lastActivity = lastRecord ? `${lastRecord.month} ${lastRecord.year}` : 'Aucune';
+
+                    return { client, ytdRevenue, ytdObjective, objPerformance, lastTreasury, treasuryAlert, dataFresh, pendingValidation, lastRecordValidated, lastActivity };
+                });
+
+                setClientKpis(results);
+            } catch (error) {
+                console.error('Erreur chargement KPIs portefeuille:', error);
+                // Fallback: show clients without KPI data rather than crashing
+                if (!cancelled) {
+                    setClientKpis(clients
+                        .filter(c => clientViewMode === 'active' ? (c.status || 'active') === 'active' : c.status === 'inactive')
+                        .map(client => ({ client, ytdRevenue: 0, ytdObjective: 0, objPerformance: 0, lastTreasury: null, treasuryAlert: false, dataFresh: false, pendingValidation: false, lastRecordValidated: false, lastActivity: 'Aucune' }))
+                    );
                 }
-
-                const pendingValidation = !!records.find(r => r.isSubmitted && !r.isValidated);
-                const lastRecordValidated = lastRecord?.isValidated ?? false;
-                const lastActivity = lastRecord ? `${lastRecord.month} ${lastRecord.year}` : 'Aucune';
-
-                return { client, ytdRevenue, ytdObjective, objPerformance, lastTreasury, treasuryAlert, dataFresh, pendingValidation, lastRecordValidated, lastActivity };
-            });
-
-            setClientKpis(results);
-            setIsLoading(false);
+            } finally {
+                if (!cancelled) setIsLoading(false);
+            }
         };
 
         if (clients.length > 0) loadKpis();
         else { setClientKpis([]); setIsLoading(false); }
+
+        return () => { cancelled = true; };
     }, [clients, clientViewMode, currentYear]);
 
     // Filtrage par recherche

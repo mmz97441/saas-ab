@@ -463,12 +463,14 @@ const App: React.FC = () => {
       )}
 
       {/* MODAL CREATION CLIENT */}
-      <ClientModal 
-          isOpen={isClientModalOpen}
-          onClose={() => setIsClientModalOpen(false)}
-          onSave={handleSaveClient}
-          initialData={editingClient}
-      />
+      <Suspense fallback={null}>
+        <ClientModal
+            isOpen={isClientModalOpen}
+            onClose={() => setIsClientModalOpen(false)}
+            onSave={handleSaveClient}
+            initialData={editingClient}
+        />
+      </Suspense>
 
       {!isPresentationMode && (
         <button className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-brand-900 text-white rounded-md print:hidden" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
@@ -705,17 +707,19 @@ const App: React.FC = () => {
          </div>
       </main>
       
-      {selectedClient && (
-        <ExcelImportModal
-          isOpen={isExcelImportOpen}
-          onClose={() => setIsExcelImportOpen(false)}
-          onImport={handleExcelImport}
-          clientId={selectedClient.id}
-          existingRecords={data}
-          existingProfitCenters={selectedClient.profitCenters || []}
-          year={new Date().getFullYear()}
-        />
-      )}
+      <Suspense fallback={null}>
+        {selectedClient && (
+          <ExcelImportModal
+            isOpen={isExcelImportOpen}
+            onClose={() => setIsExcelImportOpen(false)}
+            onImport={handleExcelImport}
+            clientId={selectedClient.id}
+            existingRecords={data}
+            existingProfitCenters={selectedClient.profitCenters || []}
+            year={new Date().getFullYear()}
+          />
+        )}
+      </Suspense>
 
       {statusModal.isOpen && statusModal.client && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-900/50 backdrop-blur-sm">

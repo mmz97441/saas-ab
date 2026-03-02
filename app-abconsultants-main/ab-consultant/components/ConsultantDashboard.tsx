@@ -437,75 +437,87 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
     };
 
     useEffect(() => {
+        let cancelled = false;
+
         const loadGlobalData = async () => {
             setIsLoading(true);
+            try {
+                const activeClients = clients.filter(c => c.status !== 'inactive');
 
-            const activeClients = clients.filter(c => c.status !== 'inactive');
+                const allRecords = await Promise.all(
+                    activeClients.map(client => getRecordsByClient(client.id))
+                );
 
-            const allRecords = await Promise.all(
-                activeClients.map(client => getRecordsByClient(client.id))
-            );
+                if (cancelled) return;
 
-            const results: ClientSummary[] = activeClients.map((client, i) => {
-                const records = allRecords[i];
-                const pendingValidation = !!records.find(r => r.isSubmitted && !r.isValidated);
+                const results: ClientSummary[] = activeClients.map((client, i) => {
+                    const records = allRecords[i] || [];
+                    const pendingValidation = !!records.find(r => r.isSubmitted && !r.isValidated);
 
-                // YTD : de Janvier à selectedMonth de selectedYear
-                const ytdRecords = records.filter(r => {
-                    if (r.year !== selectedYear) return false;
-                    const mIdx = MONTHS.indexOf(r.month as string);
-                    return mIdx >= 0 && mIdx <= selectedMonthIdx && r.revenue.total > 0;
-                });
-                const ytdRevenue = ytdRecords.reduce((acc, r) => acc + r.revenue.total, 0);
-                const ytdObjective = ytdRecords.reduce((acc, r) => acc + r.revenue.objective, 0);
-                const ytdMargin = ytdRecords.reduce((acc, r) => acc + (r.margin?.total || 0), 0);
-                const ytdMarginRate = ytdRevenue > 0 ? (ytdMargin / ytdRevenue) * 100 : 0;
-                const objPerformance = ytdObjective > 0 ? (ytdRevenue / ytdObjective) * 100 : 0;
-
-                // Trésorerie : dernier record connu jusqu'au mois sélectionné
-                const recordsUpToPeriod = records
-                    .filter(r => r.year < selectedYear || (r.year === selectedYear && MONTHS.indexOf(r.month as string) <= selectedMonthIdx))
-                    .sort((a, b) => {
-                        if (a.year !== b.year) return a.year - b.year;
-                        return MONTHS.indexOf(a.month as string) - MONTHS.indexOf(b.month as string);
+                    // YTD : de Janvier à selectedMonth de selectedYear
+                    const ytdRecords = records.filter(r => {
+                        if (r.year !== selectedYear) return false;
+                        const mIdx = MONTHS.indexOf(r.month as string);
+                        return mIdx >= 0 && mIdx <= selectedMonthIdx && r.revenue.total > 0;
                     });
-                const lastRecord = recordsUpToPeriod.length > 0 ? recordsUpToPeriod[recordsUpToPeriod.length - 1] : null;
+                    const ytdRevenue = ytdRecords.reduce((acc, r) => acc + r.revenue.total, 0);
+                    const ytdObjective = ytdRecords.reduce((acc, r) => acc + r.revenue.objective, 0);
+                    const ytdMargin = ytdRecords.reduce((acc, r) => acc + (r.margin?.total || 0), 0);
+                    const ytdMarginRate = ytdRevenue > 0 ? (ytdMargin / ytdRevenue) * 100 : 0;
+                    const objPerformance = ytdObjective > 0 ? (ytdRevenue / ytdObjective) * 100 : 0;
 
-                // Fraîcheur : le client a-t-il soumis des données réelles pour M-1 ou le mois sélectionné ?
-                const isRealRecord = (r: any) => r.isSubmitted || r.revenue.total > 0;
-                const hasSelectedMonth = !!records.find(r => r.year === selectedYear && MONTHS.indexOf(r.month as string) === selectedMonthIdx && isRealRecord(r));
-                const hasPreviousMonth = selectedMonthIdx > 0
-                    ? !!records.find(r => r.year === selectedYear && MONTHS.indexOf(r.month as string) === selectedMonthIdx - 1 && isRealRecord(r))
-                    : !!records.find(r => r.year === selectedYear - 1 && MONTHS.indexOf(r.month as string) === 11 && isRealRecord(r));
-                const dataFresh = hasSelectedMonth || hasPreviousMonth;
+                    // Trésorerie : dernier record connu jusqu'au mois sélectionné
+                    const recordsUpToPeriod = records
+                        .filter(r => r.year < selectedYear || (r.year === selectedYear && MONTHS.indexOf(r.month as string) <= selectedMonthIdx))
+                        .sort((a, b) => {
+                            if (a.year !== b.year) return a.year - b.year;
+                            return MONTHS.indexOf(a.month as string) - MONTHS.indexOf(b.month as string);
+                        });
+                    const lastRecord = recordsUpToPeriod.length > 0 ? recordsUpToPeriod[recordsUpToPeriod.length - 1] : null;
 
-                const treasuryAlert = lastRecord ? lastRecord.cashFlow.treasury < 0 : false;
-                const isHealthy = !treasuryAlert && dataFresh && (ytdObjective === 0 || objPerformance >= 85);
+                    // Fraîcheur : le client a-t-il soumis des données réelles pour M-1 ou le mois sélectionné ?
+                    const isRealRecord = (r: any) => r.isSubmitted || r.revenue.total > 0;
+                    const hasSelectedMonth = !!records.find(r => r.year === selectedYear && MONTHS.indexOf(r.month as string) === selectedMonthIdx && isRealRecord(r));
+                    const hasPreviousMonth = selectedMonthIdx > 0
+                        ? !!records.find(r => r.year === selectedYear && MONTHS.indexOf(r.month as string) === selectedMonthIdx - 1 && isRealRecord(r))
+                        : !!records.find(r => r.year === selectedYear - 1 && MONTHS.indexOf(r.month as string) === 11 && isRealRecord(r));
+                    const dataFresh = hasSelectedMonth || hasPreviousMonth;
 
-                const globalLastRecord = records.length > 0 ? records[records.length - 1] : null;
+                    const treasuryAlert = lastRecord ? lastRecord.cashFlow.treasury < 0 : false;
+                    const isHealthy = !treasuryAlert && dataFresh && (ytdObjective === 0 || objPerformance >= 85);
 
-                return {
-                    client, lastRecord, records, pendingValidation, treasuryAlert,
-                    lastActivity: globalLastRecord ? `${globalLastRecord.month} ${globalLastRecord.year}` : 'Aucune',
-                    ytdRevenue, ytdObjective, ytdMargin, ytdMarginRate, objPerformance, dataFresh, isHealthy,
-                };
-            });
+                    const globalLastRecord = records.length > 0 ? records[records.length - 1] : null;
 
-            results.sort((a, b) => {
-                const scoreA = (a.treasuryAlert ? 2 : 0) + (a.pendingValidation ? 1 : 0) + (a.client.hasUnreadMessages ? 1 : 0);
-                const scoreB = (b.treasuryAlert ? 2 : 0) + (b.pendingValidation ? 1 : 0) + (b.client.hasUnreadMessages ? 1 : 0);
-                return scoreB - scoreA;
-            });
+                    return {
+                        client, lastRecord, records, pendingValidation, treasuryAlert,
+                        lastActivity: globalLastRecord ? `${globalLastRecord.month} ${globalLastRecord.year}` : 'Aucune',
+                        ytdRevenue, ytdObjective, ytdMargin, ytdMarginRate, objPerformance, dataFresh, isHealthy,
+                    };
+                });
 
-            setSummaries(results);
-            setIsLoading(false);
+                results.sort((a, b) => {
+                    const scoreA = (a.treasuryAlert ? 2 : 0) + (a.pendingValidation ? 1 : 0) + (a.client.hasUnreadMessages ? 1 : 0);
+                    const scoreB = (b.treasuryAlert ? 2 : 0) + (b.pendingValidation ? 1 : 0) + (b.client.hasUnreadMessages ? 1 : 0);
+                    return scoreB - scoreA;
+                });
+
+                setSummaries(results);
+            } catch (error) {
+                console.error('Erreur chargement données portefeuille:', error);
+                if (!cancelled) setSummaries([]);
+            } finally {
+                if (!cancelled) setIsLoading(false);
+            }
         };
 
         if (clients.length > 0) {
             loadGlobalData();
         } else {
+            setSummaries([]);
             setIsLoading(false);
         }
+
+        return () => { cancelled = true; };
     }, [clients, selectedYear, selectedMonthIdx]);
 
     // --- KPI GLOBAUX PORTEFEUILLE ---

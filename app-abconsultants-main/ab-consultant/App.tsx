@@ -458,9 +458,11 @@ const App: React.FC = () => {
       )}
 
       {/* CHAT WIDGET */}
-      {selectedClient && (userRole === 'client' || (userRole === 'ab_consultant' && simulatedUserEmail)) && (
-          <AIChatWidget client={selectedClient} data={dashboardData} />
-      )}
+      <Suspense fallback={null}>
+        {selectedClient && (userRole === 'client' || (userRole === 'ab_consultant' && simulatedUserEmail)) && (
+            <AIChatWidget client={selectedClient} data={dashboardData} />
+        )}
+      </Suspense>
 
       {/* MODAL CREATION CLIENT */}
       <Suspense fallback={null}>

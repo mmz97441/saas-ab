@@ -78,7 +78,7 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
         if (found) return found;
         const y = detectYear(sheet);
         return y !== new Date().getFullYear() ? y : null;
-      }, null) || parsed.length > 0 ? detectYear(parsed[0]) : defaultYear;
+      }, null) || (parsed.length > 0 ? detectYear(parsed[0]) : defaultYear);
       setYear(detectedYear);
 
       // Auto-detect mappings
@@ -107,19 +107,26 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
   }, []);
 
   // Build preview data
-  const previewData = useMemo(() => {
-    if (step !== 'preview' || sheets.length === 0) return null;
+  const previewResult = useMemo(() => {
+    if (step !== 'preview' || sheets.length === 0) return { data: null, error: null };
 
     try {
       const result = buildImportData(sheets, mappings, year, clientId, existingRecords, existingProfitCenters);
-      setError(null);
-      return result;
+      return { data: result, error: null };
     } catch (err: any) {
       console.error('Preview build error:', err);
-      setError(err?.message || 'Erreur lors de la construction des données. Vérifiez le mapping des feuilles.');
-      return null;
+      return { data: null, error: err?.message || 'Erreur lors de la construction des données. Vérifiez le mapping des feuilles.' };
     }
   }, [step, sheets, mappings, year, clientId, existingRecords, existingProfitCenters]);
+
+  const previewData = previewResult.data;
+
+  // Sync error state from preview computation
+  useEffect(() => {
+    if (step === 'preview') {
+      setError(previewResult.error);
+    }
+  }, [step, previewResult]);
 
   const handleGoToPreview = useCallback(() => {
     if (!yearConfirmed) {
@@ -147,7 +154,7 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget && step !== 'importing') onClose(); }}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
@@ -165,7 +172,7 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition">
+          <button onClick={onClose} disabled={step === 'importing'} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -533,7 +540,7 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
             )}
           </div>
           <div className="flex gap-2">
-            <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 font-bold hover:bg-white border border-slate-300 rounded-lg transition">
+            <button onClick={onClose} disabled={step === 'importing'} className="px-4 py-2 text-sm text-slate-600 font-bold hover:bg-white border border-slate-300 rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed">
               Annuler
             </button>
             {step === 'mapping' && (

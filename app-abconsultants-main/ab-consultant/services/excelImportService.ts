@@ -113,7 +113,7 @@ function cellToHeaderString(cell: any): string {
 function parseNum(val: any): number {
   if (val === undefined || val === null || val === '') return 0;
   if (typeof val === 'number') return val;
-  const cleaned = String(val).replace(/\s/g, '').replace(',', '.').replace(/[€%LlKk]/g, '');
+  const cleaned = String(val).replace(/\s/g, '').replace(/,/g, '.').replace(/[€%LlKk]/g, '');
   const num = parseFloat(cleaned);
   return isNaN(num) ? 0 : num;
 }
@@ -226,11 +226,6 @@ export function readExcelFile(file: File): Promise<ParsedSheet[]> {
 
           // Data rows use raw values for numeric accuracy
           const rows = rawData.slice(headerRowIdx + 1);
-
-          // DEBUG
-          console.log(`[ExcelImport] Sheet "${name}": headerRowIdx=${headerRowIdx}`);
-          const monthsFound = headers.filter((h: string) => parseMonth(h) !== null);
-          console.log(`  months detected:`, monthsFound.length, monthsFound);
 
           return { name, headers, rows, rawData, fmtData };
         });
@@ -551,9 +546,6 @@ export function parseFuelSheet(
   let dataRows = sheet.rows;
   let effectiveHeaders = sheet.headers;
 
-  console.log(`[parseFuelSheet] Initial monthCols from headers:`, monthCols.length);
-  console.log(`[parseFuelSheet] Headers:`, sheet.headers);
-
   // Fallback: if headers don't have months, re-scan BOTH fmtData and rawData
   if (monthCols.length < 3) {
     const maxScan = Math.min(sheet.fmtData?.length || 0, sheet.rawData?.length || 0, 50);
@@ -706,9 +698,6 @@ export function parseAnalyseActiviteSheet(
   let dataRows = sheet.rows;
   let effectiveHeaders = sheet.headers;
 
-  console.log(`[parseAnalyseActivite] Initial monthCols from headers:`, monthCols.length, monthCols);
-  console.log(`[parseAnalyseActivite] Headers:`, sheet.headers);
-
   // Fallback: if headers don't have months, re-scan BOTH fmtData and rawData to find the real header row.
   // fmtData handles text month names, rawData handles Excel date serial numbers.
   if (monthCols.length < 3) {
@@ -742,16 +731,10 @@ export function parseAnalyseActiviteSheet(
       });
       monthCols = detectMonthColumns(effectiveHeaders);
       dataRows = sheet.rawData.slice(bestRow + 1);
-      console.log(`[parseAnalyseActivite] Fallback found header row ${bestRow} with ${bestCount} months, monthCols: ${monthCols.length}`);
-    } else {
-      console.log(`[parseAnalyseActivite] Fallback FAILED. Best: row ${bestRow}, count ${bestCount}`);
     }
   }
 
-  if (monthCols.length === 0) {
-    console.log(`[parseAnalyseActivite] RETURNING EMPTY - no months found`);
-    return new Map();
-  }
+  if (monthCols.length === 0) return new Map();
 
   const effectiveLabelCol = findLabelColumn(effectiveHeaders, monthCols, dataRows);
 
@@ -850,7 +833,6 @@ export function parseAnalyseActiviteSheet(
     // --- Dynamic section detection ---
     const detectedSection = detectMainSection(label);
     if (detectedSection) {
-      console.log(`  [Section] Detected "${detectedSection}" from label: "${label}"`);
       mainSection = detectedSection;
       bfrSub = null;
       // Capture totals from header row itself (e.g., "1. CA HT" row often has the CA total)
@@ -862,16 +844,13 @@ export function parseAnalyseActiviteSheet(
     // This handles sheets without explicit section headers between sections.
     if (mainSection !== 'productivity' && mainSection !== 'bfr' && mainSection !== 'treasury') {
       if (ll.includes('heure') && (ll.includes('travail') || ll.includes('effect')) && !ll.includes('suppl')) {
-        console.log(`  [Section] Auto-switch to "productivity" from label: "${label}"`);
         mainSection = 'productivity';
       } else if (ll.includes('masse salariale') || (ll.includes('salaire') && !ll.includes('dette'))) {
-        console.log(`  [Section] Auto-switch to "productivity" from label: "${label}"`);
         mainSection = 'productivity';
       }
     }
     if (mainSection !== 'bfr' && mainSection !== 'treasury') {
       if (ll.includes('créance') || ll.includes('creance')) {
-        console.log(`  [Section] Auto-switch to "bfr" from label: "${label}"`);
         mainSection = 'bfr';
         bfrSub = 'receivables';
       }
@@ -881,7 +860,6 @@ export function parseAnalyseActiviteSheet(
     // The CA section is always first; if we encounter data before any section header, it's CA data.
     if (mainSection === null) {
       mainSection = 'ca';
-      console.log(`  [Section] Defaulting to "ca" (no header detected yet), label: "${label}"`);
     }
 
     // --- BFR sub-sections (lettered: A., B., C. or keywords) ---
@@ -1021,19 +999,10 @@ export function parseAnalyseActiviteSheet(
       data.bfr.total = data.bfr.receivables.total + data.bfr.stock.total - data.bfr.debts.total;
     }
     // Treasury: only calculate from active - passive if we have active/passive data
-    // Don't overwrite a treasury total captured from the section header
-    if (data.cashFlow.active > 0 || data.cashFlow.passive > 0) {
+    // and no explicit treasury value was already captured from a data row
+    if ((data.cashFlow.active !== 0 || data.cashFlow.passive !== 0) && data.cashFlow.treasury === 0) {
       data.cashFlow.treasury = data.cashFlow.active - data.cashFlow.passive;
     }
-  }
-
-  // Summary log for debugging
-  const firstMonth = monthCols[0]?.month;
-  if (firstMonth) {
-    const sample = result.get(firstMonth)!;
-    console.log(`[parseAnalyseActivite] Summary for ${firstMonth}:`,
-      `CA=${sample.revenueTotal}, Marge=${sample.marginTotal}, Salaires=${sample.salaries}, Heures=${sample.hoursWorked}`,
-      `BFR=${sample.bfr.total}, Treasury=${sample.cashFlow.treasury} (active=${sample.cashFlow.active}, passive=${sample.cashFlow.passive})`);
   }
 
   return result;
@@ -1062,46 +1031,44 @@ export function buildImportData(
   let analyseData = new Map<string, AnalyseMonthData>();
 
   // Process each mapped sheet
-  console.log(`[buildImportData] Processing ${mappings.length} mappings:`, mappings.map(m => `${m.sheetName} → ${m.type}`));
   for (const mapping of mappings) {
-    if (mapping.type === 'ignore') {
-      console.log(`[buildImportData] Skipping "${mapping.sheetName}" (ignore)`);
-      continue;
-    }
+    if (mapping.type === 'ignore') continue;
     const sheet = sheets.find(s => s.name === mapping.sheetName);
-    if (!sheet) {
-      console.log(`[buildImportData] Sheet "${mapping.sheetName}" NOT FOUND in sheets array!`);
-      continue;
-    }
-    console.log(`[buildImportData] Processing "${mapping.sheetName}" as ${mapping.type}`);
+    if (!sheet) continue;
 
     if (mapping.type === 'analyse_activite') {
-      analyseData = parseAnalyseActiviteSheet(sheet, year);
-      console.log(`[buildImportData] analyseData result: ${analyseData.size} months`, [...analyseData.keys()]);
-      // Debug: log BFR and treasury data for each month
-      for (const [m, d] of analyseData.entries()) {
-        if (d.cashFlow.treasury !== 0 || d.cashFlow.active !== 0 || d.cashFlow.passive !== 0) {
-          console.log(`  [Treasury] ${m}: active=${d.cashFlow.active}, passive=${d.cashFlow.passive}, treasury=${d.cashFlow.treasury}`);
-        }
-        if (d.bfr.total !== 0 || d.bfr.receivables.total !== 0) {
-          console.log(`  [BFR] ${m}: total=${d.bfr.total}, recv=${d.bfr.receivables.total}, stock=${d.bfr.stock.total}, debts=${d.bfr.debts.total}`);
+      const parsed = parseAnalyseActiviteSheet(sheet, year);
+      // Merge with existing analyseData (first sheet wins per month, subsequent fill gaps)
+      for (const [m, d] of parsed.entries()) {
+        if (!analyseData.has(m)) {
+          analyseData.set(m, d);
         }
       }
     } else if (mapping.type === 'revenue_by_family') {
       const parsed = parseRevenueSheet(sheet, year);
       allFamilies = [...allFamilies, ...parsed.families];
-      revenueData = parsed.monthlyData;
-      totalRow = parsed.totalRow;
-      console.log(`[buildImportData] revenueData: ${parsed.families.length} families, ${revenueData.size} months`);
+      // Merge revenue data: accumulate families across sheets
+      for (const [month, familyMap] of parsed.monthlyData.entries()) {
+        if (!revenueData.has(month)) {
+          revenueData.set(month, new Map());
+        }
+        const existing = revenueData.get(month)!;
+        for (const [family, value] of familyMap.entries()) {
+          existing.set(family, value);
+        }
+      }
+      if (!totalRow && parsed.totalRow) totalRow = parsed.totalRow;
     } else if (mapping.type === 'fuel_volumes') {
       const parsed = parseFuelSheet(sheet, year);
-      fuelVolumes = parsed.volumes;
-      fuelObjectives = parsed.objectives;
-      console.log(`[buildImportData] fuelVolumes: ${fuelVolumes.size} months`, [...fuelVolumes.entries()].slice(0, 2));
+      // Merge fuel data (first sheet wins per month)
+      for (const [m, v] of parsed.volumes.entries()) {
+        if (!fuelVolumes.has(m)) fuelVolumes.set(m, v);
+      }
+      for (const [m, o] of parsed.objectives.entries()) {
+        if (!fuelObjectives.has(m)) fuelObjectives.set(m, o);
+      }
     }
   }
-
-  console.log(`[buildImportData] Summary after parsing: analyseData=${analyseData.size} months, revenueData=${revenueData.size} months, fuelVolumes=${fuelVolumes.size} months`);
 
   // Deduplicate families
   allFamilies = [...new Set(allFamilies)];

@@ -527,8 +527,12 @@ const EntryForm: React.FC<EntryFormProps> = ({
             });
             if (!ok) return;
         }
-        localStorage.removeItem(draftKey);
-        originalOnSave(record);
+        try {
+            await originalOnSave(record);
+            localStorage.removeItem(draftKey);
+        } catch (err) {
+            console.error('Erreur sauvegarde:', err);
+        }
     }, [draftKey, originalOnSave, confirm]);
 
     const handleReprendreM1 = async () => {
@@ -651,6 +655,9 @@ const EntryForm: React.FC<EntryFormProps> = ({
                  // @ts-ignore
                  newData[section] = { ...newData[section], [field]: { ...newData[section][field], [subField!]: value } };
             } else if (section === 'fuel') {
+                 if (!newData.fuel) {
+                     newData.fuel = { volume: 0, objective: 0, details: { gasoil: { volume: 0, objective: 0 }, sansPlomb: { volume: 0, objective: 0 }, gnr: { volume: 0, objective: 0 } } };
+                 }
                  if (subField) {
                      // @ts-ignore
                      newData.fuel.details = { ...newData.fuel.details, [field]: { ...newData.fuel.details[field], [subField]: value } };

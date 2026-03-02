@@ -172,22 +172,27 @@ const App: React.FC = () => {
 
   const handleSaveRecord = async (record: FinancialRecord) => {
     if (!selectedClient) return;
-    const recordWithClient = { 
-        ...record, 
+    const recordWithClient = {
+        ...record,
         clientId: selectedClient.id,
-        isSubmitted: userRole === 'client' ? true : record.isSubmitted 
+        isSubmitted: userRole === 'client' ? true : record.isSubmitted
     };
-    await saveRecord(recordWithClient);
-    await logActivity(selectedClient.id, 'data_submitted', `Données ${record.month} ${record.year} enregistrées`, { month: record.month, year: record.year });
-    await refreshRecords();
+    try {
+        await saveRecord(recordWithClient);
+        await logActivity(selectedClient.id, 'data_submitted', `Données ${record.month} ${record.year} enregistrées`, { month: record.month, year: record.year });
+        await refreshRecords();
 
-    if (userRole === 'client') {
-        showNotification("Saisie enregistrée.", 'success');
-        setEditingRecord(recordWithClient);
-    } else {
-        showNotification("Données enregistrées.", 'success');
-        setEditingRecord(null);
-        if (currentView !== View.Dashboard && currentView !== View.History) setCurrentView(View.Dashboard);
+        if (userRole === 'client') {
+            showNotification("Saisie enregistrée.", 'success');
+            setEditingRecord(recordWithClient);
+        } else {
+            showNotification("Données enregistrées.", 'success');
+            setEditingRecord(null);
+            if (currentView !== View.Dashboard && currentView !== View.History) setCurrentView(View.Dashboard);
+        }
+    } catch (err) {
+        console.error('Erreur sauvegarde:', err);
+        showNotification("Erreur lors de la sauvegarde. Vos données n'ont pas été perdues, réessayez.", 'error');
     }
   };
 
@@ -211,31 +216,51 @@ const App: React.FC = () => {
 
   const handleBulkDelete = async (records: FinancialRecord[]) => {
       if (userRole !== 'ab_consultant') return;
-      for (const record of records) {
-          await deleteRecord(record.id);
+      const ok = await confirm({ title: `Supprimer ${records.length} rapport(s) ?`, message: 'Cette action est irréversible. Toutes les données sélectionnées seront définitivement perdues.', variant: 'danger', confirmLabel: 'Supprimer tout' });
+      if (!ok) return;
+      try {
+          for (const record of records) {
+              await deleteRecord(record.id);
+          }
+          await refreshRecords();
+          showNotification(`${records.length} rapport(s) supprimé(s).`, 'success');
+      } catch (err) {
+          console.error('Erreur suppression groupée:', err);
+          await refreshRecords();
+          showNotification("Erreur lors de la suppression. Certains rapports n'ont peut-être pas été supprimés.", 'error');
       }
-      await refreshRecords();
-      showNotification(`${records.length} rapport(s) supprimé(s).`, 'success');
   };
 
   const handleBulkValidate = async (records: FinancialRecord[]) => {
       if (userRole !== 'ab_consultant') return;
-      for (const record of records) {
-          await saveRecord({ ...record, isValidated: true });
-          if (selectedClient) await logActivity(selectedClient.id, 'data_validated', `${record.month} ${record.year} validé`, { month: record.month, year: record.year });
+      try {
+          for (const record of records) {
+              await saveRecord({ ...record, isValidated: true });
+              if (selectedClient) await logActivity(selectedClient.id, 'data_validated', `${record.month} ${record.year} validé`, { month: record.month, year: record.year });
+          }
+          await refreshRecords();
+          showNotification(`${records.length} rapport(s) validé(s).`, 'success');
+      } catch (err) {
+          console.error('Erreur validation groupée:', err);
+          await refreshRecords();
+          showNotification("Erreur lors de la validation groupée.", 'error');
       }
-      await refreshRecords();
-      showNotification(`${records.length} rapport(s) validé(s).`, 'success');
   };
 
   const handleBulkPublish = async (records: FinancialRecord[]) => {
       if (userRole !== 'ab_consultant') return;
-      for (const record of records) {
-          await saveRecord({ ...record, isPublished: true });
-          if (selectedClient) await logActivity(selectedClient.id, 'data_published', `${record.month} ${record.year} publié`, { month: record.month, year: record.year });
+      try {
+          for (const record of records) {
+              await saveRecord({ ...record, isPublished: true });
+              if (selectedClient) await logActivity(selectedClient.id, 'data_published', `${record.month} ${record.year} publié`, { month: record.month, year: record.year });
+          }
+          await refreshRecords();
+          showNotification(`${records.length} rapport(s) publié(s).`, 'success');
+      } catch (err) {
+          console.error('Erreur publication groupée:', err);
+          await refreshRecords();
+          showNotification("Erreur lors de la publication groupée.", 'error');
       }
-      await refreshRecords();
-      showNotification(`${records.length} rapport(s) publié(s).`, 'success');
   };
 
   const toggleValidation = async (record: FinancialRecord) => {

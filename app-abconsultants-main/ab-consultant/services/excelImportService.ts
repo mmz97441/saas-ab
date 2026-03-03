@@ -863,15 +863,16 @@ export function parseAnalyseActiviteSheet(
     }
 
     // --- BFR sub-sections (lettered: A., B., C. or keywords) ---
+    // Note: we do NOT `continue` here because a row like "Stocks Marchandises"
+    // can serve as both a sub-section header AND a data row. Pure headers
+    // (no numeric values) will be skipped by the `!hasData` check below.
     if (mainSection === 'bfr') {
       if (ll.includes('créance') || ll.includes('creance') || ll.match(/^a[\.\)]\s/i)) {
-        bfrSub = 'receivables'; continue;
-      }
-      if (ll.includes('stock') || ll.match(/^b[\.\)]\s/i)) {
-        bfrSub = 'stock'; continue;
-      }
-      if (ll.includes('dette') || ll.match(/^c[\.\)]\s/i)) {
-        bfrSub = 'debts'; continue;
+        bfrSub = 'receivables';
+      } else if (ll.includes('stock') || ll.match(/^b[\.\)]\s/i)) {
+        bfrSub = 'stock';
+      } else if (ll.includes('dette') || ll.match(/^c[\.\)]\s/i)) {
+        bfrSub = 'debts';
       }
     }
 

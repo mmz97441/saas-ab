@@ -93,7 +93,10 @@ const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ clientId, clientNam
                                     {/* Content */}
                                     <div className="flex-1 min-w-0 pt-0.5">
                                         <p className="text-xs text-slate-700 leading-relaxed">{event.description}</p>
-                                        <p className="text-[11px] text-slate-400 mt-0.5">{formatTimestamp(event.timestamp)}</p>
+                                        <p className="text-[11px] text-slate-400 mt-0.5">
+                                            {formatTimestamp(event.timestamp)}
+                                            {event.actorEmail && <span className="ml-1">· {event.actorEmail.split('@')[0]}</span>}
+                                        </p>
                                     </div>
                                 </div>
                             );

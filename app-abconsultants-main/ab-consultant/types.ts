@@ -38,8 +38,23 @@ export interface Consultant {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'consultant'; 
+  role: 'admin' | 'consultant';
   addedAt: string;
+}
+
+// --- COLLABORATOR TYPES ---
+export type CollaboratorRole = 'owner' | 'manager' | 'viewer';
+export type CollaboratorStatus = 'pending' | 'active' | 'revoked';
+
+export interface ClientCollaborator {
+  email: string;
+  name: string;
+  role: CollaboratorRole;
+  invitedAt: string;
+  invitedBy: string;
+  acceptedAt?: string;
+  lastLoginAt?: string;
+  status: CollaboratorStatus;
 }
 
 export interface Client {
@@ -72,8 +87,11 @@ export interface Client {
         gnr: number;
     };
   };
-  profitCenters?: ProfitCenter[]; 
-  
+  profitCenters?: ProfitCenter[];
+
+  // COLLABORATORS (multi-user access per client)
+  collaborators?: ClientCollaborator[];
+
   // CHAT META DATA
   hasUnreadMessages?: boolean;
   lastMessageTime?: any;
@@ -119,26 +137,30 @@ export type ActivityEventType =
   | 'message_received'
   | 'config_updated'
   | 'status_changed'
-  | 'invitation_sent';
+  | 'invitation_sent'
+  | 'collaborator_added'
+  | 'collaborator_revoked';
 
 export interface ActivityEvent {
   id: string;
   clientId: string;
   type: ActivityEventType;
   description: string;
+  actorEmail?: string;
   timestamp: any;
   metadata?: Record<string, any>;
 }
 
 export interface FinancialRecord {
   id: string;
-  clientId: string; 
+  clientId: string;
   year: number;
   month: Month;
-  isValidated: boolean; 
-  isPublished?: boolean; 
-  isSubmitted?: boolean; 
-  expertComment?: string; 
+  isValidated: boolean;
+  isPublished?: boolean;
+  isSubmitted?: boolean;
+  submittedBy?: string;
+  expertComment?: string;
   revenue: {
     goods: number;
     services: number;

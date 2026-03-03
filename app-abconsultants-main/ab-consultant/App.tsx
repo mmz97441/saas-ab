@@ -119,7 +119,11 @@ const App: React.FC = () => {
         if (!simulatedUserEmail) return;
         // La liste clients est déjà filtrée par getClients(), donc on prend le premier
         // Sécurité supplémentaire : on vérifie quand même côté client
-        const userCompanies = clients.filter(c => c.owner.email.toLowerCase() === simulatedUserEmail.toLowerCase());
+        const email = simulatedUserEmail.toLowerCase();
+        const userCompanies = clients.filter(c =>
+          c.owner.email.toLowerCase() === email ||
+          (c.collaborators || []).some(collab => collab.email.toLowerCase() === email && collab.status === 'active')
+        );
         if (userCompanies.length > 0) {
             const isCurrentValid = selectedClient && userCompanies.find(c => c.id === selectedClient.id);
             if (!isCurrentValid) setSelectedClient(userCompanies[0]);
@@ -175,7 +179,8 @@ const App: React.FC = () => {
     const recordWithClient = {
         ...record,
         clientId: selectedClient.id,
-        isSubmitted: userRole === 'client' ? true : record.isSubmitted
+        isSubmitted: userRole === 'client' ? true : record.isSubmitted,
+        submittedBy: record.submittedBy || currentUserEmail || undefined
     };
     try {
         await saveRecord(recordWithClient);
@@ -417,7 +422,11 @@ const App: React.FC = () => {
   }, [data, userRole]);
   const accessibleCompanies = useMemo(() => {
     if (userRole !== 'client' || !simulatedUserEmail) return [];
-    return clients.filter(c => c.owner.email.toLowerCase() === simulatedUserEmail.toLowerCase());
+    const email = simulatedUserEmail.toLowerCase();
+    return clients.filter(c =>
+      c.owner.email.toLowerCase() === email ||
+      (c.collaborators || []).some(collab => collab.email.toLowerCase() === email && collab.status === 'active')
+    );
   }, [clients, simulatedUserEmail, userRole]);
 
   // FILTRE POUR LA VUE LISTE CLIENTS
@@ -637,7 +646,7 @@ const App: React.FC = () => {
 
             {currentView === View.Entry && selectedClient && (
                 <div key="entry" className="animate-in fade-in duration-200">
-                <EntryForm clientId={selectedClient.id} initialData={editingRecord} existingRecords={data} profitCenters={selectedClient.profitCenters || []} showCommercialMargin={selectedClient.settings?.showCommercialMargin ?? true} showFuelTracking={selectedClient.settings?.showFuelTracking ?? false} onSave={handleSaveRecord} onCancel={() => { setEditingRecord(null); setCurrentView(View.History); }} userRole={userRole} defaultFuelObjectives={selectedClient.settings?.fuelObjectives} clientStatus={selectedClient.status} onImportExcel={() => setIsExcelImportOpen(true)}/>
+                <EntryForm clientId={selectedClient.id} initialData={editingRecord} existingRecords={data} profitCenters={selectedClient.profitCenters || []} showCommercialMargin={selectedClient.settings?.showCommercialMargin ?? true} showFuelTracking={selectedClient.settings?.showFuelTracking ?? false} onSave={handleSaveRecord} onCancel={() => { setEditingRecord(null); setCurrentView(View.History); }} userRole={userRole} defaultFuelObjectives={selectedClient.settings?.fuelObjectives} clientStatus={selectedClient.status} onImportExcel={() => setIsExcelImportOpen(true)} currentUserEmail={currentUserEmail}/>
                 </div>
             )}
 

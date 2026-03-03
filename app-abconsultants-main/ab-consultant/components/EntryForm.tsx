@@ -199,6 +199,7 @@ interface EntryFormProps {
   defaultFuelObjectives?: { gasoil: number; sansPlomb: number; gnr: number };
   clientStatus?: 'active' | 'inactive';
   onImportExcel?: () => void;
+  currentUserEmail?: string | null;
 }
 
 const EntryForm: React.FC<EntryFormProps> = ({
@@ -213,7 +214,8 @@ const EntryForm: React.FC<EntryFormProps> = ({
   userRole,
   defaultFuelObjectives,
   clientStatus = 'active',
-  onImportExcel
+  onImportExcel,
+  currentUserEmail
 }) => {
     
     const confirm = useConfirmDialog();
@@ -528,7 +530,10 @@ const EntryForm: React.FC<EntryFormProps> = ({
             if (!ok) return;
         }
         try {
-            await originalOnSave(record);
+            const recordWithAuthor = currentUserEmail
+                ? { ...record, submittedBy: record.submittedBy || currentUserEmail }
+                : record;
+            await originalOnSave(recordWithAuthor);
             localStorage.removeItem(draftKey);
         } catch (err) {
             console.error('Erreur sauvegarde:', err);

@@ -215,6 +215,7 @@ const HistoryView: React.FC<HistoryViewProps> = ({
                                         <p className="font-bold text-slate-800">{record.month} {record.year}</p>
                                         <p className="text-[11px] text-slate-400">
                                             {record.isValidated ? 'Validé par le cabinet' : record.isSubmitted ? 'En attente de validation' : 'Brouillon'}
+                                            {record.submittedBy && <span className="ml-1">· par {record.submittedBy.split('@')[0]}</span>}
                                         </p>
                                     </div>
                                 </div>

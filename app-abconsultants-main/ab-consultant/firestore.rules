@@ -21,11 +21,13 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.token.role == 'client';
     }
 
-    // Vérifie qu'un dossier client appartient à l'utilisateur connecté (via owner.email).
-    // Supporte les clients multi-sociétés (un même email = plusieurs dossiers).
+    // Vérifie qu'un dossier client appartient à l'utilisateur connecté (via owner.email)
+    // OU que l'utilisateur est un collaborateur actif sur ce dossier.
     function isOwnerOfClient(clientId) {
+      let clientData = get(/databases/$(database)/documents/clients/$(clientId)).data;
       return isClient()
-        && get(/databases/$(database)/documents/clients/$(clientId)).data.owner.email == request.auth.token.email;
+        && (clientData.owner.email == request.auth.token.email
+            || request.auth.token.clientId == clientId);
     }
 
     // =============================================

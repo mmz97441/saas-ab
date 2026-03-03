@@ -1,5 +1,5 @@
 
-import { FinancialRecord, Month, Client, Consultant, ChatMessage, ActivityEvent, ActivityEventType } from "../types";
+import { FinancialRecord, Month, Client, Consultant, ChatMessage, ActivityEvent, ActivityEventType, ClientCollaborator } from "../types";
 import { db, auth } from "../firebase"; 
 import { 
   collection, 
@@ -155,13 +155,24 @@ export const subscribeToChat = (clientId: string, callback: (messages: ChatMessa
 // --- SECURITY SERVICES ---
 export const checkClientEmailExists = async (email: string): Promise<boolean> => {
     try {
-        const q = query(collection(db, COLL_CLIENTS), where("owner.email", "==", email));
-        const snapshot = await getDocs(q);
-        return !snapshot.empty;
-    } catch (error: any) { 
-        // Si permission denied, on renvoie l'erreur pour que l'UI sache que c'est un problème de config
+        // Check owner.email
+        const ownerQuery = query(collection(db, COLL_CLIENTS), where("owner.email", "==", email));
+        const ownerSnap = await getDocs(ownerQuery);
+        if (!ownerSnap.empty) return true;
+
+        // Check collaborators (scan all clients since Firestore can't query nested array objects)
+        const allSnap = await getDocs(collection(db, COLL_CLIENTS));
+        for (const doc of allSnap.docs) {
+            const data = doc.data();
+            const collaborators: any[] = data.collaborators || [];
+            if (collaborators.some((c: any) => c.email?.toLowerCase() === email.toLowerCase() && c.status === 'active')) {
+                return true;
+            }
+        }
+        return false;
+    } catch (error: any) {
         if (error.code === 'permission-denied') throw error;
-        return false; 
+        return false;
     }
 };
 
@@ -231,58 +242,74 @@ export const deleteConsultant = async (id: string): Promise<void> => {
 };
 
 // --- CLIENT SERVICES ---
+const mapDocToClient = (doc: any): Client => {
+    const data = doc.data() as any;
+    const ownerData = data.owner || {};
+
+    return {
+        id: doc.id,
+        companyName: data.companyName || "Entreprise sans nom",
+        siret: data.siret || "",
+        address: data.address || "",
+        zipCode: data.zipCode || "",
+        city: data.city || "",
+        legalForm: data.legalForm || "",
+        fiscalYearEnd: data.fiscalYearEnd || "",
+        companyPhone: data.companyPhone || "",
+        managerName: data.managerName || "",
+        managerPhone: data.managerPhone || "",
+        owner: {
+            name: ownerData.name || data.managerName || 'Dirigeant',
+            email: ownerData.email || ''
+        },
+        status: data.status || 'active',
+        joinedDate: data.joinedDate || new Date().toISOString(),
+        sector: data.sector || "",
+        assignedConsultantEmail: data.assignedConsultantEmail || "",
+        settings: data.settings || {
+            showCommercialMargin: true,
+            showFuelTracking: false,
+            fuelObjectives: { gasoil: 0, sansPlomb: 0, gnr: 0 }
+        },
+        profitCenters: data.profitCenters || [],
+        collaborators: (data.collaborators || []) as ClientCollaborator[],
+        hasUnreadMessages: !!data.hasUnreadMessages,
+        lastMessageTime: data.lastMessageTime || null
+    } as Client;
+};
+
 export const getClients = async (filterByEmail?: string | null): Promise<Client[]> => {
     try {
-        let q;
-        if (filterByEmail) {
-            q = query(collection(db, COLL_CLIENTS), where("owner.email", "==", filterByEmail));
-        } else {
-            q = query(collection(db, COLL_CLIENTS));
+        if (!filterByEmail) {
+            // Consultant: load all clients
+            const snapshot = await getDocs(query(collection(db, COLL_CLIENTS)));
+            return snapshot.docs.map(mapDocToClient);
         }
 
-        const snapshot = await getDocs(q);
-        
-        return snapshot.docs.map(doc => {
-            const data = doc.data() as any;
-            
-            // PROTECTION CONTRE DONNÉES MANUELLES INCOMPLÈTES
-            // Si data.owner n'existe pas, on le crée à la volée pour éviter le crash
-            const ownerData = data.owner || {};
-            
-            return {
-                id: doc.id,
-                companyName: data.companyName || "Entreprise sans nom",
-                siret: data.siret || "",
-                address: data.address || "",
-                zipCode: data.zipCode || "",
-                city: data.city || "",
-                legalForm: data.legalForm || "",
-                fiscalYearEnd: data.fiscalYearEnd || "",
-                companyPhone: data.companyPhone || "",
-                managerName: data.managerName || "",
-                managerPhone: data.managerPhone || "",
-                owner: {
-                    name: ownerData.name || data.managerName || 'Dirigeant',
-                    email: ownerData.email || ''
-                },
-                status: data.status || 'active',
-                joinedDate: data.joinedDate || new Date().toISOString(),
-                sector: data.sector || "",
-                assignedConsultantEmail: data.assignedConsultantEmail || "",
-                settings: data.settings || { 
-                    showCommercialMargin: true, 
-                    showFuelTracking: false,
-                    fuelObjectives: { gasoil: 0, sansPlomb: 0, gnr: 0 }
-                },
-                profitCenters: data.profitCenters || [],
-                hasUnreadMessages: !!data.hasUnreadMessages,
-                lastMessageTime: data.lastMessageTime || null
-            } as Client;
-        });
+        const emailLower = filterByEmail.toLowerCase();
 
-    } catch (error) { 
+        // Owner query
+        const ownerSnap = await getDocs(query(collection(db, COLL_CLIENTS), where("owner.email", "==", emailLower)));
+        const ownerClients = ownerSnap.docs.map(mapDocToClient);
+
+        // Collaborator scan (Firestore can't query nested array objects directly)
+        const allSnap = await getDocs(query(collection(db, COLL_CLIENTS)));
+        const collabClients: Client[] = [];
+        const ownerIds = new Set(ownerClients.map(c => c.id));
+
+        for (const doc of allSnap.docs) {
+            if (ownerIds.has(doc.id)) continue; // Already in owner list
+            const data = doc.data();
+            const collaborators: any[] = data.collaborators || [];
+            if (collaborators.some((c: any) => c.email?.toLowerCase() === emailLower && c.status === 'active')) {
+                collabClients.push(mapDocToClient(doc));
+            }
+        }
+
+        return [...ownerClients, ...collabClients];
+    } catch (error) {
         console.error("Erreur accès données clients", error);
-        return []; 
+        return [];
     }
 };
 
@@ -329,6 +356,7 @@ export const getRecordsByClient = async (clientId: string): Promise<FinancialRec
                 isValidated: !!data.isValidated,
                 isPublished: !!data.isPublished,
                 isSubmitted: !!data.isSubmitted,
+                submittedBy: data.submittedBy || undefined,
                 expertComment: data.expertComment || "",
                 
                 revenue: {
@@ -456,13 +484,15 @@ export const logActivity = async (
     clientId: string,
     type: ActivityEventType,
     description: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, any>,
+    actorEmail?: string
 ): Promise<void> => {
     try {
         await addDoc(collection(db, COLL_ACTIVITIES), {
             clientId,
             type,
             description,
+            actorEmail: actorEmail || auth.currentUser?.email || undefined,
             metadata: metadata || {},
             timestamp: serverTimestamp()
         });
@@ -486,6 +516,7 @@ export const getClientActivities = async (clientId: string, limitCount = 30): Pr
                 clientId: data.clientId,
                 type: data.type as ActivityEventType,
                 description: data.description,
+                actorEmail: data.actorEmail,
                 timestamp: data.timestamp,
                 metadata: data.metadata || {}
             } as ActivityEvent;
@@ -516,6 +547,7 @@ export const subscribeToClientActivities = (
                 clientId: data.clientId,
                 type: data.type as ActivityEventType,
                 description: data.description,
+                actorEmail: data.actorEmail,
                 timestamp: data.timestamp,
                 metadata: data.metadata || {}
             } as ActivityEvent;

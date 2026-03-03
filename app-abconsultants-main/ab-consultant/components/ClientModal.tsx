@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, Building, User, Mail, MapPin, Hash, Save, AlertCircle, ShieldCheck, Phone, Briefcase, Check, Send, Copy, ExternalLink, Power, Archive } from 'lucide-react';
-import { Client, Consultant } from '../types';
+import { Client, Consultant, ClientCollaborator } from '../types';
 import { getConsultants } from '../services/dataService';
 import { useConfirmDialog } from '../contexts/ConfirmContext';
+import CollaboratorManager from './CollaboratorManager';
 
 interface ClientModalProps {
     isOpen: boolean;
@@ -101,7 +102,8 @@ const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSave, init
                 owner: {
                     name: formData.managerName || formData.owner?.name || 'Dirigeant',
                     email: formData.owner?.email || ''
-                }
+                },
+                collaborators: formData.collaborators || []
             };
             await onSave(finalData);
             
@@ -438,6 +440,14 @@ Expertise & Stratégie Financière`;
                                 </div>
                             </div>
                         </div>
+
+                        {/* SECTION 4: COLLABORATEURS */}
+                        <CollaboratorManager
+                            collaborators={formData.collaborators || []}
+                            ownerEmail={formData.owner?.email || ''}
+                            consultantEmail={consultants[0]?.email || 'admin@ab-consultants.fr'}
+                            onChange={(collabs) => setFormData({ ...formData, collaborators: collabs })}
+                        />
 
                         <div className="pt-4 border-t border-slate-100 flex items-center gap-3 shrink-0">
                             {/* Bouton renvoyer invitation (uniquement en mode édition) */}

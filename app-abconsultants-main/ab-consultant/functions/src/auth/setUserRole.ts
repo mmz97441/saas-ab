@@ -77,6 +77,33 @@ export const setUserRole = functions.https.onCall(async (data, context) => {
     return { role: 'client', clientId: doc.id };
   }
 
+  // Check collaborators
+  const allClientsSnap = await db.collection('clients').get();
+  for (const clientDoc of allClientsSnap.docs) {
+    const data = clientDoc.data();
+    const collaborators: any[] = data.collaborators || [];
+    const match = collaborators.find(
+      (c: any) => c.email?.toLowerCase() === email && c.status === 'active'
+    );
+    if (match) {
+      await auth.setCustomUserClaims(targetUid, {
+        role: 'client',
+        clientId: clientDoc.id,
+        collaboratorRole: match.role || 'viewer',
+      });
+
+      // Update lastLoginAt
+      const updatedCollaborators = collaborators.map((c: any) =>
+        c.email?.toLowerCase() === email
+          ? { ...c, acceptedAt: c.acceptedAt || new Date().toISOString(), lastLoginAt: new Date().toISOString() }
+          : c
+      );
+      await clientDoc.ref.update({ collaborators: updatedCollaborators });
+
+      return { role: 'client', clientId: clientDoc.id, collaboratorRole: match.role };
+    }
+  }
+
   // Pas de rôle trouvé
   await auth.setCustomUserClaims(targetUid, {});
   throw new functions.https.HttpsError('permission-denied', 'Email non autorisé dans le système.');

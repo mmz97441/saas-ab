@@ -55,7 +55,7 @@ export const onUserCreated = functions.auth.user().onCreate(async (user) => {
     functions.logger.error('Error checking consultants collection', err);
   }
 
-  // --- CHECK 2: Is this a whitelisted client? ---
+  // --- CHECK 2: Is this a whitelisted client (owner)? ---
   try {
     const clientsSnap = await db
       .collection('clients')
@@ -71,14 +71,54 @@ export const onUserCreated = functions.auth.user().onCreate(async (user) => {
         clientId: clientDoc.id,
       });
 
-      functions.logger.info('Custom claims set: client', { email, clientId: clientDoc.id });
+      functions.logger.info('Custom claims set: client (owner)', { email, clientId: clientDoc.id });
       return;
     }
   } catch (err) {
-    functions.logger.error('Error checking clients collection', err);
+    functions.logger.error('Error checking clients collection (owner)', err);
   }
 
-  // --- CHECK 3: Unauthorized → delete the account ---
+  // --- CHECK 3: Is this a collaborator on a client? ---
+  try {
+    // Firestore doesn't support array-contains on nested object fields,
+    // so we scan all clients and check collaborators in code.
+    const allClientsSnap = await db.collection('clients').get();
+
+    for (const clientDoc of allClientsSnap.docs) {
+      const data = clientDoc.data();
+      const collaborators: any[] = data.collaborators || [];
+      const match = collaborators.find(
+        (c: any) => c.email?.toLowerCase() === email && c.status === 'active'
+      );
+
+      if (match) {
+        await auth.setCustomUserClaims(user.uid, {
+          role: 'client',
+          clientId: clientDoc.id,
+          collaboratorRole: match.role || 'viewer',
+        });
+
+        // Update collaborator's acceptedAt timestamp
+        const updatedCollaborators = collaborators.map((c: any) =>
+          c.email?.toLowerCase() === email
+            ? { ...c, acceptedAt: c.acceptedAt || new Date().toISOString(), lastLoginAt: new Date().toISOString() }
+            : c
+        );
+        await clientDoc.ref.update({ collaborators: updatedCollaborators });
+
+        functions.logger.info('Custom claims set: client (collaborator)', {
+          email,
+          clientId: clientDoc.id,
+          collaboratorRole: match.role,
+        });
+        return;
+      }
+    }
+  } catch (err) {
+    functions.logger.error('Error checking collaborators', err);
+  }
+
+  // --- CHECK 4: Unauthorized → delete the account ---
   functions.logger.warn('Unauthorized signup attempt, deleting user.', { email, uid: user.uid });
   await auth.deleteUser(user.uid);
 });

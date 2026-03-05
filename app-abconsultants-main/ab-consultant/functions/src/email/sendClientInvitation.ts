@@ -19,7 +19,7 @@ const db = admin.firestore();
  * - method: 'email' | 'manual' — Méthode d'envoi
  * - appUrl?: string — URL de l'application (pour le lien dans l'email)
  */
-export const sendClientInvitation = functions.https.onCall(async (data, context) => {
+export const sendClientInvitation = functions.region('europe-west1').https.onCall(async (data, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'Authentification requise.');
   }

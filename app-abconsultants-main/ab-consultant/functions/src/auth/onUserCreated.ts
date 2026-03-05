@@ -71,6 +71,26 @@ export const onUserCreated = functions.auth.user().onCreate(async (user) => {
         clientId: clientDoc.id,
       });
 
+      // Track owner first login
+      const now = new Date().toISOString();
+      const ownerData = clientDoc.data().owner || {};
+      await clientDoc.ref.update({
+        'owner.registeredAt': ownerData.registeredAt || now,
+        'owner.lastLoginAt': now,
+        'owner.loginCount': 1,
+        'owner.loginHistory': [{ timestamp: now, userAgent: 'signup' }],
+      });
+
+      // Log activity
+      await db.collection('activities').add({
+        clientId: clientDoc.id,
+        type: 'owner_first_login',
+        description: `${ownerData.name || email} s'est connecté pour la première fois.`,
+        actorEmail: email,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        metadata: {},
+      });
+
       functions.logger.info('Custom claims set: client (owner)', { email, clientId: clientDoc.id });
       return;
     }

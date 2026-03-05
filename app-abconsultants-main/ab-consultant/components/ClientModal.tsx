@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Building, User, Mail, MapPin, Hash, Save, AlertCircle, ShieldCheck, Phone, Briefcase, Check, Send, Copy, ExternalLink, Power, Archive } from 'lucide-react';
+import { X, Building, User, Mail, MapPin, Hash, Save, AlertCircle, ShieldCheck, Phone, Briefcase, Check, Send, Copy, ExternalLink, Power, Archive, LogIn, Clock, Loader2 } from 'lucide-react';
 import { Client, Consultant, ClientCollaborator } from '../types';
 import { getConsultants } from '../services/dataService';
 import { useConfirmDialog } from '../contexts/ConfirmContext';
 import CollaboratorManager from './CollaboratorManager';
+import { callSendClientInvitation } from '../lib/cloudFunctions';
 
 interface ClientModalProps {
     isOpen: boolean;
@@ -33,6 +34,8 @@ const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSave, init
     
     // NOUVEAU : État pour afficher l'écran d'invitation après succès
     const [showInviteStep, setShowInviteStep] = useState(false);
+    const [sendingEmail, setSendingEmail] = useState(false);
+    const [emailSent, setEmailSent] = useState(false);
     const confirm = useConfirmDialog();
 
     // Charger la liste des consultants au montage
@@ -205,17 +208,41 @@ Expertise & Stratégie Financière`;
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-md">
-                            <button 
-                                onClick={handleSendEmail}
-                                className="flex flex-col items-center justify-center p-4 bg-brand-600 text-white rounded-xl hover:bg-brand-700 transition shadow-md group"
+                            <button
+                                onClick={async () => {
+                                    if (!initialData?.id && !formData.id) return;
+                                    setSendingEmail(true);
+                                    try {
+                                        await callSendClientInvitation({ clientId: (initialData?.id || formData.id)!, method: 'email', appUrl: window.location.origin });
+                                        setEmailSent(true);
+                                        await confirm({ title: 'Invitation envoyée !', message: `L'email d'invitation a été envoyé à ${formData.owner?.email}.`, variant: 'success', showCancel: false, confirmLabel: 'OK' });
+                                    } catch {
+                                        await confirm({ title: 'Erreur', message: 'Impossible d\'envoyer l\'email. Vérifiez la configuration SMTP.', variant: 'danger', showCancel: false, confirmLabel: 'OK' });
+                                    } finally {
+                                        setSendingEmail(false);
+                                    }
+                                }}
+                                disabled={sendingEmail}
+                                className="flex flex-col items-center justify-center p-4 bg-brand-600 text-white rounded-xl hover:bg-brand-700 transition shadow-md group disabled:opacity-50"
                             >
-                                <Send className="w-6 h-6 mb-2 group-hover:-translate-y-1 transition-transform" />
-                                <span className="font-bold">Envoyer l'email</span>
-                                <span className="text-xs opacity-80 mt-1">Ouvre votre messagerie</span>
+                                {sendingEmail ? (
+                                    <Loader2 className="w-6 h-6 mb-2 animate-spin" />
+                                ) : emailSent ? (
+                                    <Check className="w-6 h-6 mb-2 text-emerald-300" />
+                                ) : (
+                                    <Mail className="w-6 h-6 mb-2 group-hover:-translate-y-1 transition-transform" />
+                                )}
+                                <span className="font-bold">{emailSent ? 'Email envoyé !' : 'Envoyer par email'}</span>
+                                <span className="text-xs opacity-80 mt-1">Envoi automatique sécurisé</span>
                             </button>
 
-                            <button 
-                                onClick={handleCopyLink}
+                            <button
+                                onClick={async () => {
+                                    await handleCopyLink();
+                                    if (initialData?.id || formData.id) {
+                                        callSendClientInvitation({ clientId: (initialData?.id || formData.id)!, method: 'manual', appUrl: window.location.origin }).catch(() => {});
+                                    }
+                                }}
                                 className="flex flex-col items-center justify-center p-4 bg-white border-2 border-brand-100 text-brand-700 rounded-xl hover:border-brand-300 hover:bg-brand-50 transition group"
                             >
                                 <Copy className="w-6 h-6 mb-2 text-brand-400 group-hover:text-brand-600 transition-colors" />
@@ -441,7 +468,95 @@ Expertise & Stratégie Financière`;
                             </div>
                         </div>
 
-                        {/* SECTION 4: COLLABORATEURS */}
+                        {/* SECTION 4: SUIVI CONNEXION (mode édition uniquement) */}
+                        {initialData && (
+                            <div className="space-y-3">
+                                <h3 className="text-xs font-bold text-brand-600 uppercase tracking-wider border-b border-brand-100 pb-2 mb-3 flex items-center gap-2">
+                                    <LogIn className="w-3 h-3" /> Suivi Connexion
+                                </h3>
+
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    {/* Statut */}
+                                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                                        <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">Statut</p>
+                                        {initialData.owner?.lastLoginAt ? (
+                                            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700">
+                                                <span className="w-2 h-2 rounded-full bg-emerald-500" /> Connecté
+                                            </span>
+                                        ) : initialData.invitationStatus?.lastSentAt ? (
+                                            <span className="inline-flex items-center gap-1 text-xs font-bold text-red-700">
+                                                <span className="w-2 h-2 rounded-full bg-red-500" /> Jamais connecté
+                                            </span>
+                                        ) : (
+                                            <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-500">
+                                                <span className="w-2 h-2 rounded-full bg-slate-400" /> Non invité
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Date inscription */}
+                                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                                        <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">Inscription</p>
+                                        <p className="text-xs font-semibold text-slate-700">
+                                            {initialData.owner?.registeredAt
+                                                ? new Date(initialData.owner.registeredAt).toLocaleDateString('fr-FR')
+                                                : '—'}
+                                        </p>
+                                    </div>
+
+                                    {/* Dernière connexion */}
+                                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                                        <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">Dernière Connexion</p>
+                                        <p className="text-xs font-semibold text-slate-700">
+                                            {initialData.owner?.lastLoginAt
+                                                ? new Date(initialData.owner.lastLoginAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                                : '—'}
+                                        </p>
+                                    </div>
+
+                                    {/* Nombre de connexions */}
+                                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                                        <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">Nb Connexions</p>
+                                        <p className="text-xs font-semibold text-slate-700">
+                                            {initialData.owner?.loginCount ?? 0}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Invitation status */}
+                                {initialData.invitationStatus?.lastSentAt && (
+                                    <div className="flex items-center gap-2 text-[11px] text-slate-400 bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
+                                        <Mail className="w-3 h-3" />
+                                        <span>
+                                            Dernière invitation envoyée le {new Date(initialData.invitationStatus.lastSentAt).toLocaleDateString('fr-FR')}
+                                            {initialData.invitationStatus.sentBy && ` par ${initialData.invitationStatus.sentBy.split('@')[0]}`}
+                                            {(initialData.invitationStatus.sentCount || 0) > 1 && ` (${initialData.invitationStatus.sentCount} envois)`}
+                                            {initialData.invitationStatus.method === 'email' && ' — via email automatique'}
+                                            {initialData.invitationStatus.method === 'manual' && ' — envoi manuel'}
+                                        </span>
+                                    </div>
+                                )}
+
+                                {/* Login history (if available) */}
+                                {initialData.owner?.loginHistory && initialData.owner.loginHistory.length > 0 && (
+                                    <details className="text-[11px]">
+                                        <summary className="text-slate-400 cursor-pointer hover:text-slate-600 font-medium">
+                                            Historique des connexions ({initialData.owner.loginHistory.length})
+                                        </summary>
+                                        <div className="mt-2 space-y-1 ml-2">
+                                            {initialData.owner.loginHistory.map((entry, i) => (
+                                                <div key={i} className="flex items-center gap-2 text-slate-500">
+                                                    <Clock className="w-3 h-3 text-slate-300" />
+                                                    <span>{new Date(entry.timestamp).toLocaleString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </details>
+                                )}
+                            </div>
+                        )}
+
+                        {/* SECTION 5: COLLABORATEURS */}
                         <CollaboratorManager
                             collaborators={formData.collaborators || []}
                             ownerEmail={formData.owner?.email || ''}

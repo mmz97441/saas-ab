@@ -144,3 +144,27 @@ export async function refreshUserRole(uid?: string): Promise<SetRoleResponse> {
   const result = await fn({ uid });
   return result.data;
 }
+
+// =============================================
+// SEND CLIENT INVITATION
+// =============================================
+interface SendInvitationParams {
+  clientId: string;
+  method: 'email' | 'manual';
+  appUrl?: string;
+}
+
+interface SendInvitationResponse {
+  success: boolean;
+  method: string;
+}
+
+export async function callSendClientInvitation(params: SendInvitationParams): Promise<SendInvitationResponse> {
+  const fn = httpsCallable<SendInvitationParams, SendInvitationResponse>(
+    getFirebaseFunctions(),
+    'sendClientInvitation'
+  );
+
+  const result = await fn(params);
+  return result.data;
+}

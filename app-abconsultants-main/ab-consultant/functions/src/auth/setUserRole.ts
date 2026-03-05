@@ -74,6 +74,21 @@ export const setUserRole = functions.https.onCall(async (data, context) => {
   if (!clientsSnap.empty) {
     const doc = clientsSnap.docs[0];
     await auth.setCustomUserClaims(targetUid, { role: 'client', clientId: doc.id });
+
+    // Track owner login
+    const now = new Date().toISOString();
+    const ownerData = doc.data().owner || {};
+    const currentCount = ownerData.loginCount || 0;
+    const currentHistory: any[] = ownerData.loginHistory || [];
+    const updatedHistory = [{ timestamp: now }, ...currentHistory].slice(0, 10);
+
+    await doc.ref.update({
+      'owner.registeredAt': ownerData.registeredAt || now,
+      'owner.lastLoginAt': now,
+      'owner.loginCount': currentCount + 1,
+      'owner.loginHistory': updatedHistory,
+    });
+
     return { role: 'client', clientId: doc.id };
   }
 

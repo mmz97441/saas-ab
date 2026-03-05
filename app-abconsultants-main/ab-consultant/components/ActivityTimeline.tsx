@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import {
     Clock, Mail, MessageSquare, Calendar, CheckCircle, Settings,
-    FileText, Send, Power, UserPlus, Loader2, Activity, Eye
+    FileText, Send, Power, UserPlus, Loader2, Activity, Eye, LogIn, UserCheck, XCircle
 } from 'lucide-react';
 import { ActivityEvent, ActivityEventType } from '../types';
 import { getClientActivities } from '../services/dataService';
@@ -23,7 +23,12 @@ const EVENT_CONFIG: Record<ActivityEventType, { icon: React.ReactNode; color: st
     message_received: { icon: <MessageSquare className="w-3.5 h-3.5" />, color: 'text-sky-600', bgColor: 'bg-sky-100' },
     config_updated: { icon: <Settings className="w-3.5 h-3.5" />, color: 'text-slate-600', bgColor: 'bg-slate-100' },
     status_changed: { icon: <Power className="w-3.5 h-3.5" />, color: 'text-amber-600', bgColor: 'bg-amber-100' },
-    invitation_sent: { icon: <Send className="w-3.5 h-3.5" />, color: 'text-brand-600', bgColor: 'bg-brand-100' }
+    invitation_sent: { icon: <Send className="w-3.5 h-3.5" />, color: 'text-brand-600', bgColor: 'bg-brand-100' },
+    collaborator_added: { icon: <UserPlus className="w-3.5 h-3.5" />, color: 'text-blue-600', bgColor: 'bg-blue-100' },
+    collaborator_revoked: { icon: <XCircle className="w-3.5 h-3.5" />, color: 'text-red-600', bgColor: 'bg-red-100' },
+    owner_first_login: { icon: <LogIn className="w-3.5 h-3.5" />, color: 'text-emerald-600', bgColor: 'bg-emerald-100' },
+    owner_login: { icon: <LogIn className="w-3.5 h-3.5" />, color: 'text-blue-600', bgColor: 'bg-blue-100' },
+    invitation_email_sent: { icon: <Mail className="w-3.5 h-3.5" />, color: 'text-brand-600', bgColor: 'bg-brand-100' },
 };
 
 const formatTimestamp = (ts: any): string => {

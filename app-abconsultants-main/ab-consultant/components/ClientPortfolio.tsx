@@ -6,11 +6,12 @@ import {
     Users, Plus, Edit2, Search, Briefcase, Archive, X, Loader2,
     ArrowUpDown, ArrowUp, ArrowDown, TrendingDown, CheckCircle,
     Clock, CalendarClock, MoreVertical, Send, Copy, Power,
-    PanelRightOpen, Activity, Settings
+    PanelRightOpen, Activity, Settings, Mail, LogIn, CheckCheck
 } from 'lucide-react';
 import ActivityTimeline from './ActivityTimeline';
 import QuickConfigPanel from './QuickConfigPanel';
 import InfoTip, { getPerfColor } from './ui/InfoTip';
+import { callSendClientInvitation } from '../lib/cloudFunctions';
 
 interface ClientPortfolioProps {
     clients: Client[];
@@ -48,6 +49,40 @@ type PanelTab = 'timeline' | 'config';
 
 const fmtEur = (v: number) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
 
+// --- CONNECTION STATUS HELPERS ---
+type ConnectionStatus = 'active' | 'inactive' | 'never' | 'not_invited';
+
+const getConnectionStatus = (client: Client): ConnectionStatus => {
+    const lastLogin = client.owner?.lastLoginAt;
+    if (!lastLogin) {
+        // Check if invitation was sent
+        if (client.invitationStatus?.lastSentAt) return 'never';
+        return 'not_invited';
+    }
+    const daysSince = Math.floor((Date.now() - new Date(lastLogin).getTime()) / 86400000);
+    return daysSince <= 7 ? 'active' : 'inactive';
+};
+
+const CONNECTION_STATUS_CONFIG: Record<ConnectionStatus, { label: string; color: string; bgColor: string; dotColor: string }> = {
+    active:      { label: 'Actif',            color: 'text-emerald-700', bgColor: 'bg-emerald-50 border-emerald-200', dotColor: 'bg-emerald-500' },
+    inactive:    { label: 'Inactif',          color: 'text-amber-700',   bgColor: 'bg-amber-50 border-amber-200',   dotColor: 'bg-amber-500' },
+    never:       { label: 'Jamais connecté',  color: 'text-red-700',     bgColor: 'bg-red-50 border-red-200',       dotColor: 'bg-red-500' },
+    not_invited: { label: 'Non invité',       color: 'text-slate-500',   bgColor: 'bg-slate-50 border-slate-200',   dotColor: 'bg-slate-400' },
+};
+
+const formatRelativeDate = (isoDate?: string): string => {
+    if (!isoDate) return '';
+    const diffMs = Date.now() - new Date(isoDate).getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    const diffH = Math.floor(diffMs / 3600000);
+    const diffD = Math.floor(diffMs / 86400000);
+    if (diffMin < 1) return "À l'instant";
+    if (diffMin < 60) return `Il y a ${diffMin}min`;
+    if (diffH < 24) return `Il y a ${diffH}h`;
+    if (diffD < 30) return `Il y a ${diffD}j`;
+    if (diffD < 365) return `Il y a ${Math.floor(diffD / 30)} mois`;
+    return `Il y a ${Math.floor(diffD / 365)} an(s)`;
+};
 
 const ClientPortfolio: React.FC<ClientPortfolioProps> = ({
     clients, clientViewMode, clientSearchQuery,
@@ -62,6 +97,8 @@ const ClientPortfolio: React.FC<ClientPortfolioProps> = ({
     const [sortDir, setSortDir] = useState<SortDir>('asc');
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+    const [sendingInvite, setSendingInvite] = useState<string | null>(null);
+    const [inviteFeedback, setInviteFeedback] = useState<{ id: string; success: boolean } | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
 
     // Side panel state
@@ -141,8 +178,24 @@ Expertise & Stratégie Financière`;
             await navigator.clipboard.writeText(getInviteMessage(client));
             setCopyFeedback(client.id);
             setTimeout(() => setCopyFeedback(null), 2000);
+            // Mark as manually sent
+            callSendClientInvitation({ clientId: client.id, method: 'manual', appUrl: window.location.origin }).catch(() => {});
         } catch { /* ignore */ }
         setOpenMenuId(null);
+    };
+
+    const handleSendInvitationEmail = async (client: Client) => {
+        setSendingInvite(client.id);
+        setOpenMenuId(null);
+        try {
+            await callSendClientInvitation({ clientId: client.id, method: 'email', appUrl: window.location.origin });
+            setInviteFeedback({ id: client.id, success: true });
+        } catch {
+            setInviteFeedback({ id: client.id, success: false });
+        } finally {
+            setSendingInvite(null);
+            setTimeout(() => setInviteFeedback(null), 3000);
+        }
     };
 
     const currentYear = new Date().getFullYear();
@@ -335,8 +388,11 @@ Expertise & Stratégie Financière`;
                                 <div key={client.id} onClick={() => onSelectClient(client)} className={`bg-white rounded-xl shadow-sm border border-slate-200 p-4 active:bg-slate-50 transition cursor-pointer ${client.status === 'inactive' ? 'opacity-60' : ''}`}>
                                     <div className="flex items-center justify-between mb-3">
                                         <div className="flex items-center gap-3 min-w-0">
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold border text-sm shrink-0 ${client.status === 'inactive' ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-brand-50 text-brand-700 border-brand-200'}`}>
-                                                {client.companyName.substring(0, 2).toUpperCase()}
+                                            <div className="relative">
+                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold border text-sm shrink-0 ${client.status === 'inactive' ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-brand-50 text-brand-700 border-brand-200'}`}>
+                                                    {client.companyName.substring(0, 2).toUpperCase()}
+                                                </div>
+                                                <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${CONNECTION_STATUS_CONFIG[getConnectionStatus(client)].dotColor}`} title={CONNECTION_STATUS_CONFIG[getConnectionStatus(client)].label} />
                                             </div>
                                             <div className="min-w-0">
                                                 <div className="font-bold text-slate-800 text-sm truncate">{client.companyName}</div>
@@ -428,6 +484,7 @@ Expertise & Stratégie Financière`;
                                         </th>
                                         <th className="p-3 text-center">Données <InfoTip text={"• À jour (vert) : données reçues pour M-1 ou le mois en cours.\n• Retard (orange) : aucune donnée pour M-1 ni le mois en cours.\n• Aucune (gris) : aucune donnée importée."} /></th>
                                         <th className="p-3 text-center">Statut <InfoTip text={"• À Valider (orange) : rapport soumis, en attente de validation par le cabinet.\n• OK (vert) : dernier rapport validé par le cabinet.\n• En attente (gris) : rapport non encore soumis.\n• Archivé : dossier en veille."} /></th>
+                                        <th className="p-3 text-center">Connexion <InfoTip text={"• Actif (vert) : connecté dans les 7 derniers jours.\n• Inactif (orange) : dernière connexion > 7 jours.\n• Jamais connecté (rouge) : invité mais jamais connecté.\n• Non invité (gris) : invitation non envoyée."} /></th>
                                         <th className="p-3 text-right pr-4">Actions</th>
                                     </tr>
                                 </thead>
@@ -533,6 +590,25 @@ Expertise & Stratégie Financière`;
                                                     )}
                                                 </td>
 
+                                                {/* CONNEXION */}
+                                                <td className="p-3 text-center">
+                                                    {(() => {
+                                                        const connStatus = getConnectionStatus(client);
+                                                        const connConfig = CONNECTION_STATUS_CONFIG[connStatus];
+                                                        return (
+                                                            <div className="flex flex-col items-center gap-0.5">
+                                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${connConfig.bgColor} ${connConfig.color}`}>
+                                                                    <span className={`w-1.5 h-1.5 rounded-full ${connConfig.dotColor}`} />
+                                                                    {connConfig.label}
+                                                                </span>
+                                                                {client.owner?.lastLoginAt && (
+                                                                    <span className="text-[10px] text-slate-400">{formatRelativeDate(client.owner.lastLoginAt)}</span>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </td>
+
                                                 {/* ACTIONS */}
                                                 <td className="p-3 text-right pr-4">
                                                     <div className="flex items-center justify-end gap-1">
@@ -567,6 +643,12 @@ Expertise & Stratégie Financière`;
                                                                     Copié !
                                                                 </span>
                                                             )}
+                                                            {/* Feedback invitation email */}
+                                                            {inviteFeedback?.id === client.id && (
+                                                                <span className={`absolute -top-8 right-0 text-white text-[11px] font-bold px-2 py-1 rounded-lg shadow whitespace-nowrap animate-in fade-in zoom-in-95 duration-200 ${inviteFeedback.success ? 'bg-emerald-600' : 'bg-red-600'}`}>
+                                                                    {inviteFeedback.success ? 'Invitation envoyée !' : 'Erreur d\'envoi'}
+                                                                </span>
+                                                            )}
 
                                                             {/* Menu dropdown */}
                                                             {openMenuId === client.id && (
@@ -583,11 +665,16 @@ Expertise & Stratégie Financière`;
                                                                         <>
                                                                             <div className="border-t border-slate-100 my-1" />
                                                                             <button
-                                                                                onClick={(e) => { e.stopPropagation(); handleSendEmail(client); }}
-                                                                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-brand-50 hover:text-brand-700 transition text-left"
+                                                                                onClick={(e) => { e.stopPropagation(); handleSendInvitationEmail(client); }}
+                                                                                disabled={sendingInvite === client.id}
+                                                                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-brand-50 hover:text-brand-700 transition text-left disabled:opacity-50"
                                                                             >
-                                                                                <Send className="w-3.5 h-3.5 text-brand-400" />
-                                                                                Envoyer l'invitation
+                                                                                {sendingInvite === client.id ? (
+                                                                                    <Loader2 className="w-3.5 h-3.5 text-brand-400 animate-spin" />
+                                                                                ) : (
+                                                                                    <Mail className="w-3.5 h-3.5 text-brand-400" />
+                                                                                )}
+                                                                                Envoyer par email
                                                                             </button>
                                                                             <button
                                                                                 onClick={(e) => { e.stopPropagation(); handleCopyInvite(client); }}
@@ -596,6 +683,12 @@ Expertise & Stratégie Financière`;
                                                                                 <Copy className="w-3.5 h-3.5 text-slate-400" />
                                                                                 Copier l'invitation
                                                                             </button>
+                                                                            {client.invitationStatus?.lastSentAt && (
+                                                                                <p className="px-4 py-1 text-[10px] text-slate-400">
+                                                                                    Dernière invitation : {formatRelativeDate(client.invitationStatus.lastSentAt)}
+                                                                                    {client.invitationStatus.sentCount > 1 && ` (${client.invitationStatus.sentCount}x)`}
+                                                                                </p>
+                                                                            )}
                                                                         </>
                                                                     )}
 

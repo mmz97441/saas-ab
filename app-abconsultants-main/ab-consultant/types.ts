@@ -71,8 +71,23 @@ export interface Client {
   companyPhone?: string;
   owner: {
     name: string;
-    email: string; 
+    email: string;
     phone?: string;
+    registeredAt?: string;
+    lastLoginAt?: string;
+    loginCount?: number;
+    loginHistory?: Array<{
+      timestamp: string;
+      userAgent?: string;
+    }>;
+  };
+
+  // INVITATION TRACKING
+  invitationStatus?: {
+    lastSentAt?: string;
+    sentCount: number;
+    sentBy?: string;
+    method?: 'email' | 'manual';
   };
   assignedConsultantEmail?: string; 
   status: 'active' | 'inactive';
@@ -139,7 +154,10 @@ export type ActivityEventType =
   | 'status_changed'
   | 'invitation_sent'
   | 'collaborator_added'
-  | 'collaborator_revoked';
+  | 'collaborator_revoked'
+  | 'owner_first_login'
+  | 'owner_login'
+  | 'invitation_email_sent';
 
 export interface ActivityEvent {
   id: string;

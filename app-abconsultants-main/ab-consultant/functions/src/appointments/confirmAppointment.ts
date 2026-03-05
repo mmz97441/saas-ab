@@ -15,7 +15,7 @@ const db = admin.firestore();
  * Le token est vérifié, le statut du RDV passe à 'confirmed'.
  * Retourne une page HTML de confirmation.
  */
-export const confirmAppointment = functions.https.onRequest(async (req, res) => {
+export const confirmAppointment = functions.region('europe-west1').https.onRequest(async (req, res) => {
   const token = req.query.token as string;
 
   if (!token) {

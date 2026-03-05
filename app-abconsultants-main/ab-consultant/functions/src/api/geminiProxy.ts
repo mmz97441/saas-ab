@@ -11,7 +11,7 @@ import { checkRateLimit } from '../middleware/rateLimiter';
  * - Validation des entrées
  * - Logs serveur pour audit
  */
-export const askFinancialAdvisor = functions.https.onCall(async (data, context) => {
+export const askFinancialAdvisor = functions.region('europe-west1').https.onCall(async (data, context) => {
   // --- AUTH CHECK ---
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'Authentification requise.');

@@ -21,7 +21,7 @@ const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || 'nice.guillaume@gmail
  *    → Custom Claim: { role: 'client', clientId: '...' }
  * 3. Sinon → Supprimer le compte (non autorisé)
  */
-export const onUserCreated = functions.auth.user().onCreate(async (user) => {
+export const onUserCreated = functions.region('europe-west1').auth.user().onCreate(async (user) => {
   const email = user.email?.toLowerCase().trim();
   if (!email) {
     functions.logger.warn('User created without email, deleting.', { uid: user.uid });

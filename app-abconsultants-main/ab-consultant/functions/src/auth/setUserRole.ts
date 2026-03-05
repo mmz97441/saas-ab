@@ -21,7 +21,7 @@ const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || 'nice.guillaume@gmail
  * Seul un admin peut appeler cette fonction pour un autre utilisateur.
  * Un utilisateur peut appeler cette fonction pour lui-même (refresh).
  */
-export const setUserRole = functions.https.onCall(async (data, context) => {
+export const setUserRole = functions.region('europe-west1').https.onCall(async (data, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'Authentification requise.');
   }

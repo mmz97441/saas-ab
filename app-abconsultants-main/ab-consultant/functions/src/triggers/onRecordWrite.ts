@@ -15,7 +15,7 @@ const db = admin.firestore();
  * au lieu de faire 1 query par client pour récupérer le dernier record,
  * on lit simplement le champ `_stats` du client.
  */
-export const onRecordWrite = functions.firestore
+export const onRecordWrite = functions.region('europe-west1').firestore
   .document('records/{recordId}')
   .onWrite(async (change, context) => {
     const recordAfter = change.after.exists ? change.after.data() : null;

@@ -16,7 +16,7 @@ const db = admin.firestore();
  * Génère un token sécurisé, sauvegarde le RDV sur le document client,
  * et envoie un email de convocation avec liens Confirmer / Proposer autre date.
  */
-export const scheduleAppointment = functions.https.onCall(async (data, context) => {
+export const scheduleAppointment = functions.region('europe-west1').https.onCall(async (data, context) => {
   // Vérification auth + rôle consultant
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'Authentification requise.');

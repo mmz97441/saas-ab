@@ -14,7 +14,7 @@ const db = admin.firestore();
  * GET : Affiche une page HTML avec un formulaire date/heure
  * POST : Sauvegarde la proposition du client et notifie le consultant
  */
-export const proposeNewDate = functions.https.onRequest(async (req, res) => {
+export const proposeNewDate = functions.region('europe-west1').https.onRequest(async (req, res) => {
   const token = req.query.token as string || req.body?.token;
 
   if (!token) {

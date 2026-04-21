@@ -157,7 +157,8 @@ export type ActivityEventType =
   | 'collaborator_revoked'
   | 'owner_first_login'
   | 'owner_login'
-  | 'invitation_email_sent';
+  | 'invitation_email_sent'
+  | 'record_unlocked';
 
 export interface ActivityEvent {
   id: string;

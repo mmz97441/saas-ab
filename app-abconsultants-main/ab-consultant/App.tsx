@@ -282,9 +282,10 @@ const App: React.FC = () => {
       await refreshRecords();
   };
 
-  const toggleClientLock = async (record: FinancialRecord) => {
+  const unlockClientRecord = async (record: FinancialRecord) => {
       if (userRole !== 'ab_consultant') return;
-      await saveRecord({ ...record, isSubmitted: !record.isSubmitted });
+      await saveRecord({ ...record, isSubmitted: false, isValidated: false });
+      if (selectedClient) await logActivity(selectedClient.id, 'record_unlocked', `${record.month} ${record.year} déverrouillé pour le client`, { month: record.month, year: record.year });
       await refreshRecords();
   };
 
@@ -662,7 +663,7 @@ const App: React.FC = () => {
                         console.error('Export CSV error:', err);
                         showNotification(err?.message || 'Erreur lors de l\'export CSV.', 'error');
                     }
-                }} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onValidate={toggleValidation} onPublish={togglePublication} onLockToggle={toggleClientLock} onBulkValidate={handleBulkValidate} onBulkPublish={handleBulkPublish} onBulkDelete={handleBulkDelete} onImportExcel={() => setIsExcelImportOpen(true)}/>
+                }} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onValidate={toggleValidation} onPublish={togglePublication} onLockToggle={unlockClientRecord} onBulkValidate={handleBulkValidate} onBulkPublish={handleBulkPublish} onBulkDelete={handleBulkDelete} onImportExcel={() => setIsExcelImportOpen(true)}/>
                 </div>
             )}
 

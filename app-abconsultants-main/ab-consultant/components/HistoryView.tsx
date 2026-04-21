@@ -368,19 +368,19 @@ const HistoryView: React.FC<HistoryViewProps> = ({
                                                         </button>
 
                                                         {/* CLIENT UNLOCK BUTTON */}
-                                                        {record.isSubmitted && !record.isValidated && (
+                                                        {(record.isSubmitted || record.isValidated) && (
                                                             <button
                                                                 onClick={async () => {
                                                                     const ok = await confirm({
-                                                                        title: 'Déverrouiller le rapport ?',
-                                                                        message: 'Le client pourra modifier sa saisie.',
+                                                                        title: 'Redonner la main au client ?',
+                                                                        message: `Le rapport de ${record.month} ${record.year} sera déverrouillé. Le client pourra modifier ou compléter sa saisie.${record.isValidated ? '\n⚠️ Ce rapport est actuellement validé — il sera aussi dé-validé.' : ''}`,
                                                                         variant: 'default',
                                                                         confirmLabel: 'Déverrouiller',
                                                                     });
                                                                     if (ok) onLockToggle(record);
                                                                 }}
                                                                 className="p-2 rounded-lg bg-amber-100 text-amber-600 hover:bg-amber-200 transition"
-                                                                title="Déverrouiller pour le client"
+                                                                title="Redonner la main au client"
                                                             >
                                                                 <Unlock className="w-4 h-4" />
                                                             </button>

@@ -440,9 +440,22 @@ export const getRecordsByClient = async (clientId: string): Promise<FinancialRec
     }
 };
 
+const stripUndefined = (value: any): any => {
+    if (value === null || value === undefined) return value;
+    if (Array.isArray(value)) return value.map(stripUndefined);
+    if (typeof value === 'object') {
+        const cleaned: any = {};
+        for (const [key, v] of Object.entries(value)) {
+            if (v !== undefined) cleaned[key] = stripUndefined(v);
+        }
+        return cleaned;
+    }
+    return value;
+};
+
 export const saveRecord = async (record: FinancialRecord): Promise<void> => {
     try {
-        await setDoc(doc(db, COLL_RECORDS, record.id), record);
+        await setDoc(doc(db, COLL_RECORDS, record.id), stripUndefined(record));
     } catch (error: any) {
         console.error("Erreur sauvegarde record", error);
         throw new Error(error?.code === 'permission-denied' ? 'Permission refusée. Vérifiez vos droits.' : 'Impossible de sauvegarder les données. Vérifiez votre connexion.');

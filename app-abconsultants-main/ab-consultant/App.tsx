@@ -284,9 +284,15 @@ const App: React.FC = () => {
 
   const unlockClientRecord = async (record: FinancialRecord) => {
       if (userRole !== 'ab_consultant') return;
-      await saveRecord({ ...record, isSubmitted: false, isValidated: false });
-      if (selectedClient) await logActivity(selectedClient.id, 'record_unlocked', `${record.month} ${record.year} déverrouillé pour le client`, { month: record.month, year: record.year });
-      await refreshRecords();
+      try {
+          await saveRecord({ ...record, isSubmitted: false, isValidated: false });
+          if (selectedClient) await logActivity(selectedClient.id, 'record_unlocked', `${record.month} ${record.year} déverrouillé pour le client`, { month: record.month, year: record.year });
+          await refreshRecords();
+          showNotification(`Rapport de ${record.month} ${record.year} déverrouillé. Le client peut maintenant le modifier.`, 'success');
+      } catch (err: any) {
+          console.error('Erreur déverrouillage:', err);
+          showNotification(err?.message || 'Erreur lors du déverrouillage.', 'error');
+      }
   };
 
   // --- GESTION CLIENTS ---

@@ -321,6 +321,37 @@ const EntryForm: React.FC<EntryFormProps> = ({
         }
     }, [formData.year]);
 
+    // --- SMART DEFAULT MONTH: on mount without initialData, pick the most recent
+    // month (<= M-1) that has no submitted/validated record yet. Avoids landing on
+    // a locked month when M-1 has already been submitted.
+    const didSmartDefaultRef = useRef(false);
+    useEffect(() => {
+        if (initialData || didSmartDefaultRef.current) return;
+        didSmartDefaultRef.current = true;
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const maxIdx = now.getMonth() - 1;
+        if (maxIdx < 0) return;
+        const isTaken = (y: number, m: Month) => existingRecords.some(r => r.year === y && r.month === m && (r.isSubmitted || r.isValidated));
+        for (let i = maxIdx; i >= 0; i--) {
+            const candidate = MONTH_ORDER[i];
+            if (!isTaken(currentYear, candidate)) {
+                if (candidate !== formData.month || currentYear !== formData.year) {
+                    setFormData(prev => ({ ...prev, year: currentYear, month: candidate }));
+                }
+                return;
+            }
+        }
+        // Fallback: previous year, scan from December down
+        for (let i = 11; i >= 0; i--) {
+            const candidate = MONTH_ORDER[i];
+            if (!isTaken(currentYear - 1, candidate)) {
+                setFormData(prev => ({ ...prev, year: currentYear - 1, month: candidate }));
+                return;
+            }
+        }
+    }, [initialData, existingRecords]);
+
     // CHECK IF CLIENT IS INACTIVE
     const isClientInactive = clientStatus === 'inactive';
     const isLocked = userRole === 'client' && (formData.isValidated || formData.isSubmitted || isClientInactive);
@@ -910,7 +941,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                             <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Mois</label>
                             <div className="relative">
                                 <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
-                                <select value={formData.month} onChange={(e) => setFormData({...formData, month: e.target.value as Month})} disabled={isLocked} className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 bg-white font-bold text-slate-700 focus:ring-2 focus:ring-brand-500 disabled:bg-slate-100 disabled:text-slate-500">
+                                <select value={formData.month} onChange={(e) => setFormData({...formData, month: e.target.value as Month})} className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 bg-white font-bold text-slate-700 focus:ring-2 focus:ring-brand-500">
                                     {MONTH_ORDER.map((m, idx) => {
                                         const now = new Date();
                                         const isFutureMonth = formData.year === now.getFullYear() && idx >= now.getMonth();
@@ -922,7 +953,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Année</label>
-                            <select value={formData.year} onChange={(e) => setFormData({...formData, year: parseInt(e.target.value)})} disabled={isLocked} className="w-full px-4 py-2 rounded-lg border border-slate-300 bg-white font-bold text-slate-700 focus:ring-2 focus:ring-brand-500 disabled:bg-slate-100 disabled:text-slate-500">
+                            <select value={formData.year} onChange={(e) => setFormData({...formData, year: parseInt(e.target.value)})} className="w-full px-4 py-2 rounded-lg border border-slate-300 bg-white font-bold text-slate-700 focus:ring-2 focus:ring-brand-500">
                                 {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(y => <option key={y} value={y}>{y}</option>)}
                             </select>
                         </div>

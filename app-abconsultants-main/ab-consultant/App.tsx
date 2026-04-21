@@ -374,6 +374,45 @@ const App: React.FC = () => {
       await refreshClients();
   };
 
+  const handleUpdateRevenueObjective = async (value: number) => {
+      if (userRole !== 'ab_consultant' || !selectedClient) return;
+      const updated = { ...selectedClient, settings: { ...selectedClient.settings!, revenueObjective: value }};
+      await saveClient(updated);
+      setSelectedClient(updated);
+
+      // Ask whether to apply to past months too
+      const now = new Date();
+      const currentMonthIdx = now.getMonth() - 1; // M-1
+      const currentYear = now.getFullYear();
+      const applyToPast = await confirm({
+          title: 'Appliquer aux mois précédents ?',
+          message: `Voulez-vous aussi mettre à jour l'objectif des rapports déjà saisis (mois passés) ?\n\nSi non, seuls le mois en cours et les futurs rapports utiliseront le nouvel objectif.`,
+          variant: 'info',
+          confirmLabel: 'Tous les mois',
+          cancelLabel: 'Mois en cours et suivants',
+      });
+
+      const toUpdate = data.filter(r => {
+          if (r.revenue.objective === value) return false;
+          if (applyToPast) return true;
+          // Only current month and forward: same year >= current month index, or future years
+          const monthIdx = MONTH_ORDER.indexOf(r.month);
+          if (r.year > currentYear) return true;
+          if (r.year === currentYear && monthIdx >= currentMonthIdx) return true;
+          return false;
+      });
+
+      for (const record of toUpdate) {
+          await saveRecord({ ...record, revenue: { ...record.revenue, objective: value } });
+      }
+      await refreshRecords();
+      await refreshClients();
+      const msg = toUpdate.length > 0
+          ? `Objectif CA mis à jour (${toUpdate.length} rapport(s) mis à jour).`
+          : 'Objectif CA mensuel enregistré.';
+      showNotification(msg, 'success');
+  };
+
   const handleUpdateClientStatus = async (client: Client, newStatus: 'active' | 'inactive') => {
       if (userRole !== 'ab_consultant') return;
       if (statusModal.isOpen) setStatusModal({ isOpen: false, client: null });
@@ -653,7 +692,7 @@ const App: React.FC = () => {
 
             {currentView === View.Entry && selectedClient && (
                 <div key="entry" className="animate-in fade-in duration-200">
-                <EntryForm clientId={selectedClient.id} initialData={editingRecord} existingRecords={data} profitCenters={selectedClient.profitCenters || []} showCommercialMargin={selectedClient.settings?.showCommercialMargin ?? true} showFuelTracking={selectedClient.settings?.showFuelTracking ?? false} onSave={handleSaveRecord} onCancel={() => { setEditingRecord(null); setCurrentView(View.History); }} userRole={userRole} defaultFuelObjectives={selectedClient.settings?.fuelObjectives} clientStatus={selectedClient.status} onImportExcel={() => setIsExcelImportOpen(true)} currentUserEmail={currentUserEmail}/>
+                <EntryForm clientId={selectedClient.id} initialData={editingRecord} existingRecords={data} profitCenters={selectedClient.profitCenters || []} showCommercialMargin={selectedClient.settings?.showCommercialMargin ?? true} showFuelTracking={selectedClient.settings?.showFuelTracking ?? false} onSave={handleSaveRecord} onCancel={() => { setEditingRecord(null); setCurrentView(View.History); }} userRole={userRole} defaultFuelObjectives={selectedClient.settings?.fuelObjectives} defaultRevenueObjective={selectedClient.settings?.revenueObjective} clientStatus={selectedClient.status} onImportExcel={() => setIsExcelImportOpen(true)} currentUserEmail={currentUserEmail}/>
                 </div>
             )}
 
@@ -675,7 +714,7 @@ const App: React.FC = () => {
 
             {currentView === View.Settings && userRole === 'ab_consultant' && selectedClient && (
                 <div key="settings" className="animate-in fade-in duration-200">
-                <SettingsView client={selectedClient} onUpdateClientSettings={handleUpdateClientSettings} onUpdateProfitCenters={handleUpdateProfitCenters} onUpdateFuelObjectives={handleUpdateFuelObjectives} onUpdateClientStatus={(c, s) => { setStatusModal({isOpen: true, client: c}); }} onResetDatabase={handleResetDatabase} onToggleFuelModule={handleToggleFuelModule} onToggleCommercialMargin={handleToggleCommercialMargin} />
+                <SettingsView client={selectedClient} onUpdateClientSettings={handleUpdateClientSettings} onUpdateProfitCenters={handleUpdateProfitCenters} onUpdateFuelObjectives={handleUpdateFuelObjectives} onUpdateRevenueObjective={handleUpdateRevenueObjective} onUpdateClientStatus={(c, s) => { setStatusModal({isOpen: true, client: c}); }} onResetDatabase={handleResetDatabase} onToggleFuelModule={handleToggleFuelModule} onToggleCommercialMargin={handleToggleCommercialMargin} />
                 </div>
             )}
             

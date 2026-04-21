@@ -96,7 +96,8 @@ export interface Client {
   settings?: {
     showCommercialMargin: boolean;
     showFuelTracking?: boolean;
-    fuelObjectives?: { 
+    revenueObjective?: number;
+    fuelObjectives?: {
         gasoil: number;
         sansPlomb: number;
         gnr: number;

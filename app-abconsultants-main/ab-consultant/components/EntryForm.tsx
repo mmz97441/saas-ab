@@ -197,6 +197,7 @@ interface EntryFormProps {
   showFuelTracking: boolean;
   userRole: 'ab_consultant' | 'client';
   defaultFuelObjectives?: { gasoil: number; sansPlomb: number; gnr: number };
+  defaultRevenueObjective?: number;
   clientStatus?: 'active' | 'inactive';
   onImportExcel?: () => void;
   currentUserEmail?: string | null;
@@ -213,6 +214,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
   showFuelTracking,
   userRole,
   defaultFuelObjectives,
+  defaultRevenueObjective,
   clientStatus = 'active',
   onImportExcel,
   currentUserEmail
@@ -244,15 +246,15 @@ const EntryForm: React.FC<EntryFormProps> = ({
             month: defaultMonth,
             isValidated: false,
             isPublished: false,
-            revenue: { goods: 0, services: 0, total: 0, objective: 0, breakdown: {} },
-            fuel: { 
-                volume: 0, 
-                objective: totalFuelObj, 
-                details: { 
-                    gasoil: { volume: 0, objective: fuelObjs.gasoil || 0 }, 
-                    sansPlomb: { volume: 0, objective: fuelObjs.sansPlomb || 0 }, 
-                    gnr: { volume: 0, objective: fuelObjs.gnr || 0 } 
-                } 
+            revenue: { goods: 0, services: 0, total: 0, objective: defaultRevenueObjective || 0, breakdown: {} },
+            fuel: {
+                volume: 0,
+                objective: totalFuelObj,
+                details: {
+                    gasoil: { volume: 0, objective: fuelObjs.gasoil || 0 },
+                    sansPlomb: { volume: 0, objective: fuelObjs.sansPlomb || 0 },
+                    gnr: { volume: 0, objective: fuelObjs.gnr || 0 }
+                }
             },
             margin: { rate: 0, total: 0, breakdown: {} },
             expenses: { salaries: 0, hoursWorked: 0, overtimeHours: 0 },
@@ -269,11 +271,13 @@ const EntryForm: React.FC<EntryFormProps> = ({
     // --- AUTO-LOAD DATA LOGIC ---
     useEffect(() => {
         const match = existingRecords.find(r => r.year === formData.year && r.month === formData.month);
-        
+
         if (match) {
-            setFormData(prev => ({
-                ...JSON.parse(JSON.stringify(match))
-            }));
+            const loaded = JSON.parse(JSON.stringify(match));
+            if (!loaded.revenue.objective && defaultRevenueObjective) {
+                loaded.revenue.objective = defaultRevenueObjective;
+            }
+            setFormData(loaded);
         } else {
             const fuelObjs = defaultFuelObjectives || { gasoil: 0, sansPlomb: 0, gnr: 0 };
             const totalFuelObj = (fuelObjs.gasoil || 0) + (fuelObjs.sansPlomb || 0) + (fuelObjs.gnr || 0);
@@ -286,15 +290,15 @@ const EntryForm: React.FC<EntryFormProps> = ({
                 isValidated: false,
                 isPublished: false,
                 isSubmitted: false,
-                revenue: { goods: 0, services: 0, total: 0, objective: 0, breakdown: {} },
-                fuel: { 
-                    volume: 0, 
-                    objective: totalFuelObj, 
-                    details: { 
-                        gasoil: { volume: 0, objective: fuelObjs.gasoil || 0 }, 
-                        sansPlomb: { volume: 0, objective: fuelObjs.sansPlomb || 0 }, 
-                        gnr: { volume: 0, objective: fuelObjs.gnr || 0 } 
-                    } 
+                revenue: { goods: 0, services: 0, total: 0, objective: defaultRevenueObjective || 0, breakdown: {} },
+                fuel: {
+                    volume: 0,
+                    objective: totalFuelObj,
+                    details: {
+                        gasoil: { volume: 0, objective: fuelObjs.gasoil || 0 },
+                        sansPlomb: { volume: 0, objective: fuelObjs.sansPlomb || 0 },
+                        gnr: { volume: 0, objective: fuelObjs.gnr || 0 }
+                    }
                 },
                 margin: { rate: 0, total: 0, breakdown: {} },
                 expenses: { salaries: 0, hoursWorked: 0, overtimeHours: 0 },
@@ -307,7 +311,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                 cashFlow: { active: 0, passive: 0, treasury: 0 }
             }));
         }
-    }, [formData.year, formData.month, existingRecords, clientId, defaultFuelObjectives]);
+    }, [formData.year, formData.month, existingRecords, clientId, defaultFuelObjectives, defaultRevenueObjective]);
 
     // --- M-1 AUTO-CORRECTION: if year is current and month is in the future, snap back ---
     useEffect(() => {
@@ -1084,8 +1088,11 @@ const EntryForm: React.FC<EntryFormProps> = ({
                              <div className="flex-1">
                                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Objectif CA Mensuel</label>
                                  <div className="max-w-xs border border-slate-300 rounded-lg overflow-hidden">
-                                     <SmartTableInput value={formData.revenue.objective || 0} onChange={(val: number) => handleChange('revenue', 'objective', val)} disabled={isLocked} placeholder="Objectif €" align="left" />
+                                     <SmartTableInput value={formData.revenue.objective || 0} onChange={(val: number) => handleChange('revenue', 'objective', val)} disabled={isLocked || userRole === 'client'} placeholder="Objectif €" align="left" />
                                  </div>
+                                 {userRole === 'client' && formData.revenue.objective > 0 && (
+                                     <p className="text-[11px] text-slate-400 mt-1">Défini par votre consultant</p>
+                                 )}
                              </div>
                         </div>
                     </SectionCard>

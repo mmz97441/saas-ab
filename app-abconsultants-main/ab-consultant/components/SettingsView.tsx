@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Settings, Building, Lock, ShoppingBag, Plus, Trash2, Save, Droplets, AlertTriangle, Power, MapPin, Phone, Percent, PieChart, ChevronDown, Calendar } from 'lucide-react';
+import { Settings, Building, Lock, ShoppingBag, Plus, Trash2, Save, Droplets, AlertTriangle, Power, MapPin, Phone, Percent, PieChart, ChevronDown, Calendar, Target } from 'lucide-react';
 import { Client, ProfitCenter } from '../types';
 import { useConfirmDialog } from '../contexts/ConfirmContext';
 
@@ -35,6 +35,7 @@ interface SettingsViewProps {
     onUpdateClientSettings: (fields: ClientAdminFields) => void;
     onUpdateProfitCenters: (pcs: ProfitCenter[]) => void;
     onUpdateFuelObjectives: (objectives: { gasoil: number, sansPlomb: number, gnr: number }) => void;
+    onUpdateRevenueObjective: (value: number) => void;
     onUpdateClientStatus: (client: Client, newStatus: 'active' | 'inactive') => void;
     onResetDatabase: () => void;
     onToggleFuelModule: () => void;
@@ -46,6 +47,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
     onUpdateClientSettings,
     onUpdateProfitCenters,
     onUpdateFuelObjectives,
+    onUpdateRevenueObjective,
     onUpdateClientStatus,
     onResetDatabase,
     onToggleFuelModule,
@@ -55,6 +57,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
     const [isEditingSettings, setIsEditingSettings] = useState(false);
     const [settingsProfitCenters, setSettingsProfitCenters] = useState<ProfitCenter[]>(client.profitCenters || []);
     const [settingsFuelObjectives, setSettingsFuelObjectives] = useState(client.settings?.fuelObjectives || { gasoil: 0, sansPlomb: 0, gnr: 0 });
+    const [settingsRevenueObjective, setSettingsRevenueObjective] = useState(client.settings?.revenueObjective || 0);
 
     // Controlled form state for admin fields
     const buildFormValues = (c: Client): ClientAdminFields => ({
@@ -74,11 +77,13 @@ const SettingsView: React.FC<SettingsViewProps> = ({
     // Track dirty state for unsaved changes warning
     const isProfitCentersDirty = JSON.stringify(settingsProfitCenters) !== JSON.stringify(client.profitCenters || []);
     const isFuelObjectivesDirty = JSON.stringify(settingsFuelObjectives) !== JSON.stringify(client.settings?.fuelObjectives || { gasoil: 0, sansPlomb: 0, gnr: 0 });
+    const isRevenueObjectiveDirty = settingsRevenueObjective !== (client.settings?.revenueObjective || 0);
 
     // Sync ALL local state when client changes (navigation or after save)
     useEffect(() => {
         setSettingsProfitCenters(client.profitCenters || []);
         setSettingsFuelObjectives(client.settings?.fuelObjectives || { gasoil: 0, sansPlomb: 0, gnr: 0 });
+        setSettingsRevenueObjective(client.settings?.revenueObjective || 0);
         setFormValues(buildFormValues(client));
         setIsEditingSettings(false);
     }, [client]);
@@ -293,6 +298,40 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                          Module désactivé. Seul le Chiffre d'Affaires sera suivi.
                     </div>
                 )}
+            </div>
+
+            {/* 2.6 OBJECTIF CA MENSUEL */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="p-4 bg-emerald-50 border-b border-emerald-100 flex justify-between items-center">
+                    <h3 className="font-bold text-emerald-900 flex items-center gap-2">
+                        <Target className="w-4 h-4" /> Objectif CA Mensuel
+                        {isRevenueObjectiveDirty && <span className="text-[11px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full animate-pulse">Non sauvegardé</span>}
+                    </h3>
+                </div>
+                <div className="p-6">
+                    <p className="text-sm text-slate-500 mb-4">
+                        Définissez l'objectif de chiffre d'affaires mensuel pour ce client. Cette valeur sera appliquée automatiquement à chaque mois.
+                        Le client ne peut pas modifier cet objectif.
+                    </p>
+                    <div className="max-w-xs">
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Objectif CA / mois (€)</label>
+                        <input
+                            type="number"
+                            value={settingsRevenueObjective || ''}
+                            onChange={(e) => setSettingsRevenueObjective(parseFloat(e.target.value) || 0)}
+                            placeholder="Ex: 50000"
+                            className="w-full p-2 border border-slate-300 rounded font-bold text-emerald-900"
+                        />
+                    </div>
+                    <div className="mt-4 flex justify-end">
+                        <button
+                            onClick={() => onUpdateRevenueObjective(settingsRevenueObjective)}
+                            className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 font-bold shadow-sm transition flex items-center gap-2"
+                        >
+                            <Save className="w-4 h-4" /> Enregistrer l'objectif
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {/* 2. CENTRES DE PROFIT CONFIG */}

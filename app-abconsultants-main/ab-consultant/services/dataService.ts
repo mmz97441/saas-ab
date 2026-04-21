@@ -315,7 +315,14 @@ export const getClients = async (filterByEmail?: string | null): Promise<Client[
 
 export const saveClient = async (client: Client): Promise<void> => {
     try {
-        await setDoc(doc(db, COLL_CLIENTS, client.id), client);
+        // Dénormalise la liste des emails des collaborateurs actifs pour permettre
+        // aux règles Firestore de les vérifier (un in sur un tableau de strings).
+        const collaboratorEmails = (client.collaborators || [])
+            .filter(c => c.status === 'active' && !!c.email)
+            .map(c => c.email.toLowerCase().trim());
+
+        const payload = stripUndefined({ ...client, collaboratorEmails });
+        await setDoc(doc(db, COLL_CLIENTS, client.id), payload);
     } catch (error: any) {
         console.error("Erreur sauvegarde client", error);
         throw new Error(error?.code === 'permission-denied' ? 'Permission refusée. Vérifiez vos droits.' : 'Impossible de sauvegarder le dossier. Vérifiez votre connexion.');

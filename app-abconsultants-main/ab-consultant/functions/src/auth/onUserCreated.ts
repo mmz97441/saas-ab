@@ -124,7 +124,14 @@ export const onUserCreated = functions.region('europe-west1').auth.user().onCrea
             ? { ...c, acceptedAt: c.acceptedAt || new Date().toISOString(), lastLoginAt: new Date().toISOString() }
             : c
         );
-        await clientDoc.ref.update({ collaborators: updatedCollaborators });
+        // Maintain denormalized collaboratorEmails for Firestore rules (required by audit fix).
+        const collaboratorEmails = updatedCollaborators
+          .filter((c: any) => c.status === 'active' && c.email)
+          .map((c: any) => c.email.toLowerCase().trim());
+        await clientDoc.ref.update({
+          collaborators: updatedCollaborators,
+          collaboratorEmails,
+        });
 
         functions.logger.info('Custom claims set: client (collaborator)', {
           email,

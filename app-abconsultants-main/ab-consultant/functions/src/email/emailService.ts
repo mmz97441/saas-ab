@@ -19,9 +19,10 @@ function getTransporter(): nodemailer.Transporter {
     transporter = nodemailer.createTransport({
       host,
       port,
-      secure: false, // STARTTLS
+      secure: port === 465,
+      requireTLS: port !== 465,
       auth: { user, pass },
-      tls: { ciphers: 'SSLv3', rejectUnauthorized: false },
+      tls: { minVersion: 'TLSv1.2', rejectUnauthorized: true },
     });
   }
   return transporter;
@@ -31,6 +32,13 @@ export interface SendMailOptions {
   to: string;
   subject: string;
   html: string;
+}
+
+function sanitizeHtml(html: string): string {
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, '')
+    .replace(/javascript\s*:/gi, '');
 }
 
 export async function sendMail(options: SendMailOptions): Promise<boolean> {
@@ -46,7 +54,7 @@ export async function sendMail(options: SendMailOptions): Promise<boolean> {
       from: `"AB Consultants" <${from}>`,
       to: options.to,
       subject: options.subject,
-      html: options.html,
+      html: sanitizeHtml(options.html),
     });
     functions.logger.info('Email envoyé', { to: options.to, subject: options.subject });
     return true;

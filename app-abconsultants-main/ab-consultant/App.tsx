@@ -270,16 +270,28 @@ const App: React.FC = () => {
 
   const toggleValidation = async (record: FinancialRecord) => {
       if (userRole !== 'ab_consultant') return;
-      await saveRecord({ ...record, isValidated: !record.isValidated });
-      if (selectedClient) await logActivity(selectedClient.id, 'data_validated', `${record.month} ${record.year} ${!record.isValidated ? 'validé' : 'dé-validé'}`, { month: record.month, year: record.year });
-      await refreshRecords();
+      try {
+          await saveRecord({ ...record, isValidated: !record.isValidated });
+          if (selectedClient) await logActivity(selectedClient.id, 'data_validated', `${record.month} ${record.year} ${!record.isValidated ? 'validé' : 'dé-validé'}`, { month: record.month, year: record.year });
+          await refreshRecords();
+          showNotification(`${record.month} ${record.year} ${!record.isValidated ? 'validé' : 'dé-validé'}.`, 'success');
+      } catch (err: any) {
+          console.error('Erreur validation:', err);
+          showNotification(err?.message || 'Erreur lors de la validation.', 'error');
+      }
   };
 
   const togglePublication = async (record: FinancialRecord) => {
       if (userRole !== 'ab_consultant') return;
-      await saveRecord({ ...record, isPublished: !record.isPublished });
-      if (selectedClient) await logActivity(selectedClient.id, 'data_published', `${record.month} ${record.year} ${!record.isPublished ? 'publié' : 'dé-publié'}`, { month: record.month, year: record.year });
-      await refreshRecords();
+      try {
+          await saveRecord({ ...record, isPublished: !record.isPublished });
+          if (selectedClient) await logActivity(selectedClient.id, 'data_published', `${record.month} ${record.year} ${!record.isPublished ? 'publié' : 'dé-publié'}`, { month: record.month, year: record.year });
+          await refreshRecords();
+          showNotification(`${record.month} ${record.year} ${!record.isPublished ? 'publié' : 'masqué'}.`, 'success');
+      } catch (err: any) {
+          console.error('Erreur publication:', err);
+          showNotification(err?.message || 'Erreur lors de la publication.', 'error');
+      }
   };
 
   const unlockClientRecord = async (record: FinancialRecord) => {

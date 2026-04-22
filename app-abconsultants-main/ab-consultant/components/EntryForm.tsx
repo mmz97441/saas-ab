@@ -161,15 +161,22 @@ const SectionCard = ({ children, className = "", id }: { children?: React.ReactN
     </div>
 );
 
-const SectionHeader = ({ number, title, icon: Icon, colorClass = "text-brand-700", bgClass = "bg-brand-100" }: any) => (
-    <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-        <div className={`w-8 h-8 rounded-lg ${bgClass} ${colorClass} flex items-center justify-center text-sm font-bold shadow-sm`}>
-            {number}
+const SectionHeader = ({ number, title, icon: Icon, colorClass = "text-brand-700", bgClass = "bg-brand-100", subtitle, hideNumber }: any) => (
+    <div className="mb-6 pb-4 border-b border-slate-100">
+        <div className="flex items-center gap-3">
+            {!hideNumber && (
+                <div className={`w-8 h-8 rounded-lg ${bgClass} ${colorClass} flex items-center justify-center text-sm font-bold shadow-sm`}>
+                    {number}
+                </div>
+            )}
+            <h3 className={`text-lg font-bold ${colorClass} flex items-center gap-2`}>
+                <Icon className="w-5 h-5 opacity-80" />
+                {title}
+            </h3>
         </div>
-        <h3 className={`text-lg font-bold ${colorClass} flex items-center gap-2`}>
-            <Icon className="w-5 h-5 opacity-80" />
-            {title}
-        </h3>
+        {subtitle && (
+            <p className="text-sm text-slate-500 mt-2 ml-0">{subtitle}</p>
+        )}
     </div>
 );
 
@@ -880,7 +887,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                     ];
                     return (
                         <>
-                            <div className="flex items-center justify-between gap-3 mb-2">
+                            <div className="flex items-center justify-between gap-3 mb-3">
                                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                                     {stepMode ? `Étape ${Math.min(currentStep + 1, labels.length)} / ${labels.length} — ${labels[currentStep] || ''}` : 'Progression'}
                                 </span>
@@ -894,32 +901,47 @@ const EntryForm: React.FC<EntryFormProps> = ({
                                     </button>
                                 )}
                             </div>
-                            <div className="flex items-center gap-1">
-                                {labels.map((label, i) => (
-                                    <button
-                                        key={i}
-                                        type="button"
-                                        onClick={() => {
-                                            if (stepMode) {
-                                                setCurrentStep(i);
-                                            } else {
-                                                document.getElementById(sectionIds[i])?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                            }
-                                        }}
-                                        className="flex-1 flex flex-col items-center gap-0.5 group cursor-pointer"
-                                    >
-                                        <div className={`h-1.5 w-full rounded-full transition-colors ${
-                                            stepMode && i === currentStep ? 'bg-brand-600' :
-                                            filled[i] ? 'bg-brand-500' :
-                                            'bg-slate-200 group-hover:bg-brand-300'
-                                        }`} />
-                                        <span className={`text-[11px] font-bold transition-colors ${
-                                            stepMode && i === currentStep ? 'text-brand-700' :
-                                            filled[i] ? 'text-brand-600' :
-                                            'text-slate-400 group-hover:text-brand-500'
-                                        }`}>{label}</span>
-                                    </button>
-                                ))}
+                            <div className="flex items-center">
+                                {labels.map((label, i) => {
+                                    const isDone = stepMode ? i < currentStep : filled[i];
+                                    const isCurrent = stepMode && i === currentStep;
+                                    const isTodo = !isDone && !isCurrent;
+                                    return (
+                                        <React.Fragment key={i}>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (stepMode) {
+                                                        setCurrentStep(i);
+                                                    } else {
+                                                        document.getElementById(sectionIds[i])?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                    }
+                                                }}
+                                                className="flex flex-col items-center gap-1.5 group cursor-pointer shrink-0"
+                                            >
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold transition-all ${
+                                                    isCurrent ? 'bg-brand-600 text-white ring-4 ring-brand-100 shadow-md' :
+                                                    isDone ? 'bg-brand-500 text-white' :
+                                                    'bg-slate-200 text-slate-500 group-hover:bg-brand-100 group-hover:text-brand-600'
+                                                }`}>
+                                                    {isDone ? <CheckCircle className="w-4 h-4" /> : i + 1}
+                                                </div>
+                                                <span className={`text-[11px] font-bold transition-colors whitespace-nowrap ${
+                                                    isCurrent ? 'text-brand-700' :
+                                                    isDone ? 'text-brand-600' :
+                                                    'text-slate-400 group-hover:text-brand-500'
+                                                }`}>{label}</span>
+                                            </button>
+                                            {i < labels.length - 1 && (
+                                                <div className={`flex-1 h-0.5 mx-2 mb-5 rounded-full transition-colors ${
+                                                    i < currentStep && stepMode ? 'bg-brand-500' :
+                                                    !stepMode && filled[i] ? 'bg-brand-500' :
+                                                    'bg-slate-200'
+                                                }`} />
+                                            )}
+                                        </React.Fragment>
+                                    );
+                                })}
                             </div>
                         </>
                     );
@@ -979,7 +1001,14 @@ const EntryForm: React.FC<EntryFormProps> = ({
                     </div>
                 )}
 
-                <SectionCard className="mb-6 border-l-4 border-l-brand-500">
+                {stepMode && currentStep > 0 && (
+                    <div className="mb-4 inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-3 py-1.5 shadow-sm">
+                        <Calendar className="w-3.5 h-3.5 text-brand-600" />
+                        <span className="text-xs font-bold text-slate-700">{formData.month} {formData.year}</span>
+                    </div>
+                )}
+
+                <SectionCard className={`mb-6 border-l-4 border-l-brand-500 ${stepMode && currentStep > 0 ? 'hidden' : ''}`}>
                     <div className="grid grid-cols-2 gap-6">
                         <div>
                             <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Mois</label>
@@ -1023,7 +1052,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                 <div className="space-y-6">
                     <div className={stepMode && currentStep !== 0 ? 'hidden' : ''}>
                     <SectionCard className="scroll-mt-20" id="section-activite">
-                        <SectionHeader number="1" title="Activité & Rentabilité" icon={ShoppingBag} />
+                        <SectionHeader number="1" title="Activité & Rentabilité" icon={ShoppingBag} hideNumber={stepMode} subtitle={stepMode ? "Indiquez votre chiffre d'affaires du mois et, si applicable, votre marge commerciale." : undefined} />
                         {/* CONDITIONAL GRID COLUMNS BASED ON MARGIN VISIBILITY */}
                         <div className={`grid grid-cols-1 ${showCommercialMargin ? 'md:grid-cols-3' : 'md:grid-cols-1 md:w-1/2 md:mx-auto'} gap-6 mb-8 p-4 bg-slate-50 rounded-xl border border-slate-200`}>
                             <div className={`flex flex-col items-center ${showCommercialMargin ? 'border-b md:border-b-0 md:border-r border-slate-200 pb-4 md:pb-0' : ''}`}>
@@ -1142,7 +1171,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                     {showFuelTracking && (
                         <div className={stepMode && currentStep !== 1 ? 'hidden' : ''}>
                         <SectionCard className="scroll-mt-20" id="section-carburant">
-                            <SectionHeader number="2" title="Carburant (Litrage)" icon={Droplets} colorClass="text-blue-700" bgClass="bg-blue-100" />
+                            <SectionHeader number="2" title="Carburant (Litrage)" icon={Droplets} colorClass="text-blue-700" bgClass="bg-blue-100" hideNumber={stepMode} subtitle={stepMode ? "Renseignez les volumes de carburant consommés sur le mois (en litres)." : undefined} />
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                                 <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
                                      <SmartNumberInput label="Gasoil (L)" value={formData.fuel?.details?.gasoil.volume} onChange={(v: number) => handleChange('fuel', 'gasoil', v, 'volume')} disabled={isLocked} suffix="L" n1Value={comparisonRecord?.fuel?.details?.gasoil.volume} className="border-slate-300 focus:ring-blue-500" />
@@ -1159,7 +1188,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
 
                     <div className={stepMode && currentStep !== (showFuelTracking ? 2 : 1) ? 'hidden' : ''}>
                     <SectionCard className="scroll-mt-20" id="section-charges">
-                        <SectionHeader number={2 + (showFuelTracking ? 1 : 0)} title="Charges & Productivité" icon={Users} colorClass="text-orange-700" bgClass="bg-orange-100" />
+                        <SectionHeader number={2 + (showFuelTracking ? 1 : 0)} title="Charges & Productivité" icon={Users} colorClass="text-orange-700" bgClass="bg-orange-100" hideNumber={stepMode} subtitle={stepMode ? "Masse salariale totale (salaires bruts + charges) et heures travaillées sur le mois." : undefined} />
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                             <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                                 <SmartNumberInput label="Masse Salariale Chargée" value={formData.expenses.salaries} onChange={(v: number) => handleChange('expenses', 'salaries', v)} disabled={isLocked} definition={DEFINITIONS.salaries} n1Value={comparisonRecord?.expenses.salaries} />
@@ -1177,7 +1206,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
 
                     <div className={stepMode && currentStep !== (showFuelTracking ? 3 : 2) ? 'hidden' : ''}>
                     <SectionCard className="scroll-mt-20" id="section-bfr">
-                        <SectionHeader number={3 + (showFuelTracking ? 1 : 0)} title="BFR (Besoin en Fonds de Roulement)" icon={Scale} colorClass="text-cyan-700" bgClass="bg-cyan-100" />
+                        <SectionHeader number={3 + (showFuelTracking ? 1 : 0)} title="BFR (Besoin en Fonds de Roulement)" icon={Scale} colorClass="text-cyan-700" bgClass="bg-cyan-100" hideNumber={stepMode} subtitle={stepMode ? "Ce que vos clients vous doivent (à gauche) et ce que vous devez à vos fournisseurs / État / URSSAF (à droite)." : undefined} />
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
                              <div className="space-y-4">
                                 <div className="flex items-center gap-2 text-cyan-700 border-b border-cyan-100 pb-2"><div className="p-1.5 bg-cyan-100 rounded-lg"><ArrowUpCircle className="w-4 h-4" /></div><span className="font-bold text-sm uppercase tracking-wide">Actif Circulant</span></div>
@@ -1201,7 +1230,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
 
                     <div className={stepMode && currentStep !== (showFuelTracking ? 4 : 3) ? 'hidden' : ''}>
                     <SectionCard className={`scroll-mt-20 ${isLocked ? "opacity-90 grayscale-[0.2]" : ""}`} id="section-tresorerie">
-                        <SectionHeader number={4 + (showFuelTracking ? 1 : 0)} title="Situation de Trésorerie" icon={Landmark} colorClass="text-brand-700" bgClass="bg-brand-100" />
+                        <SectionHeader number={4 + (showFuelTracking ? 1 : 0)} title="Situation de Trésorerie" icon={Landmark} colorClass="text-brand-700" bgClass="bg-brand-100" hideNumber={stepMode} subtitle={stepMode ? "Soldes bancaires à la fin du mois : vos disponibilités (comptes positifs) et vos concours (découverts)." : undefined} />
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
                             <div className="space-y-4">
                                 <div className="flex items-center gap-2 text-emerald-700 border-b border-emerald-100 pb-2"><div className="p-1.5 bg-emerald-100 rounded-lg"><TrendingUp className="w-4 h-4" /></div><span className="font-bold text-sm uppercase tracking-wide">Disponibilités</span></div>

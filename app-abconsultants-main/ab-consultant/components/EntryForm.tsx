@@ -361,6 +361,14 @@ const EntryForm: React.FC<EntryFormProps> = ({
     const isLocked = userRole === 'client' && (formData.isValidated || formData.isSubmitted || isClientInactive);
     const isAdminOverride = userRole === 'ab_consultant' && (formData.isValidated || formData.isSubmitted || isClientInactive);
 
+    // --- STEPPER MODE (guided wizard) ---
+    // Clients get the step-by-step view by default, consultants get the full page.
+    const [stepMode, setStepMode] = useState<boolean>(userRole === 'client' && !isLocked);
+    const [currentStep, setCurrentStep] = useState<number>(0);
+    useEffect(() => {
+        if (isLocked) setStepMode(false);
+    }, [isLocked]);
+
     const comparisonRecord = useMemo(() => {
         return existingRecords.find(r => r.year === formData.year - 1 && r.month === formData.month);
     }, [existingRecords, formData.year, formData.month]);
@@ -860,30 +868,62 @@ const EntryForm: React.FC<EntryFormProps> = ({
 
             {/* SECTION NAVIGATOR (clickable stepper) */}
             <div className="px-6 pt-3 pb-2 bg-white border-b border-slate-100 print:hidden sticky top-0 z-10 shadow-sm">
-                <div className="flex items-center gap-1">
-                    {(() => {
-                        const sectionIds = ['section-activite', ...(showFuelTracking ? ['section-carburant'] : []), 'section-charges', 'section-bfr', 'section-tresorerie'];
-                        const labels = ['Activité', ...(showFuelTracking ? ['Carburant'] : []), 'Charges', 'BFR', 'Trésorerie'];
-                        const filled = [
-                            formData.revenue.total > 0 || (formData.margin?.total || 0) > 0,
-                            ...(showFuelTracking ? [(formData.fuel?.volume || 0) > 0] : []),
-                            formData.expenses.salaries > 0 || formData.expenses.hoursWorked > 0,
-                            formData.bfr.receivables.total > 0 || formData.bfr.debts.total > 0 || formData.bfr.stock.total > 0,
-                            formData.cashFlow.active > 0 || formData.cashFlow.passive > 0,
-                        ];
-                        return labels.map((label, i) => (
-                            <button
-                                key={i}
-                                type="button"
-                                onClick={() => document.getElementById(sectionIds[i])?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                                className="flex-1 flex flex-col items-center gap-0.5 group cursor-pointer"
-                            >
-                                <div className={`h-1.5 w-full rounded-full transition-colors ${filled[i] ? 'bg-brand-500' : 'bg-slate-200 group-hover:bg-brand-300'}`} />
-                                <span className={`text-[11px] font-bold transition-colors ${filled[i] ? 'text-brand-600' : 'text-slate-400 group-hover:text-brand-500'}`}>{label}</span>
-                            </button>
-                        ));
-                    })()}
-                </div>
+                {(() => {
+                    const sectionIds = ['section-activite', ...(showFuelTracking ? ['section-carburant'] : []), 'section-charges', 'section-bfr', 'section-tresorerie'];
+                    const labels = ['Activité', ...(showFuelTracking ? ['Carburant'] : []), 'Charges', 'BFR', 'Trésorerie'];
+                    const filled = [
+                        formData.revenue.total > 0 || (formData.margin?.total || 0) > 0,
+                        ...(showFuelTracking ? [(formData.fuel?.volume || 0) > 0] : []),
+                        formData.expenses.salaries > 0 || formData.expenses.hoursWorked > 0,
+                        formData.bfr.receivables.total > 0 || formData.bfr.debts.total > 0 || formData.bfr.stock.total > 0,
+                        formData.cashFlow.active > 0 || formData.cashFlow.passive > 0,
+                    ];
+                    return (
+                        <>
+                            <div className="flex items-center justify-between gap-3 mb-2">
+                                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                    {stepMode ? `Étape ${Math.min(currentStep + 1, labels.length)} / ${labels.length} — ${labels[currentStep] || ''}` : 'Progression'}
+                                </span>
+                                {!isLocked && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setStepMode(m => !m)}
+                                        className="text-[11px] font-bold text-slate-500 hover:text-brand-600 underline underline-offset-2 transition"
+                                    >
+                                        {stepMode ? 'Vue complète' : 'Étape par étape'}
+                                    </button>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-1">
+                                {labels.map((label, i) => (
+                                    <button
+                                        key={i}
+                                        type="button"
+                                        onClick={() => {
+                                            if (stepMode) {
+                                                setCurrentStep(i);
+                                            } else {
+                                                document.getElementById(sectionIds[i])?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                            }
+                                        }}
+                                        className="flex-1 flex flex-col items-center gap-0.5 group cursor-pointer"
+                                    >
+                                        <div className={`h-1.5 w-full rounded-full transition-colors ${
+                                            stepMode && i === currentStep ? 'bg-brand-600' :
+                                            filled[i] ? 'bg-brand-500' :
+                                            'bg-slate-200 group-hover:bg-brand-300'
+                                        }`} />
+                                        <span className={`text-[11px] font-bold transition-colors ${
+                                            stepMode && i === currentStep ? 'text-brand-700' :
+                                            filled[i] ? 'text-brand-600' :
+                                            'text-slate-400 group-hover:text-brand-500'
+                                        }`}>{label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </>
+                    );
+                })()}
             </div>
             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-slate-50/30">
                 {isClientInactive && userRole === 'client' && (
@@ -981,6 +1021,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                 </SectionCard>
 
                 <div className="space-y-6">
+                    <div className={stepMode && currentStep !== 0 ? 'hidden' : ''}>
                     <SectionCard className="scroll-mt-20" id="section-activite">
                         <SectionHeader number="1" title="Activité & Rentabilité" icon={ShoppingBag} />
                         {/* CONDITIONAL GRID COLUMNS BASED ON MARGIN VISIBILITY */}
@@ -1096,8 +1137,10 @@ const EntryForm: React.FC<EntryFormProps> = ({
                              </div>
                         </div>
                     </SectionCard>
+                    </div>
 
                     {showFuelTracking && (
+                        <div className={stepMode && currentStep !== 1 ? 'hidden' : ''}>
                         <SectionCard className="scroll-mt-20" id="section-carburant">
                             <SectionHeader number="2" title="Carburant (Litrage)" icon={Droplets} colorClass="text-blue-700" bgClass="bg-blue-100" />
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -1111,8 +1154,10 @@ const EntryForm: React.FC<EntryFormProps> = ({
                                 </div>
                             </div>
                         </SectionCard>
+                        </div>
                     )}
 
+                    <div className={stepMode && currentStep !== (showFuelTracking ? 2 : 1) ? 'hidden' : ''}>
                     <SectionCard className="scroll-mt-20" id="section-charges">
                         <SectionHeader number={2 + (showFuelTracking ? 1 : 0)} title="Charges & Productivité" icon={Users} colorClass="text-orange-700" bgClass="bg-orange-100" />
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -1128,7 +1173,9 @@ const EntryForm: React.FC<EntryFormProps> = ({
                             </div>
                         </div>
                     </SectionCard>
+                    </div>
 
+                    <div className={stepMode && currentStep !== (showFuelTracking ? 3 : 2) ? 'hidden' : ''}>
                     <SectionCard className="scroll-mt-20" id="section-bfr">
                         <SectionHeader number={3 + (showFuelTracking ? 1 : 0)} title="BFR (Besoin en Fonds de Roulement)" icon={Scale} colorClass="text-cyan-700" bgClass="bg-cyan-100" />
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
@@ -1150,7 +1197,9 @@ const EntryForm: React.FC<EntryFormProps> = ({
                              </div>
                         </div>
                     </SectionCard>
+                    </div>
 
+                    <div className={stepMode && currentStep !== (showFuelTracking ? 4 : 3) ? 'hidden' : ''}>
                     <SectionCard className={`scroll-mt-20 ${isLocked ? "opacity-90 grayscale-[0.2]" : ""}`} id="section-tresorerie">
                         <SectionHeader number={4 + (showFuelTracking ? 1 : 0)} title="Situation de Trésorerie" icon={Landmark} colorClass="text-brand-700" bgClass="bg-brand-100" />
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
@@ -1169,7 +1218,65 @@ const EntryForm: React.FC<EntryFormProps> = ({
                             </div>
                         </div>
                     </SectionCard>
+                    </div>
                 </div>
+
+                {/* STEPPER NAVIGATION */}
+                {stepMode && (() => {
+                    const totalSteps = 4 + (showFuelTracking ? 1 : 0);
+                    const isLastStep = currentStep >= totalSteps - 1;
+                    const isFirstStep = currentStep <= 0;
+                    return (
+                        <div className="mt-8 flex items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm sticky bottom-0">
+                            <button
+                                type="button"
+                                onClick={() => setCurrentStep(s => Math.max(0, s - 1))}
+                                disabled={isFirstStep}
+                                className="px-5 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition font-medium flex items-center gap-2"
+                            >
+                                ← Précédent
+                            </button>
+                            <span className="text-sm font-bold text-slate-500">
+                                Étape {currentStep + 1} / {totalSteps}
+                            </span>
+                            {!isLastStep ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setCurrentStep(s => Math.min(totalSteps - 1, s + 1))}
+                                    className="px-5 py-2.5 bg-brand-600 text-white rounded-lg shadow-md hover:bg-brand-700 hover:shadow-lg transition font-medium flex items-center gap-2"
+                                >
+                                    Suivant <ArrowRight className="w-4 h-4" />
+                                </button>
+                            ) : userRole === 'client' && !isLocked && !isAdminOverride ? (
+                                <button
+                                    type="button"
+                                    onClick={async () => {
+                                        const validationErrors = validateRequiredFields(formData);
+                                        if (validationErrors.length > 0) {
+                                            await confirm({ title: 'Données incomplètes', message: `Merci de compléter les champs suivants avant de soumettre :\n\n• ${validationErrors.join('\n• ')}`, variant: 'danger', confirmLabel: 'Compris' });
+                                            return;
+                                        }
+                                        const ok = await confirm({ title: 'Soumettre au cabinet ?', message: `Vos données de ${formData.month} ${formData.year} seront transmises au consultant.\n\nUne fois soumises, vous ne pourrez plus les modifier sans l'accord du cabinet.`, variant: 'info', confirmLabel: 'Soumettre' });
+                                        if (ok) wrappedOnSave(formData);
+                                    }}
+                                    className="px-5 py-2.5 bg-brand-600 text-white rounded-lg shadow-md hover:bg-brand-700 hover:shadow-lg transition font-medium flex items-center gap-2"
+                                >
+                                    <Send className="w-4 h-4" /> Soumettre
+                                </button>
+                            ) : !isLocked ? (
+                                <button
+                                    type="button"
+                                    onClick={() => wrappedOnSave(formData)}
+                                    className="px-5 py-2.5 bg-brand-600 text-white rounded-lg shadow-md hover:bg-brand-700 hover:shadow-lg transition font-medium flex items-center gap-2"
+                                >
+                                    <Save className="w-4 h-4" /> Enregistrer
+                                </button>
+                            ) : (
+                                <span />
+                            )}
+                        </div>
+                    );
+                })()}
             </div>
         </div>
     );

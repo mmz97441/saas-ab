@@ -29,17 +29,8 @@ function getFirebaseFunctions() {
 // =============================================
 interface AskAdvisorParams {
   query: string;
-  financialContext?: {
-    companyName?: string;
-    revenue?: number;
-    margin?: number;
-    marginRate?: number;
-    salaries?: number;
-    bfr?: number;
-    treasury?: number;
-    month?: string;
-    year?: number;
-  };
+  mode?: 'chat' | 'summary';
+  financialContext?: Record<string, any>;
   history?: Array<{ role: 'user' | 'model'; text: string }>;
 }
 

@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { MessageSquare, Send, X, Bot, Loader2, Sparkles, UserCheck, ChevronRight, Scale, Briefcase, ShieldCheck, UserCircle, Bell, Trash2, AlertTriangle, PhoneCall } from 'lucide-react';
 import { Client, FinancialRecord, ChatMessage } from '../types';
-import { getFinancialAdvice, generateConversationSummary } from '../services/geminiService';
+import { askFinancialAdvisor } from '../lib/cloudFunctions';
 import { useConfirmDialog } from '../contexts/ConfirmContext';
 import { sendMessage, subscribeToChat, sendConsultantAlertEmail } from '../services/dataService';
 import { db, auth } from '../firebase'; 
@@ -140,26 +140,68 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
     }
 
     try {
-        // IMPORTANT : On n'envoie à l'IA que les messages visibles (session actuelle)
-        // Cela empêche l'IA de lire l'historique de la veille
         const contextMessages = visibleMessages.filter(m => m.id !== 'welcome-msg');
-        
-        const rawAiResponse = await getFinancialAdvice(userText, contextMessages, client, data);
-        
-        let finalText = rawAiResponse;
-        let isAlert = false;
+        const history = contextMessages
+            .filter(m => !m.isSystemSummary)
+            .slice(-15)
+            .map(m => ({ role: (m.sender === 'user' ? 'user' : 'model') as 'user' | 'model', text: m.text }));
 
-        // Détection du tag [ALERT_HUMAN] généré par le nouveau Prompt
-        if (rawAiResponse.includes('[ALERT_HUMAN]')) {
+        const MONTH_ORDER = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+        const sortedRecords = [...data].sort((a, b) => a.year !== b.year ? a.year - b.year : MONTH_ORDER.indexOf(a.month) - MONTH_ORDER.indexOf(b.month));
+        const lastRecord = sortedRecords[sortedRecords.length - 1];
+
+        const byYear: Record<number, FinancialRecord[]> = {};
+        for (const r of sortedRecords) { if (!byYear[r.year]) byYear[r.year] = []; byYear[r.year].push(r); }
+
+        const syntheseAnnuelle = Object.entries(byYear).map(([year, recs]) => {
+            const totalCA = recs.reduce((s, r) => s + r.revenue.total, 0);
+            const totalObj = recs.reduce((s, r) => s + r.revenue.objective, 0);
+            const totalMargin = recs.reduce((s, r) => s + (r.margin?.total || 0), 0);
+            const totalSalaries = recs.reduce((s, r) => s + r.expenses.salaries, 0);
+            const totalHours = recs.reduce((s, r) => s + r.expenses.hoursWorked, 0);
+            const lastRec = recs[recs.length - 1];
+            return {
+                annee: Number(year), nb_mois: recs.length,
+                ca_total: Math.round(totalCA), objectif_total: Math.round(totalObj),
+                marge_totale: Math.round(totalMargin), masse_salariale: Math.round(totalSalaries),
+                heures: Math.round(totalHours),
+                tresorerie: lastRec ? Math.round(lastRec.cashFlow.treasury) : 0,
+                bfr: lastRec ? Math.round(lastRec.bfr.total) : 0,
+                detail_mensuel: recs.map(r => ({
+                    mois: r.month, ca: Math.round(r.revenue.total), objectif: Math.round(r.revenue.objective),
+                    marge: Math.round(r.margin?.total || 0), tresorerie: Math.round(r.cashFlow.treasury),
+                    bfr: Math.round(r.bfr.total), salaires: Math.round(r.expenses.salaries), heures: Math.round(r.expenses.hoursWorked),
+                }))
+            };
+        });
+
+        const financialContext = {
+            companyName: client.companyName, managerName: client.managerName,
+            sector: client.sector, legalForm: client.legalForm,
+            syntheseAnnuelle,
+            situationActuelle: lastRecord ? {
+                mois: `${lastRecord.month} ${lastRecord.year}`,
+                tresorerie: Math.round(lastRecord.cashFlow.treasury),
+                ca: Math.round(lastRecord.revenue.total),
+                bfr: Math.round(lastRecord.bfr.total),
+            } : null,
+        };
+
+        const result = await askFinancialAdvisor({ query: userText, mode: 'chat', financialContext, history });
+
+        let finalText = result.text;
+        let isAlert = false;
+        if (finalText.includes('[ALERT_HUMAN]')) {
             isAlert = true;
-            finalText = rawAiResponse.replace('[ALERT_HUMAN]', '').trim();
-            handleManualHandoff(true); 
+            finalText = finalText.replace('[ALERT_HUMAN]', '').trim();
+            handleManualHandoff(true);
         }
 
         await sendMessage(client.id, finalText, 'ai', isAlert);
 
-    } catch (e) {
-        try { await sendMessage(client.id, "Erreur connexion IA.", 'ai'); } catch(err) {}
+    } catch (e: any) {
+        const errorMsg = e?.message?.includes('Limite') ? e.message : "Erreur connexion IA.";
+        try { await sendMessage(client.id, errorMsg, 'ai'); } catch(err) {}
     } finally {
         setIsLoading(false);
     }
@@ -183,8 +225,13 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
               );
           }
 
-          const summary = await generateConversationSummary(visibleMessages, client.companyName);
-          await sendMessage(client.id, summary, 'ai', false, true); 
+          const transcript = visibleMessages.slice(-20).map(m => `${m.sender.toUpperCase()}: ${m.text}`).join('\n');
+          const summaryResult = await askFinancialAdvisor({
+              query: transcript,
+              mode: 'summary',
+              financialContext: { companyName: client.companyName },
+          });
+          await sendMessage(client.id, summaryResult.text, 'ai', false, true);
           await sendConsultantAlertEmail(client, "Demande de relais (Chat)", `Le client <strong>${client.companyName}</strong> demande de l'aide.<br/><br/><strong>Dernier résumé IA :</strong><br/><pre>${summary}</pre>`);
 
       } catch (e) {

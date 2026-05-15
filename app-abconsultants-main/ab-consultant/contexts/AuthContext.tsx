@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 import { auth } from '../firebase';
-import { checkConsultantEmailExists, checkClientEmailExists } from '../services/dataService';
+import { refreshUserRole } from '../lib/cloudFunctions';
 
 // =============================================
 // TYPES
@@ -77,31 +77,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Token refresh failed, try fallback
     }
 
-    // FALLBACK : logique actuelle (compatible pendant la migration)
-    let isConsultant = false;
-    try { isConsultant = await checkConsultantEmailExists(email); } catch (e) { /* ignore */ }
+    // FALLBACK : appeler setUserRole (Cloud Function Admin SDK) pour rafraîchir les claims
+    // puis relire le token. Évite les requêtes Firestore directes qui échouent
+    // quand les custom claims ne sont pas encore en place.
+    try {
+      const roleResult = await refreshUserRole();
+      const refreshedToken = await user.getIdTokenResult(true);
+      const refreshedRole = refreshedToken.claims.role as string | undefined;
+      const refreshedClientId = refreshedToken.claims.clientId as string | undefined;
+      const refreshedIsAdmin = refreshedToken.claims.isAdmin as boolean | undefined;
 
-    if (isConsultant || email === SUPER_ADMIN_EMAIL) {
-      return {
-        user,
-        claims: { role: 'ab_consultant', isAdmin: email === SUPER_ADMIN_EMAIL },
-        loading: false,
-        currentUserEmail: email,
-        isSuperAdmin: email === SUPER_ADMIN_EMAIL,
-      };
-    }
+      if (refreshedRole === 'consultant') {
+        return {
+          user,
+          claims: { role: 'ab_consultant', isAdmin: refreshedIsAdmin || email === SUPER_ADMIN_EMAIL },
+          loading: false,
+          currentUserEmail: email,
+          isSuperAdmin: refreshedIsAdmin || email === SUPER_ADMIN_EMAIL,
+        };
+      }
 
-    let isClient = false;
-    try { isClient = await checkClientEmailExists(email); } catch (e) { /* ignore */ }
-
-    if (isClient) {
-      return {
-        user,
-        claims: { role: 'client', isAdmin: false },
-        loading: false,
-        currentUserEmail: email,
-        isSuperAdmin: false,
-      };
+      if (refreshedRole === 'client' && (refreshedClientId || roleResult.clientId)) {
+        return {
+          user,
+          claims: { role: 'client', clientId: refreshedClientId || roleResult.clientId, isAdmin: false },
+          loading: false,
+          currentUserEmail: email,
+          isSuperAdmin: false,
+        };
+      }
+    } catch (e) {
+      // Cloud Function rejected: user not authorized
     }
 
     // Non autorisé

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { ShieldCheck, UserCircle, ArrowRight, Loader2, AlertCircle, Building, Mail, Lock, UserPlus, KeyRound } from 'lucide-react';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, deleteUser, sendPasswordResetEmail, signOut } from 'firebase/auth';
 import { auth } from '../firebase';
-import { checkClientEmailExists, checkConsultantEmailExists } from '../services/dataService';
+import { refreshUserRole } from '../lib/cloudFunctions';
 import { APP_VERSION } from '../types';
 
 interface LoginScreenProps {
@@ -52,50 +52,44 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
       }
 
       // À ce stade, l'utilisateur est techniquement connecté.
-      // MAINTENANT, on vérifie s'il a le droit d'entrer dans l'application métier.
-      
+      // MAINTENANT, on vérifie s'il a le droit d'entrer via la Cloud Function setUserRole
+      // qui utilise l'Admin SDK (bypass les règles Firestore) et set les custom claims.
+
       try {
+          const roleResult = await refreshUserRole();
+
           if (activeTab === 'expert') {
-              // --- VÉRIFICATION CONSULTANT ---
-              let isWhitelisted = false;
-              
-              if (cleanEmail === EXPERT_EMAIL) {
-                  isWhitelisted = true;
-              } else {
-                  // Cette requête réussira car auth != null
-                  isWhitelisted = await checkConsultantEmailExists(cleanEmail);
-              }
-              
-              if (!isWhitelisted) {
+              if (roleResult.role !== 'consultant') {
                   throw new Error("CONSULTANT_NOT_AUTHORIZED");
               }
           } else {
-              // --- VÉRIFICATION CLIENT ---
-              // Cette requête réussira car auth != null
-              const isClientWhitelisted = await checkClientEmailExists(cleanEmail);
-              
-              if (!isClientWhitelisted) {
-                  // On vérifie si ce n'est pas un consultant qui se trompe de porte
-                  const isActuallyConsultant = await checkConsultantEmailExists(cleanEmail);
-                  if (isActuallyConsultant || cleanEmail === EXPERT_EMAIL) {
-                      throw new Error("WRONG_PORTAL_CONSULTANT");
-                  }
+              if (roleResult.role === 'consultant') {
+                  throw new Error("WRONG_PORTAL_CONSULTANT");
+              }
+              if (roleResult.role !== 'client') {
                   throw new Error("CLIENT_NOT_FOUND");
               }
           }
+
+          // Force le refresh du token pour que AuthContext récupère les claims
+          await auth.currentUser?.getIdToken(true);
       } catch (validationError: any) {
           // ÉCHEC DE VALIDATION MÉTIER
           // L'utilisateur est connecté mais n'est pas dans notre base de données.
           // SÉCURITÉ : On détruit sa session immédiatement.
-          
+
           if (isSignUp && auth.currentUser) {
-              // Si c'était une inscription, on supprime le compte créé "pour rien"
               await deleteUser(auth.currentUser);
           } else {
-              // Si c'était une connexion, on déconnecte juste
               await signOut(auth);
           }
-          throw validationError; // On renvoie l'erreur pour l'affichage
+
+          // Traduire l'erreur Cloud Function en erreur métier
+          if (validationError?.code === 'functions/permission-denied') {
+              if (activeTab === 'expert') throw new Error("CONSULTANT_NOT_AUTHORIZED");
+              throw new Error("CLIENT_NOT_FOUND");
+          }
+          throw validationError;
       }
 
       // Si on arrive ici, tout est OK : Auth valide + Whitelist validée.

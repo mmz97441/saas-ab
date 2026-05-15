@@ -19,7 +19,7 @@ const ExcelImportModal = lazy(() => import('./components/ExcelImportModal'));
 const AppointmentPanel = lazy(() => import('./components/AppointmentPanel'));
 
 import { FinancialRecord, Client, Month, ProfitCenter, Consultant, View } from './types';
-import { getClients, saveClient, updateClientStatus, getRecordsByClient, resetDatabase, MONTH_ORDER, toShortMonth, getConsultants, addConsultant, deleteConsultant, deleteRecord, checkConsultantEmailExists, checkClientEmailExists, saveRecord, logActivity } from './services/dataService';
+import { getClients, saveClient, updateClientStatus, getRecordsByClient, resetDatabase, MONTH_ORDER, toShortMonth, getConsultants, addConsultant, deleteConsultant, deleteRecord, saveRecord, logActivity } from './services/dataService';
 import { auth } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -70,33 +70,28 @@ const App: React.FC = () => {
         if (user) {
             const email = user.email?.toLowerCase() || '';
             setCurrentUserEmail(email);
-            
-            let isAuthorizedConsultant = false;
-            try { isAuthorizedConsultant = await checkConsultantEmailExists(email); } catch (e) { console.error(e); }
 
-            const isAdmin = (email === SUPER_ADMIN_EMAIL) || isAuthorizedConsultant;
+            // Lire le rôle depuis les custom claims du token (set par setUserRole Cloud Function)
+            const idTokenResult = await user.getIdTokenResult();
+            const tokenRole = idTokenResult.claims.role as string | undefined;
+            const tokenIsAdmin = idTokenResult.claims.isAdmin as boolean | undefined;
 
-            if (isAdmin) {
+            if (tokenRole === 'consultant' || email === SUPER_ADMIN_EMAIL) {
                 setUserRole('ab_consultant');
-                setIsSuperAdmin(email === SUPER_ADMIN_EMAIL);
+                setIsSuperAdmin(tokenIsAdmin || email === SUPER_ADMIN_EMAIL);
                 setIsAuthenticated(true);
-                // Au login consultant, on charge les clients MAIS on ne sélectionne personne par défaut pour afficher le Dashboard Global
                 try { await refreshClients('ab_consultant', email); setSelectedClient(null); } catch (error) { console.error(error); }
 
-            } else {
-                let isValidClient = false;
-                try { isValidClient = await checkClientEmailExists(email); } catch (e) { console.error(e); }
+            } else if (tokenRole === 'client') {
+                setUserRole('client');
+                setIsSuperAdmin(false);
+                setSimulatedUserEmail(email);
+                setIsAuthenticated(true);
+                try { await refreshClients('client', email); } catch (error) { console.error(error); }
 
-                if (isValidClient) {
-                     setUserRole('client');
-                     setIsSuperAdmin(false);
-                     setSimulatedUserEmail(email);
-                     setIsAuthenticated(true);
-                     try { await refreshClients('client', email); } catch (error) { console.error(error); }
-                } else {
-                    await auth.signOut();
-                    setIsAuthenticated(false);
-                }
+            } else {
+                await auth.signOut();
+                setIsAuthenticated(false);
             }
         } else {
             setIsAuthenticated(false);

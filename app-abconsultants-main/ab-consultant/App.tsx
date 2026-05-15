@@ -72,7 +72,10 @@ const App: React.FC = () => {
             setCurrentUserEmail(email);
 
             // Lire le rôle depuis les custom claims du token (set par setUserRole Cloud Function)
-            const idTokenResult = await user.getIdTokenResult();
+            // Force refresh (true) pour récupérer les claims fraîchement set par setUserRole
+            // côté backend — sinon le token cache local ne reflète pas le rôle réel et les
+            // règles Firestore retournent silencieusement 0 docs (isConsultant() == false).
+            const idTokenResult = await user.getIdTokenResult(true);
             const tokenRole = idTokenResult.claims.role as string | undefined;
             const tokenIsAdmin = idTokenResult.claims.isAdmin as boolean | undefined;
 

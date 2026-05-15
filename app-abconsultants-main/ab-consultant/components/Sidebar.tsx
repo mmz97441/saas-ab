@@ -33,7 +33,7 @@ const ClientCompanySelector: React.FC<{ companies: Client[], selectedId: string,
 
     return (
         <div className="mb-4 relative">
-            <label className="text-[11px] font-bold text-brand-300 uppercase mb-1 block">Sélectionner un dossier</label>
+            <label className="text-xs font-bold text-brand-300 uppercase mb-1 block">Sélectionner un dossier</label>
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className="w-full flex items-center justify-between bg-brand-800 text-white text-sm font-bold px-3 py-2.5 rounded-lg border border-brand-600 hover:bg-brand-700 transition-colors"
@@ -119,14 +119,14 @@ const HelpPanel: React.FC<{ userRole: 'ab_consultant' | 'client' }> = ({ userRol
                 <div className="mt-2 mx-1 bg-brand-800/60 rounded-xl border border-brand-700/50 overflow-hidden animate-in slide-in-from-top-2 duration-200">
                     {/* GLOSSAIRE */}
                     <div className="p-3 border-b border-brand-700/40">
-                        <p className="text-[11px] font-bold text-brand-300 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                        <p className="text-xs font-bold text-brand-300 uppercase tracking-wider flex items-center gap-1.5 mb-2">
                             <BookOpen className="w-3 h-3" /> Glossaire des indicateurs
                         </p>
                         <div className="space-y-2 max-h-56 overflow-y-auto custom-scrollbar pr-1">
                             {glossary.map((item) => (
                                 <div key={item.term}>
-                                    <p className="text-[11px] font-bold text-accent-400">{item.term}</p>
-                                    <p className="text-[11px] text-brand-300 leading-relaxed">{item.def}</p>
+                                    <p className="text-xs font-bold text-accent-400">{item.term}</p>
+                                    <p className="text-xs text-brand-300 leading-relaxed">{item.def}</p>
                                 </div>
                             ))}
                         </div>
@@ -134,13 +134,13 @@ const HelpPanel: React.FC<{ userRole: 'ab_consultant' | 'client' }> = ({ userRol
 
                     {/* CONTACT */}
                     <div className="p-3">
-                        <p className="text-[11px] font-bold text-brand-300 uppercase tracking-wider mb-2">Contact</p>
-                        <p className="text-[11px] text-brand-300 leading-relaxed">
+                        <p className="text-xs font-bold text-brand-300 uppercase tracking-wider mb-2">Contact</p>
+                        <p className="text-xs text-brand-300 leading-relaxed">
                             Un doute ou une question ? Contactez-nous :
                         </p>
                         <button
                             onClick={() => window.open(`mailto:contact@ab-consultants.fr?subject=Aide - ${userRole === 'client' ? 'Client' : 'Consultant'}`, '_blank')}
-                            className="mt-2 w-full text-center text-[11px] font-bold bg-brand-700 hover:bg-brand-600 text-white py-1.5 rounded-lg transition-colors"
+                            className="mt-2 w-full text-center text-xs font-bold bg-brand-700 hover:bg-brand-600 text-white py-1.5 rounded-lg transition-colors"
                         >
                             contact@ab-consultants.fr
                         </button>
@@ -175,6 +175,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         <button
             onClick={() => onNavigate(view)}
             title={tooltip || label}
+            aria-label={isCollapsed ? label : undefined}
+            aria-current={currentView === view ? 'page' : undefined}
             className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-lg transition-all duration-200 group ${currentView === view
                 ? (userRole === 'ab_consultant' ? 'bg-brand-700 text-white shadow-md ring-1 ring-white/10' : 'bg-brand-600 text-white shadow-md')
                 : 'text-brand-200 hover:bg-brand-800 hover:text-white'
@@ -183,7 +185,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             <div className="relative flex-shrink-0">
                 <Icon className={`w-5 h-5 ${currentView === view ? 'text-accent-500' : 'text-brand-400 group-hover:text-accent-500'}`} />
                 {badge && badge > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[11px] font-bold px-1.5 py-0.5 rounded-full border border-brand-900 animate-pulse">
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full border border-brand-900 animate-pulse">
                         {badge}
                     </span>
                 )}
@@ -201,8 +203,6 @@ const Sidebar: React.FC<SidebarProps> = ({
         `}>
             {/* Header Branding */}
             <div className={`${isCollapsed ? 'p-3' : 'p-6'} relative overflow-hidden`}>
-                {!isCollapsed && <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-brand-800 rounded-full opacity-50 blur-2xl"></div>}
-
                 <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} relative z-10`}>
                     {userRole === 'ab_consultant' ? (
                         isCollapsed
@@ -220,7 +220,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     <h1 className="text-lg font-bold tracking-tight leading-none mb-1 text-white">
                                         {selectedClient ? selectedClient.companyName : 'Espace Client'}
                                     </h1>
-                                    <p className="text-[11px] text-brand-300 uppercase tracking-widest font-semibold flex items-center gap-1">
+                                    <p className="text-xs text-brand-300 uppercase tracking-widest font-semibold flex items-center gap-1">
                                         Portail Consultant
                                     </p>
                                 </div>
@@ -235,12 +235,14 @@ const Sidebar: React.FC<SidebarProps> = ({
                 {/* SECTION 1: ADMIN - Visible only to Consultant */}
                 {userRole === 'ab_consultant' && (
                     <div className="animate-in slide-in-from-left-2">
-                        {!isCollapsed && <h3 className="text-[11px] font-bold text-brand-200 uppercase tracking-wider mb-3 px-2">Pilotage Cabinet</h3>}
+                        {!isCollapsed && <h3 className="text-xs font-bold text-brand-200 uppercase tracking-wider mb-3 px-2">Pilotage Cabinet</h3>}
 
                         {/* BOUTON VUE D'ENSEMBLE (Nouveau) */}
                          <button
                             onClick={() => { onClientSelect(null); onNavigate(View.Dashboard); }}
                             title="Synthèse globale du portefeuille"
+                            aria-label={isCollapsed ? "Vue d'ensemble" : undefined}
+                            aria-current={!selectedClient && currentView === View.Dashboard ? 'page' : undefined}
                             className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-lg transition-all duration-200 group mb-2 ${!selectedClient && currentView === View.Dashboard
                                 ? 'bg-brand-700 text-white shadow-md ring-1 ring-white/10'
                                 : 'text-brand-200 hover:bg-brand-800 hover:text-white'
@@ -265,7 +267,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <div className="animate-in slide-in-from-left-2 duration-300">
                         {userRole === 'ab_consultant' && !isCollapsed && (
                             <div className="mb-3 mt-2 mx-1 px-3 py-2 bg-accent-500/10 rounded-lg border border-accent-500/20">
-                                <h3 className="text-[11px] font-bold text-accent-400 uppercase tracking-wider">Dossier actif</h3>
+                                <h3 className="text-xs font-bold text-accent-400 uppercase tracking-wider">Dossier actif</h3>
                             </div>
                         )}
                         {isCollapsed && selectedClient && (
@@ -288,7 +290,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                         </div>
                                         <div className="overflow-hidden">
                                             <h4 className="text-sm font-bold text-white truncate">{selectedClient.companyName}</h4>
-                                            <p className="text-[11px] text-brand-300 truncate">{selectedClient.managerName}</p>
+                                            <p className="text-xs text-brand-300 truncate">{selectedClient.managerName}</p>
                                         </div>
                                     </div>
                                 )}
@@ -322,6 +324,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                         <button
                             onClick={onToggleSimulation}
                             title="Voir l'interface telle que le client la voit"
+                            aria-label={isCollapsed ? 'Aperçu Mode Client' : undefined}
                             className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-lg text-brand-300 hover:bg-brand-800 hover:text-white transition-all duration-200 mt-2`}
                         >
                             <Eye className="w-5 h-5 flex-shrink-0" />
@@ -333,6 +336,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                         <button
                             onClick={onToggleSimulation}
                             title="Revenir à l'interface consultant"
+                            aria-label={isCollapsed ? "Quitter l'aperçu" : undefined}
                             className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-lg text-accent-400 hover:bg-brand-800 hover:text-accent-300 transition-all duration-200 mt-2 font-bold bg-brand-950/30`}
                         >
                             <EyeOff className="w-5 h-5 flex-shrink-0" />
@@ -346,6 +350,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <button
                         onClick={onLogout}
                         title="Se déconnecter de l'application"
+                        aria-label={isCollapsed ? 'Déconnexion' : undefined}
                         className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-lg text-red-300 hover:bg-red-900/30 hover:text-red-200 transition-all duration-200 mt-4`}
                     >
                         <LogOut className="w-5 h-5 flex-shrink-0" />
@@ -363,9 +368,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                     className="hidden lg:flex w-full items-center justify-center gap-2 px-2 py-1.5 rounded-lg text-brand-400 hover:bg-brand-800 hover:text-white transition-all duration-200 mb-2"
                 >
                     {isCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
-                    {!isCollapsed && <span className="text-[11px] font-medium">Réduire</span>}
+                    {!isCollapsed && <span className="text-xs font-medium">Réduire</span>}
                 </button>
-                {!isCollapsed && <p className="text-[11px] text-brand-300 font-mono">v{APP_VERSION}</p>}
+                {!isCollapsed && <p className="text-xs text-brand-300 font-mono">v{APP_VERSION}</p>}
             </div>
         </aside>
     );

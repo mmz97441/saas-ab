@@ -293,9 +293,9 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                         {/* Sheet name */}
                         <div className="flex-1">
                           <span className="text-sm font-bold text-slate-800">{sheet.name}</span>
-                          <span className="text-[11px] text-slate-400 ml-2">({sheet.rows.length} lignes, {sheet.headers.length} colonnes)</span>
+                          <span className="text-xs text-slate-400 ml-2">({sheet.rows.length} lignes, {sheet.headers.length} colonnes)</span>
                           {autoType !== 'unknown' && (
-                            <span className="ml-2 text-[11px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded-full font-bold">auto-détecté</span>
+                            <span className="ml-2 text-xs bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded-full font-bold">auto-détecté</span>
                           )}
                         </div>
 
@@ -346,7 +346,7 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                             </tbody>
                           </table>
                           {sheet.rows.length > 8 && (
-                            <p className="text-[11px] text-slate-400 mt-2">... et {sheet.rows.length - 8} lignes de plus</p>
+                            <p className="text-xs text-slate-400 mt-2">... et {sheet.rows.length - 8} lignes de plus</p>
                           )}
                         </div>
                       )}
@@ -418,7 +418,7 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                       </span>
                     ))}
                   </div>
-                  <p className="text-[11px] text-amber-600 mt-2">
+                  <p className="text-xs text-amber-600 mt-2">
                     Ces familles seront ajoutees aux activites du client. Vous pourrez modifier leur type (Marchandise/Service) dans les parametres.
                   </p>
                 </div>
@@ -441,8 +441,8 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                         {previewData.summary.hasAnalyseActivite && (
                           <>
                             <th className="px-3 py-2 text-right font-bold text-purple-600 border-b border-slate-200">Marge</th>
-                            <th className="px-3 py-2 text-right font-bold text-purple-600 border-b border-slate-200">Salaires</th>
-                            <th className="px-3 py-2 text-right font-bold text-orange-600 border-b border-slate-200">BFR</th>
+                            <th className="px-3 py-2 text-right font-bold text-slate-700 border-b border-slate-200">Salaires</th>
+                            <th className="px-3 py-2 text-right font-bold text-amber-600 border-b border-slate-200">BFR</th>
                             <th className="px-3 py-2 text-right font-bold text-cyan-600 border-b border-slate-200">Trésorerie</th>
                           </>
                         )}
@@ -479,10 +479,10 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                                   <td className="px-3 py-2 text-right font-mono text-purple-600 border-b border-slate-100">
                                     {record.margin?.total ? `${formatNum(record.margin.total)} €` : '-'}
                                   </td>
-                                  <td className="px-3 py-2 text-right font-mono text-purple-600 border-b border-slate-100">
+                                  <td className="px-3 py-2 text-right font-mono text-slate-700 border-b border-slate-100">
                                     {record.expenses.salaries ? `${formatNum(record.expenses.salaries)} €` : '-'}
                                   </td>
-                                  <td className="px-3 py-2 text-right font-mono text-orange-600 border-b border-slate-100">
+                                  <td className="px-3 py-2 text-right font-mono text-amber-600 border-b border-slate-100">
                                     {record.bfr?.total ? `${formatNum(record.bfr.total)} €` : '-'}
                                   </td>
                                   <td className="px-3 py-2 text-right font-mono text-cyan-600 border-b border-slate-100">
@@ -502,9 +502,9 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                               )}
                               <td className="px-3 py-2 text-center border-b border-slate-100">
                                 {existing ? (
-                                  <span className="text-[11px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">Mise a jour</span>
+                                  <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">Mise a jour</span>
                                 ) : (
-                                  <span className="text-[11px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">Nouveau</span>
+                                  <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">Nouveau</span>
                                 )}
                               </td>
                             </tr>

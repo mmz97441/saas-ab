@@ -305,7 +305,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                 <div className="p-4 bg-emerald-50 border-b border-emerald-100 flex justify-between items-center">
                     <h3 className="font-bold text-emerald-900 flex items-center gap-2">
                         <Target className="w-4 h-4" /> Objectif CA Mensuel
-                        {isRevenueObjectiveDirty && <span className="text-[11px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full animate-pulse">Non sauvegardé</span>}
+                        {isRevenueObjectiveDirty && <span className="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full animate-pulse">Non sauvegardé</span>}
                     </h3>
                 </div>
                 <div className="p-6">
@@ -339,7 +339,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                 <div className="p-4 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center">
                     <h3 className="font-bold text-indigo-900 flex items-center gap-2">
                         <ShoppingBag className="w-4 h-4" /> Ventilation Analytique
-                        {isProfitCentersDirty && <span className="text-[11px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full animate-pulse">Non sauvegardé</span>}
+                        {isProfitCentersDirty && <span className="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full animate-pulse">Non sauvegardé</span>}
                     </h3>
                     <button
                         onClick={handleAddProfitCenter}
@@ -355,7 +355,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                     </p>
 
                     <div className="space-y-3">
-                        <div className="grid grid-cols-12 gap-2 text-[11px] uppercase font-bold text-slate-400 px-2">
+                        <div className="grid grid-cols-12 gap-2 text-xs uppercase font-bold text-slate-400 px-2">
                             <div className="col-span-5">Nom de l'Activité</div>
                             <div className="col-span-3">Type</div>
                             <div className="col-span-3">Marge Théorique (%)</div>
@@ -428,7 +428,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                 <div className="p-4 bg-blue-50 border-b border-blue-100 flex justify-between items-center">
                     <h3 className="font-bold text-blue-900 flex items-center gap-2">
                         <Droplets className="w-4 h-4" /> Suivi Carburant
-                        {isFuelObjectivesDirty && <span className="text-[11px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full animate-pulse">Non sauvegardé</span>}
+                        {isFuelObjectivesDirty && <span className="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full animate-pulse">Non sauvegardé</span>}
                     </h3>
                     <button
                         onClick={async () => {

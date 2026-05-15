@@ -209,31 +209,31 @@ const HistoryView: React.FC<HistoryViewProps> = ({
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-lg bg-brand-50 text-brand-600 flex flex-col items-center justify-center border border-brand-100">
                                         <span className="text-xs font-bold leading-none">{toShortMonth(record.month)}</span>
-                                        <span className="text-[11px] leading-none">{record.year}</span>
+                                        <span className="text-xs leading-none">{record.year}</span>
                                     </div>
                                     <div>
                                         <p className="font-bold text-slate-800">{record.month} {record.year}</p>
-                                        <p className="text-[11px] text-slate-400">
+                                        <p className="text-xs text-slate-400">
                                             {record.isValidated ? 'Validé par le cabinet' : record.isSubmitted ? 'En attente de validation' : 'Brouillon'}
                                             {record.submittedBy && <span className="ml-1">· par {record.submittedBy.split('@')[0]}</span>}
                                         </p>
                                     </div>
                                 </div>
                                 {record.isValidated ? (
-                                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700">Validé</span>
+                                    <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">Validé</span>
                                 ) : record.isSubmitted ? (
-                                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700">En attente</span>
+                                    <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700">En attente</span>
                                 ) : (
-                                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600">Brouillon</span>
+                                    <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600">Brouillon</span>
                                 )}
                             </div>
                             <div className="flex items-center justify-between text-sm">
                                 <div>
-                                    <p className="text-[11px] text-slate-400 uppercase font-bold">CA</p>
+                                    <p className="text-xs text-slate-400 uppercase font-bold">CA</p>
                                     <p className="font-mono font-bold text-slate-700">{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(record.revenue.total)}</p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-[11px] text-slate-400 uppercase font-bold">Trésorerie</p>
+                                    <p className="text-xs text-slate-400 uppercase font-bold">Trésorerie</p>
                                     <p className={`font-mono font-bold ${record.cashFlow.treasury >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                                         {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(record.cashFlow.treasury)}
                                     </p>
@@ -242,8 +242,12 @@ const HistoryView: React.FC<HistoryViewProps> = ({
                         </div>
                     ))
                 ) : (
-                    <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400 italic">
-                        Aucune donnée disponible.
+                    <div className="bg-white rounded-xl border border-slate-200 p-10 text-center animate-in fade-in duration-300">
+                        <div className="w-14 h-14 mx-auto rounded-full bg-brand-50 border border-brand-100 flex items-center justify-center mb-4">
+                            <Database className="w-6 h-6 text-brand-500" />
+                        </div>
+                        <p className="font-semibold text-slate-700 mb-1">Aucun historique pour le moment</p>
+                        <p className="text-sm text-slate-500 leading-relaxed">Les saisies mensuelles validées apparaîtront ici.</p>
                     </div>
                 )}
             </div>
@@ -288,7 +292,7 @@ const HistoryView: React.FC<HistoryViewProps> = ({
                                         <td className="p-4 font-medium text-slate-900 flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-lg bg-brand-50 text-brand-600 flex flex-col items-center justify-center border border-brand-100">
                                                 <span className="text-xs font-bold leading-none">{toShortMonth(record.month)}</span>
-                                                <span className="text-[11px] leading-none">{record.year}</span>
+                                                <span className="text-xs leading-none">{record.year}</span>
                                             </div>
                                         </td>
                                         <td className="p-4 text-right font-mono font-medium text-slate-700">
@@ -298,7 +302,7 @@ const HistoryView: React.FC<HistoryViewProps> = ({
                                             <div className={`font-mono font-bold ${record.cashFlow.treasury >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                                                 {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(record.cashFlow.treasury)}
                                             </div>
-                                            <div className="text-[11px] text-slate-400">Trésorerie Nette</div>
+                                            <div className="text-xs text-slate-400">Trésorerie Nette</div>
                                         </td>
                                         <td className="p-4 text-center">
                                             <div className="flex flex-col items-center gap-1">
@@ -319,7 +323,7 @@ const HistoryView: React.FC<HistoryViewProps> = ({
                                                 )}
                                                 {/* PUBLICATION STATUS BADGE */}
                                                 {userRole === 'ab_consultant' && record.isPublished && (
-                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-blue-50 text-blue-600 border border-blue-100">
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-blue-50 text-blue-600 border border-blue-100">
                                                         <Eye className="w-3 h-3" /> Visible Client
                                                     </span>
                                                 )}
@@ -415,8 +419,12 @@ const HistoryView: React.FC<HistoryViewProps> = ({
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={userRole === 'ab_consultant' ? 6 : 5} className="p-8 text-center text-slate-400 italic">
-                                        Aucune donnée disponible pour les filtres sélectionnés.
+                                    <td colSpan={userRole === 'ab_consultant' ? 6 : 5} className="p-10 text-center">
+                                        <div className="flex flex-col items-center text-slate-500">
+                                            <Database className="w-8 h-8 mb-3 text-slate-300" />
+                                            <p className="font-semibold text-slate-700 mb-1">Aucun résultat</p>
+                                            <p className="text-sm">Ajustez les filtres pour afficher des données.</p>
+                                        </div>
                                     </td>
                                 </tr>
                             )}

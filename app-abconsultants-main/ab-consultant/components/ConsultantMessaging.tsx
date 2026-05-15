@@ -104,9 +104,24 @@ const ConsultantMessaging: React.FC<ConsultantMessagingProps> = ({ clients, onMa
                 </div>
                 <div className="flex-1 overflow-y-auto">
                     {filteredClients.length === 0 ? (
-                        <div className="p-8 text-center text-slate-400">
-                            <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                            <p className="text-sm">{chatSearch ? 'Aucun résultat.' : 'Aucun message en attente.'}</p>
+                        <div className="p-10 text-center animate-in fade-in duration-300">
+                            {chatSearch ? (
+                                <>
+                                    <div className="w-14 h-14 mx-auto rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center mb-4">
+                                        <Search className="w-6 h-6 text-slate-400" />
+                                    </div>
+                                    <p className="font-semibold text-slate-700 mb-1">Aucun résultat</p>
+                                    <p className="text-sm text-slate-500">Aucun dossier ne correspond à « {chatSearch} ».</p>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="w-14 h-14 mx-auto rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-4">
+                                        <CheckCircle className="w-7 h-7 text-emerald-500" />
+                                    </div>
+                                    <p className="font-semibold text-slate-700 mb-1">Boîte à zéro</p>
+                                    <p className="text-sm text-slate-500 leading-relaxed">Tous les échanges sont à jour.<br />Aucun message non lu en attente.</p>
+                                </>
+                            )}
                         </div>
                     ) : (
                         filteredClients.map(client => (
@@ -123,7 +138,7 @@ const ConsultantMessaging: React.FC<ConsultantMessagingProps> = ({ clients, onMa
                                     <div className="flex justify-between items-center mb-0.5">
                                         <h4 className="font-bold text-sm text-slate-800 truncate pr-2">{client.companyName}</h4>
                                         {client.lastMessageTime && (
-                                            <span className="text-[11px] text-slate-400 shrink-0">
+                                            <span className="text-xs text-slate-400 shrink-0">
                                                 {new Date(client.lastMessageTime?.toMillis?.() || Date.now()).toLocaleDateString([], {day:'2-digit', month:'2-digit'})}
                                             </span>
                                         )}
@@ -163,7 +178,7 @@ const ConsultantMessaging: React.FC<ConsultantMessagingProps> = ({ clients, onMa
                                             <div className="flex items-center gap-2 mb-2 text-amber-700 font-bold text-xs uppercase tracking-wider">
                                                 <Bot className="w-4 h-4" /> Briefing Automatique (Caché au client)
                                             </div>
-                                            <div className="text-sm text-slate-700 whitespace-pre-line leading-relaxed font-mono text-[11px]">
+                                            <div className="text-sm text-slate-700 whitespace-pre-line leading-relaxed font-mono text-xs">
                                                 {msg.text}
                                             </div>
                                         </div>
@@ -176,7 +191,7 @@ const ConsultantMessaging: React.FC<ConsultantMessagingProps> = ({ clients, onMa
                                                     : 'bg-slate-200 text-slate-700 rounded-bl-none'
                                         }`}>
                                             {/* Header du message */}
-                                            <div className="flex items-center gap-2 mb-1 opacity-70 text-[11px] font-bold uppercase tracking-wider">
+                                            <div className="flex items-center gap-2 mb-1 opacity-70 text-xs font-bold uppercase tracking-wider">
                                                 {msg.sender === 'user' && <User className="w-3 h-3" />}
                                                 {msg.sender === 'consultant' && <Shield className="w-3 h-3" />}
                                                 {msg.sender === 'ai' && <Bot className="w-3 h-3" />}
@@ -199,7 +214,7 @@ const ConsultantMessaging: React.FC<ConsultantMessagingProps> = ({ clients, onMa
                                         <button
                                             key={idx}
                                             onClick={() => { setReplyInput(prev => prev + tmpl.text); setShowTemplates(false); }}
-                                            className="px-2.5 py-1 bg-brand-50 text-brand-700 text-[11px] font-bold rounded-full border border-brand-200 hover:bg-brand-100 transition"
+                                            className="px-2.5 py-1 bg-brand-50 text-brand-700 text-xs font-bold rounded-full border border-brand-200 hover:bg-brand-100 transition"
                                         >
                                             {tmpl.label}
                                         </button>
@@ -226,7 +241,7 @@ const ConsultantMessaging: React.FC<ConsultantMessagingProps> = ({ clients, onMa
                                     <Send className="w-5 h-5" />
                                 </button>
                             </div>
-                            <p className="text-[11px] text-slate-400 mt-2 text-center items-center justify-center gap-1 hidden md:flex">
+                            <p className="text-xs text-slate-400 mt-2 text-center items-center justify-center gap-1 hidden md:flex">
                                 <Shield className="w-3 h-3" /> Votre réponse apparaîtra directement dans le chat du client.
                             </p>
                         </div>

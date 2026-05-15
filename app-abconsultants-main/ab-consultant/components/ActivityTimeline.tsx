@@ -67,7 +67,7 @@ const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ clientId, clientNam
             <div className="flex items-center gap-2 mb-4">
                 <Activity className="w-4 h-4 text-brand-500" />
                 <h3 className="text-sm font-bold text-slate-700">Activité Récente</h3>
-                <span className="text-[11px] text-slate-400 font-medium">{clientName}</span>
+                <span className="text-xs text-slate-400 font-medium">{clientName}</span>
             </div>
 
             {isLoading ? (
@@ -79,7 +79,7 @@ const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ clientId, clientNam
                 <div className="text-center py-8 text-slate-400">
                     <Clock className="w-8 h-8 mx-auto mb-2 opacity-30" />
                     <p className="text-xs">Aucune activité enregistrée.</p>
-                    <p className="text-[11px] mt-1">Les prochaines actions seront tracées ici.</p>
+                    <p className="text-xs mt-1">Les prochaines actions seront tracées ici.</p>
                 </div>
             ) : (
                 <div className="relative">
@@ -99,7 +99,7 @@ const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ clientId, clientNam
                                     {/* Content */}
                                     <div className="flex-1 min-w-0 pt-0.5">
                                         <p className="text-xs text-slate-700 leading-relaxed">{event.description}</p>
-                                        <p className="text-[11px] text-slate-400 mt-0.5">
+                                        <p className="text-xs text-slate-400 mt-0.5">
                                             {formatTimestamp(event.timestamp)}
                                             {event.actorEmail && <span className="ml-1">· {event.actorEmail.split('@')[0]}</span>}
                                         </p>

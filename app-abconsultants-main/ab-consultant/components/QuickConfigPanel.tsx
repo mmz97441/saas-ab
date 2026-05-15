@@ -69,7 +69,7 @@ const QuickConfigPanel: React.FC<QuickConfigPanelProps> = ({
             </div>
             <div className="flex-1 text-left">
                 <h4 className="text-xs font-bold text-slate-700">{title}</h4>
-                {subtitle && <p className="text-[11px] text-slate-400">{subtitle}</p>}
+                {subtitle && <p className="text-xs text-slate-400">{subtitle}</p>}
             </div>
             {expandedSection === id
                 ? <ChevronUp className="w-4 h-4 text-slate-400" />
@@ -105,7 +105,7 @@ const QuickConfigPanel: React.FC<QuickConfigPanelProps> = ({
                     <div className="px-3 pb-3 space-y-3 animate-in slide-in-from-top-2 duration-200">
                         <div className="grid grid-cols-2 gap-2">
                             <div className="col-span-2">
-                                <label className="text-[11px] font-bold text-slate-400 uppercase">Raison Sociale</label>
+                                <label className="text-xs font-bold text-slate-400 uppercase">Raison Sociale</label>
                                 <input
                                     value={editableClient.companyName}
                                     onChange={e => setEditableClient({ ...editableClient, companyName: e.target.value })}
@@ -113,7 +113,7 @@ const QuickConfigPanel: React.FC<QuickConfigPanelProps> = ({
                                 />
                             </div>
                             <div>
-                                <label className="text-[11px] font-bold text-slate-400 uppercase">SIRET</label>
+                                <label className="text-xs font-bold text-slate-400 uppercase">SIRET</label>
                                 <input
                                     value={editableClient.siret || ''}
                                     onChange={e => setEditableClient({ ...editableClient, siret: e.target.value })}
@@ -121,7 +121,7 @@ const QuickConfigPanel: React.FC<QuickConfigPanelProps> = ({
                                 />
                             </div>
                             <div>
-                                <label className="text-[11px] font-bold text-slate-400 uppercase">Ville</label>
+                                <label className="text-xs font-bold text-slate-400 uppercase">Ville</label>
                                 <input
                                     value={editableClient.city || ''}
                                     onChange={e => setEditableClient({ ...editableClient, city: e.target.value })}
@@ -129,7 +129,7 @@ const QuickConfigPanel: React.FC<QuickConfigPanelProps> = ({
                                 />
                             </div>
                             <div>
-                                <label className="text-[11px] font-bold text-slate-400 uppercase">Dirigeant</label>
+                                <label className="text-xs font-bold text-slate-400 uppercase">Dirigeant</label>
                                 <input
                                     value={editableClient.managerName || ''}
                                     onChange={e => setEditableClient({ ...editableClient, managerName: e.target.value })}
@@ -137,7 +137,7 @@ const QuickConfigPanel: React.FC<QuickConfigPanelProps> = ({
                                 />
                             </div>
                             <div>
-                                <label className="text-[11px] font-bold text-slate-400 uppercase">Mobile</label>
+                                <label className="text-xs font-bold text-slate-400 uppercase">Mobile</label>
                                 <input
                                     value={editableClient.managerPhone || ''}
                                     onChange={e => setEditableClient({ ...editableClient, managerPhone: e.target.value })}
@@ -145,7 +145,7 @@ const QuickConfigPanel: React.FC<QuickConfigPanelProps> = ({
                                 />
                             </div>
                             <div className="col-span-2">
-                                <label className="text-[11px] font-bold text-slate-400 uppercase flex items-center gap-1">
+                                <label className="text-xs font-bold text-slate-400 uppercase flex items-center gap-1">
                                     <Mail className="w-3 h-3" /> Email Client
                                 </label>
                                 <input
@@ -229,7 +229,7 @@ const QuickConfigPanel: React.FC<QuickConfigPanelProps> = ({
                                 <select
                                     value={pc.type}
                                     onChange={e => setProfitCenters(prev => prev.map(p => p.id === pc.id ? { ...p, type: e.target.value as 'goods' | 'services' } : p))}
-                                    className="px-1 py-1 text-[11px] border border-slate-200 rounded text-slate-600 bg-white"
+                                    className="px-1 py-1 text-xs border border-slate-200 rounded text-slate-600 bg-white"
                                 >
                                     <option value="goods">March.</option>
                                     <option value="services">Serv.</option>
@@ -245,7 +245,7 @@ const QuickConfigPanel: React.FC<QuickConfigPanelProps> = ({
 
                         <button
                             onClick={() => setProfitCenters([...profitCenters, { id: `pc_${Date.now()}`, name: 'Nouvelle Activité', type: 'goods', defaultMargin: 0 }])}
-                            className="w-full py-1.5 border border-dashed border-indigo-200 text-indigo-600 text-[11px] font-bold rounded-lg hover:bg-indigo-50 transition flex items-center justify-center gap-1"
+                            className="w-full py-1.5 border border-dashed border-indigo-200 text-indigo-600 text-xs font-bold rounded-lg hover:bg-indigo-50 transition flex items-center justify-center gap-1"
                         >
                             <Plus className="w-3 h-3" /> Ajouter
                         </button>

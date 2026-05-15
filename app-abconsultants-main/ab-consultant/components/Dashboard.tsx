@@ -692,12 +692,12 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                     <span className="font-bold text-blue-700">{Math.round(data.Fuel_Total || 0).toLocaleString()} L</span>
                 </div>
                 {data.Fuel_Obj_Total > 0 && (
-                    <div className="flex justify-between items-center mb-1.5 text-[11px]">
+                    <div className="flex justify-between items-center mb-1.5 text-xs">
                         <span className="text-slate-400">Objectif Total</span>
                         <span className="font-medium text-slate-500">{Math.round(data.Fuel_Obj_Total).toLocaleString()} L</span>
                     </div>
                 )}
-                <div className="space-y-1 mt-2 text-[11px]">
+                <div className="space-y-1 mt-2 text-xs">
                     {[
                       { label: 'Gasoil', vol: data.Fuel_Gasoil, obj: data.Fuel_Obj_Gasoil, color: '#3b82f6' },
                       { label: 'SP', vol: data.Fuel_SP, obj: data.Fuel_Obj_SP, color: '#f59e0b' },
@@ -780,7 +780,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                     <button
                         key={p}
                         onClick={() => applyPreset(p as any)}
-                        className={`px-3 py-1 text-[11px] font-bold rounded-md transition-all ${
+                        className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
                             (p === 'ALL' && selectedMonths.length === 0 && !rollingMode)
                             ? 'bg-white text-brand-700 shadow-sm'
                             : 'text-brand-400 hover:text-brand-600 hover:bg-brand-100'
@@ -794,7 +794,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                     <button
                         key={mode}
                         onClick={() => applyRollingMode(mode)}
-                        className={`px-3 py-1 text-[11px] font-bold rounded-md transition-all ${
+                        className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
                             rollingMode === mode
                             ? 'bg-indigo-600 text-white shadow-sm'
                             : 'text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50'
@@ -865,7 +865,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                 <button
                   key={m}
                   onClick={() => handleMonthToggle(m)}
-                  className={`px-1 py-2 text-[11px] font-bold rounded-lg transition-all border ${
+                  className={`px-1 py-2 text-xs font-bold rounded-lg transition-all border ${
                     isSelected
                       ? 'bg-brand-900 text-white border-brand-800 shadow-sm'
                       : hasData && !isFutureMonth
@@ -893,21 +893,21 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
              if (p >= 110) return { bg: 'bg-emerald-100', text: 'text-emerald-700' };
              if (p >= 100) return { bg: 'bg-lime-100', text: 'text-lime-700' };
              if (p >= 95) return { bg: 'bg-amber-100', text: 'text-amber-700' };
-             if (p >= 85) return { bg: 'bg-orange-100', text: 'text-orange-700' };
+             if (p >= 85) return { bg: 'bg-amber-100', text: 'text-amber-700' };
              return { bg: 'bg-red-100', text: 'text-red-700' };
            };
            const getCaBarColor = (p: number) => {
              if (p >= 110) return '#059669';
              if (p >= 100) return '#65a30d';
-             if (p >= 95) return '#d97706';
-             if (p >= 85) return '#ea580c';
+             if (p >= 95) return '#fbbf24';   // amber-400 — presque
+             if (p >= 85) return '#d97706';   // amber-600 — en retard
              return '#dc2626';
            };
            const getCaTextColor = (p: number) => {
              if (p >= 110) return 'text-emerald-700';
              if (p >= 100) return 'text-lime-700';
-             if (p >= 95) return 'text-amber-600';
-             if (p >= 85) return 'text-orange-600';
+             if (p >= 95) return 'text-amber-500';
+             if (p >= 85) return 'text-amber-700';
              return 'text-red-600';
            };
            const badge = getCaBadge(caPerf);
@@ -920,17 +920,17 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                     <DollarSign className="w-4 h-4" />
                 </div>
                 {kpis.objective > 0 && (
-                <div className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full ${badge.bg} ${badge.text}`}>
+                <div className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${badge.bg} ${badge.text}`}>
                     {kpis.revenuePerformance}% Obj
                 </div>
                 )}
             </div>
-            <p className="text-[11px] font-bold uppercase tracking-wider mb-0.5 text-slate-400" title="CA HT facturé sur la période sélectionnée">Chiffre d'Affaires</p>
+            <p className="text-xs font-bold uppercase tracking-wider mb-0.5 text-slate-400" title="CA HT facturé sur la période sélectionnée">Chiffre d'Affaires</p>
             <h3 className="text-xl font-bold text-slate-800">
                 <AnimatedNumber value={kpis.revenue} />
             </h3>
             {kpis.revenueVariation !== null && (
-              <div className={`flex items-center gap-1 mt-1 text-[11px] font-bold ${kpis.revenueVariation >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+              <div className={`flex items-center gap-1 mt-1 text-xs font-bold ${kpis.revenueVariation >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                 {kpis.revenueVariation >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                 {kpis.revenueVariation > 0 ? '+' : ''}{kpis.revenueVariation.toFixed(1)}% vs N-1
               </div>
@@ -938,7 +938,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
             {/* Jauge d'atteinte objectif CA */}
             {kpis.objective > 0 && (
               <div className="mt-3 pt-2 border-t border-slate-100">
-                <div className="flex justify-between items-center text-[11px] mb-1">
+                <div className="flex justify-between items-center text-xs mb-1">
                   <span className="font-medium text-slate-500">Objectif</span>
                   <span className="text-slate-500">
                     <span className={`font-bold ${textColor}`}>{Math.round(kpis.revenue).toLocaleString()} €</span>
@@ -949,10 +949,10 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                   <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${Math.min(caPerf, 100)}%`, backgroundColor: barColor }} />
                 </div>
                 <div className="flex justify-between items-center mt-1">
-                  <span className={`text-[11px] font-bold ${textColor}`}>
+                  <span className={`text-xs font-bold ${textColor}`}>
                     {caPerf >= 110 ? 'Excellent !' : caPerf >= 100 ? 'Objectif atteint' : caPerf >= 95 ? 'Presque...' : caPerf >= 85 ? 'En retard' : 'Critique'}
                   </span>
-                  <span className={`text-[11px] font-bold ${textColor}`}>{caPerf.toFixed(1)}%</span>
+                  <span className={`text-xs font-bold ${textColor}`}>{caPerf.toFixed(1)}%</span>
                 </div>
               </div>
             )}
@@ -967,17 +967,17 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                     <Percent className="w-4 h-4" />
                 </div>
             </div>
-            <p className="text-[11px] font-bold uppercase tracking-wider mb-0.5 text-slate-400" title="Marge commerciale brute en % du CA HT">Taux de Marge</p>
+            <p className="text-xs font-bold uppercase tracking-wider mb-0.5 text-slate-400" title="Marge commerciale brute en % du CA HT">Taux de Marge</p>
             <h3 className="text-xl font-bold text-slate-800">
                 {kpis.globalMarginRate.toFixed(1)}%
             </h3>
             {kpis.marginVariation !== null && (
-              <div className={`flex items-center gap-1 mt-1 text-[11px] font-bold ${kpis.marginVariation >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+              <div className={`flex items-center gap-1 mt-1 text-xs font-bold ${kpis.marginVariation >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                 {kpis.marginVariation >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                 {kpis.marginVariation > 0 ? '+' : ''}{kpis.marginVariation.toFixed(1)} pts vs N-1
               </div>
             )}
-            <p className="text-[11px] text-slate-400 mt-1">Sur CA HT total</p>
+            <p className="text-xs text-slate-400 mt-1">Sur CA HT total</p>
          </div>
 
          {/* TREASURY CARD */}
@@ -986,14 +986,14 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                 <div className={`p-1.5 rounded-lg ${kpis.treasury >= 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
                     <Landmark className="w-4 h-4" />
                 </div>
-                {kpis.treasury < 0 && <div className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">ALERTE</div>}
+                {kpis.treasury < 0 && <div className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">ALERTE</div>}
              </div>
-             <p className="text-[11px] font-bold uppercase tracking-wider mb-0.5 text-slate-400" title="Soldes bancaires créditeurs - Soldes débiteurs et découverts">Trésorerie Nette</p>
+             <p className="text-xs font-bold uppercase tracking-wider mb-0.5 text-slate-400" title="Soldes bancaires créditeurs - Soldes débiteurs et découverts">Trésorerie Nette</p>
              <h3 className={`text-xl font-bold ${kpis.treasury >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
                 <AnimatedNumber value={kpis.treasury} />
              </h3>
              {kpis.treasuryVariation !== null && (
-               <div className={`flex items-center gap-1 mt-1 text-[11px] font-bold ${kpis.treasuryVariation >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+               <div className={`flex items-center gap-1 mt-1 text-xs font-bold ${kpis.treasuryVariation >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                  {kpis.treasuryVariation >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                  {kpis.treasuryVariation > 0 ? '+' : ''}{kpis.treasuryVariation.toFixed(1)}% vs N-1
                </div>
@@ -1007,12 +1007,12 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                     <Briefcase className="w-4 h-4" />
                 </div>
              </div>
-             <p className="text-[11px] font-bold uppercase tracking-wider mb-0.5 text-slate-400" title="Besoin en Fonds de Roulement : (Créances + Stocks) - Dettes courantes">BFR Moyen</p>
+             <p className="text-xs font-bold uppercase tracking-wider mb-0.5 text-slate-400" title="Besoin en Fonds de Roulement : (Créances + Stocks) - Dettes courantes">BFR Moyen</p>
              <h3 className="text-xl font-bold text-cyan-800">
                 <AnimatedNumber value={kpis.bfr} />
              </h3>
              {kpis.bfrVariation !== null && (
-               <div className={`flex items-center gap-1 mt-1 text-[11px] font-bold ${kpis.bfrVariation <= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+               <div className={`flex items-center gap-1 mt-1 text-xs font-bold ${kpis.bfrVariation <= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                  {kpis.bfrVariation <= 0 ? <ArrowDownRight className="w-3 h-3" /> : <ArrowUpRight className="w-3 h-3" />}
                  {kpis.bfrVariation > 0 ? '+' : ''}{kpis.bfrVariation.toFixed(1)}% vs N-1
                </div>
@@ -1033,14 +1033,14 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
               { label: 'DPO', value: `${kpis.dpo.toFixed(0)}j`, sub: 'Délai fourn.', color: 'bg-rose-50 text-rose-700 border-rose-200' },
               { label: 'DIO', value: `${kpis.dio.toFixed(0)}j`, sub: 'Rotation stocks', color: 'bg-amber-50 text-amber-700 border-amber-200' },
               { label: 'BFR', value: `${kpis.bfrDays.toFixed(0)}j`, sub: 'en jours de CA', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-              { label: 'Masse Sal.', value: `${kpis.masseSalarialeRate.toFixed(1)}%`, sub: '% du CA', color: 'bg-purple-50 text-purple-700 border-purple-200' },
+              { label: 'Masse Sal.', value: `${kpis.masseSalarialeRate.toFixed(1)}%`, sub: '% du CA', color: 'bg-amber-50 text-amber-700 border-amber-200' },
               { label: 'CA/Heure', value: `${kpis.caPerHour.toFixed(0)}€`, sub: 'Productivité', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-              { label: 'Coût/H', value: `${kpis.costPerHour.toFixed(0)}€`, sub: 'Coût salarial', color: 'bg-orange-50 text-orange-700 border-orange-200' },
+              { label: 'Coût/H', value: `${kpis.costPerHour.toFixed(0)}€`, sub: 'Coût salarial', color: 'bg-amber-50 text-amber-700 border-amber-200' },
             ].map(r => (
               <div key={r.label} className={`flex flex-col items-center p-2.5 rounded-lg border ${r.color}`}>
-                <span className="text-[11px] font-bold uppercase tracking-wider opacity-70">{r.label}</span>
+                <span className="text-xs font-bold uppercase tracking-wider opacity-70">{r.label}</span>
                 <span className="text-lg font-bold">{r.value}</span>
-                <span className="text-[11px] opacity-60">{r.sub}</span>
+                <span className="text-xs opacity-60">{r.sub}</span>
               </div>
             ))}
           </div>
@@ -1058,7 +1058,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                     <DollarSign className="w-4 h-4 text-brand-600" />
                     Chiffre d'Affaires
                 </h3>
-                <div className="flex items-center gap-2 text-[11px]">
+                <div className="flex items-center gap-2 text-xs">
                     <span className="flex items-center gap-1"><div className="w-2 h-2 bg-brand-900 rounded-sm"></div> N</span>
                     <span className="flex items-center gap-1"><div className="w-2 h-2 bg-slate-300 rounded-sm"></div> N-1</span>
                     <span className="flex items-center gap-1"><div className="w-2 h-0.5 bg-amber-500"></div> Obj</span>
@@ -1086,7 +1086,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                     <Landmark className={`w-4 h-4 ${kpis.treasury >= 0 ? 'text-emerald-600' : 'text-red-600'}`} />
                     Trésorerie
                 </h3>
-                <div className="flex items-center gap-2 text-[11px]">
+                <div className="flex items-center gap-2 text-xs">
                     <span className="flex items-center gap-1"><div className={`w-2 h-2 rounded-sm ${kpis.treasury >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`}></div> N</span>
                     <span className="flex items-center gap-1"><div className="w-2 h-2 bg-slate-300 rounded-sm"></div> N-1</span>
                 </div>
@@ -1125,7 +1125,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                     <Briefcase className="w-4 h-4 text-cyan-600" />
                     Évolution du BFR
                 </h3>
-                <div className="flex items-center gap-2 text-[11px]">
+                <div className="flex items-center gap-2 text-xs">
                     <span className="flex items-center gap-1"><div className="w-2 h-2 bg-cyan-500 rounded-sm"></div> Créances</span>
                     <span className="flex items-center gap-1"><div className="w-2 h-2 bg-amber-500 rounded-sm"></div> Stocks</span>
                     <span className="flex items-center gap-1"><div className="w-2 h-2 bg-rose-500 rounded-sm"></div> Dettes</span>
@@ -1162,15 +1162,15 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
 
               return (
                 <>
-                  <p className="text-[11px] text-slate-400 text-center mb-3">{r.month} {r.year}</p>
+                  <p className="text-xs text-slate-400 text-center mb-3">{r.month} {r.year}</p>
 
                   {/* BFR Net — highlighted card at top */}
                   <div className={`rounded-lg p-3 mb-4 text-center ${r.bfr.total < 0 ? 'bg-emerald-50 border border-emerald-200' : 'bg-red-50 border border-red-200'}`}>
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-0.5">BFR Net</div>
+                    <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-0.5">BFR Net</div>
                     <div className={`text-2xl font-bold ${r.bfr.total < 0 ? 'text-emerald-700' : 'text-red-700'}`}>
                       {formatCurrency(r.bfr.total, 0)}
                     </div>
-                    <div className={`text-[11px] font-medium mt-0.5 ${r.bfr.total < 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    <div className={`text-xs font-medium mt-0.5 ${r.bfr.total < 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                       {r.bfr.total < 0 ? 'Excédent de trésorerie' : 'Besoin de financement'}
                     </div>
                   </div>
@@ -1198,10 +1198,10 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                   </div>
 
                   {/* Detail table — two columns side by side */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-[11px] border-t border-slate-100 pt-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs border-t border-slate-100 pt-3">
                     {/* Actif detail */}
                     <div className="space-y-1">
-                      <div className="font-bold text-cyan-700 text-[11px] uppercase tracking-wider mb-1">Détail Actif</div>
+                      <div className="font-bold text-cyan-700 text-xs uppercase tracking-wider mb-1">Détail Actif</div>
                       <div className="flex justify-between"><span className="text-slate-500">Clients</span><span className="text-slate-700 font-medium">{formatCurrency(r.bfr.receivables.clients, 0)}</span></div>
                       <div className="flex justify-between"><span className="text-slate-500">État</span><span className="text-slate-700 font-medium">{formatCurrency(r.bfr.receivables.state, 0)}</span></div>
                       <div className="flex justify-between"><span className="text-slate-500">Org. Sociaux</span><span className="text-slate-700 font-medium">{formatCurrency(r.bfr.receivables.social, 0)}</span></div>
@@ -1210,7 +1210,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                     </div>
                     {/* Passif detail */}
                     <div className="space-y-1">
-                      <div className="font-bold text-rose-700 text-[11px] uppercase tracking-wider mb-1">Détail Passif</div>
+                      <div className="font-bold text-rose-700 text-xs uppercase tracking-wider mb-1">Détail Passif</div>
                       <div className="flex justify-between"><span className="text-slate-500">Fournisseurs</span><span className="text-slate-700 font-medium">{formatCurrency(r.bfr.debts.suppliers, 0)}</span></div>
                       <div className="flex justify-between"><span className="text-slate-500">Fiscal</span><span className="text-slate-700 font-medium">{formatCurrency(r.bfr.debts.state, 0)}</span></div>
                       <div className="flex justify-between"><span className="text-slate-500">Social</span><span className="text-slate-700 font-medium">{formatCurrency(r.bfr.debts.social, 0)}</span></div>
@@ -1236,11 +1236,11 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
             <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
                <div className="flex justify-between items-center mb-4">
                   <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2">
-                      <Users className="w-4 h-4 text-orange-600" />
+                      <Users className="w-4 h-4 text-amber-600" />
                       Productivité
                   </h3>
-                  <div className="flex items-center gap-2 text-[11px]">
-                      <span className="flex items-center gap-1"><div className="w-2 h-2 bg-orange-500 rounded-sm"></div> Heures</span>
+                  <div className="flex items-center gap-2 text-xs">
+                      <span className="flex items-center gap-1"><div className="w-2 h-2 bg-amber-500 rounded-sm"></div> Heures</span>
                       <span className="flex items-center gap-1"><div className="w-2 h-0.5 bg-purple-500"></div> CA/h</span>
                   </div>
                </div>
@@ -1267,7 +1267,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
           {kpis.topActivities.length > 0 && (
             <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
                <h3 className="text-sm font-bold text-brand-900 mb-4 flex items-center gap-2 uppercase tracking-wide">
-                  <ShoppingBag className="w-4 h-4 text-purple-500" /> Répartition Activité
+                  <ShoppingBag className="w-4 h-4 text-indigo-500" /> Répartition Activité
                </h3>
                <div className="space-y-3">
                  {kpis.topActivities.map((act, idx) => (
@@ -1279,7 +1279,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                      <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                        <div className="h-full rounded-full" style={{ width: `${act.percent}%`, backgroundColor: COLORS_ACTIVITIES[Number(idx) % COLORS_ACTIVITIES.length] }} />
                      </div>
-                     <div className="flex justify-between mt-0.5 text-[11px] text-slate-400">
+                     <div className="flex justify-between mt-0.5 text-xs text-slate-400">
                        <span>{formatCurrency(act.val)}</span>
                        <span>Marge: {act.marginRate.toFixed(1)}%</span>
                      </div>
@@ -1303,7 +1303,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                 <Activity className="w-4 h-4 text-indigo-500" />
                 Évolution des Ratios (jours)
               </h3>
-              <div className="flex items-center gap-2 text-[11px]">
+              <div className="flex items-center gap-2 text-xs">
                 <span className="flex items-center gap-1"><div className="w-2 h-0.5 bg-cyan-500"></div> DSO</span>
                 <span className="flex items-center gap-1"><div className="w-2 h-0.5 bg-rose-500"></div> DPO</span>
                 <span className="flex items-center gap-1"><div className="w-2 h-0.5 bg-amber-500"></div> DIO</span>
@@ -1333,7 +1333,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                 <TrendingUp className="w-4 h-4 text-blue-500" />
                 Tendances par Activité
               </h3>
-              <div className="flex items-center gap-2 text-[11px] flex-wrap justify-end">
+              <div className="flex items-center gap-2 text-xs flex-wrap justify-end">
                 {kpis.topActivities.map((act, idx) => (
                   <span key={act.id} className="flex items-center gap-1">
                     <div className="w-2 h-0.5" style={{ backgroundColor: COLORS_ACTIVITIES[idx % COLORS_ACTIVITIES.length] }}></div>
@@ -1382,7 +1382,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                   <Fuel className="w-4 h-4 text-blue-600" />
                   Volume Carburant
               </h3>
-              <div className="flex items-center gap-3 text-[11px]">
+              <div className="flex items-center gap-3 text-xs">
                   <span className="flex items-center gap-1"><div className="w-2.5 h-2.5 bg-blue-500 rounded-sm"></div> Gasoil</span>
                   <span className="flex items-center gap-1"><div className="w-2.5 h-2.5 bg-amber-500 rounded-sm"></div> SP</span>
                   <span className="flex items-center gap-1"><div className="w-2.5 h-2.5 bg-emerald-500 rounded-sm"></div> GNR</span>
@@ -1418,7 +1418,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
            {/* Fuel Type Summary — objectives by fuel type */}
            {(kpis.fuelDetails.gasoil.obj > 0 || kpis.fuelDetails.sp.obj > 0 || kpis.fuelDetails.gnr.obj > 0) && (
              <div className="mt-4 pt-3 border-t border-slate-100">
-               <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Objectifs par type de carburant</div>
+               <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Objectifs par type de carburant</div>
                <div className="space-y-2">
                  {[
                    { label: 'Gasoil', vol: kpis.fuelDetails.gasoil.vol, obj: kpis.fuelDetails.gasoil.obj },
@@ -1431,22 +1431,22 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                    const getBarColor = (p: number) => {
                      if (p >= 110) return '#059669';  // emerald-600 — excellent
                      if (p >= 100) return '#65a30d';  // lime-600 — objectif atteint
-                     if (p >= 95) return '#d97706';   // amber-600 — presque
-                     if (p >= 85) return '#ea580c';   // orange-600 — en retard
+                     if (p >= 95) return '#fbbf24';   // amber-400 — presque
+                     if (p >= 85) return '#d97706';   // amber-600 — en retard
                      return '#dc2626';                 // red-600 — critique
                    };
                    const getTextColor = (p: number) => {
                      if (p >= 110) return 'text-emerald-700';
                      if (p >= 100) return 'text-lime-700';
                      if (p >= 95) return 'text-amber-600';
-                     if (p >= 85) return 'text-orange-600';
+                     if (p >= 85) return 'text-amber-600';
                      return 'text-red-600';
                    };
                    const barColor = getBarColor(pct);
                    const textColor = getTextColor(pct);
                    return (
                      <div key={f.label}>
-                       <div className="flex justify-between items-center text-[11px] mb-0.5">
+                       <div className="flex justify-between items-center text-xs mb-0.5">
                          <span className="font-medium text-slate-600">{f.label}</span>
                          <span className="text-slate-500">
                            <span className={`font-bold ${textColor}`}>{Math.round(f.vol).toLocaleString()} L</span>
@@ -1504,7 +1504,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                           <>
                               <div className="whitespace-pre-line leading-relaxed">{commentText}</div>
                               {snapshotRecord && (
-                                  <p className="text-[11px] text-slate-400 mt-4 pt-3 border-t border-slate-200">
+                                  <p className="text-xs text-slate-400 mt-4 pt-3 border-t border-slate-200">
                                       Analyse pour {snapshotRecord.month} {snapshotRecord.year}
                                   </p>
                               )}

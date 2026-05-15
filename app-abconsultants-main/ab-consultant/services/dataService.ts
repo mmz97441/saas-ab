@@ -288,22 +288,30 @@ export const getClients = async (filterByEmail?: string | null): Promise<Client[
 
         const emailLower = filterByEmail.toLowerCase();
 
-        // Owner query
+        // Owner query — rule allows via owner.email == myEmail() per-doc
         const ownerSnap = await getDocs(query(collection(db, COLL_CLIENTS), where("owner.email", "==", emailLower)));
         const ownerClients = ownerSnap.docs.map(mapDocToClient);
 
-        // Collaborator scan (Firestore can't query nested array objects directly)
-        const allSnap = await getDocs(query(collection(db, COLL_CLIENTS)));
-        const collabClients: Client[] = [];
+        // Collaborator query — leverages denormalized collaboratorEmails array
+        // (maintained by setUserRole and saveClient). Rule allows via
+        // myEmail() in resource.data.collaboratorEmails per-doc.
+        // The previous unfiltered scan triggered permission-denied for clients
+        // under the post-557cbd6 rules (cross-tenant leak fix).
         const ownerIds = new Set(ownerClients.map(c => c.id));
-
-        for (const doc of allSnap.docs) {
-            if (ownerIds.has(doc.id)) continue; // Already in owner list
-            const data = doc.data();
-            const collaborators: any[] = data.collaborators || [];
-            if (collaborators.some((c: any) => c.email?.toLowerCase() === emailLower && c.status === 'active')) {
+        const collabClients: Client[] = [];
+        try {
+            const collabSnap = await getDocs(query(
+                collection(db, COLL_CLIENTS),
+                where("collaboratorEmails", "array-contains", emailLower)
+            ));
+            for (const doc of collabSnap.docs) {
+                if (ownerIds.has(doc.id)) continue;
                 collabClients.push(mapDocToClient(doc));
             }
+        } catch (collabErr) {
+            // Non-fatal: owner clients still returned. Older docs without
+            // the denormalized field will be missed until they're re-saved.
+            console.warn("Lecture collaborateurs indisponible:", collabErr);
         }
 
         return [...ownerClients, ...collabClients];

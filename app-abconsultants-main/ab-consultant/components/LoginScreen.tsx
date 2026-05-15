@@ -168,9 +168,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
           </div>
 
           <div className="space-y-6">
-             <h2 className="text-3xl font-bold leading-tight text-white">
-                {activeTab === 'expert' 
-                    ? "Expertise et Stratégie." 
+             <h2 className="text-3xl font-bold leading-tight text-white [text-wrap:balance]">
+                {activeTab === 'expert'
+                    ? "Expertise et Stratégie."
                     : "Votre performance financière en temps réel."}
              </h2>
              <p className="text-brand-100 leading-relaxed font-light">
@@ -180,9 +180,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
              </p>
           </div>
 
-          <div className="text-xs text-brand-300/60 pt-6 border-t border-white/10 flex justify-between items-center">
-             <span>© {new Date().getFullYear()} AB Consultants <span className="opacity-50 ml-1 font-mono">v{APP_VERSION}</span></span>
-             <span className="text-accent-500 font-bold">SÉCURISÉ PAR FIREBASE</span>
+          <div className="text-xs text-brand-200 pt-6 border-t border-white/10 flex justify-between items-center">
+             <span>© {new Date().getFullYear()} AB Consultants</span>
+             <span className="text-accent-400 font-bold flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5" /> CONNEXION SÉCURISÉE
+             </span>
+             {import.meta.env.DEV && (
+                <span className="font-mono text-brand-300 absolute bottom-2 right-2 opacity-50" aria-hidden="true">v{APP_VERSION}</span>
+             )}
           </div>
         </div>
 
@@ -190,16 +195,20 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         <div className="md:w-1/2 p-10 flex flex-col justify-center bg-white relative">
             
             {/* Tabs */}
-            <div className="flex p-1 bg-brand-50 rounded-lg mb-8">
-                <button 
+            <div className="flex p-1 bg-brand-50 rounded-lg mb-8" role="tablist" aria-label="Type de compte">
+                <button
+                    role="tab"
+                    aria-selected={activeTab === 'client'}
                     onClick={() => { setActiveTab('client'); setError(''); setIsSignUp(false); setInfoMessage(''); }}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-md transition-all ${activeTab === 'client' ? 'bg-white text-brand-900 shadow-sm ring-1 ring-black/5' : 'text-brand-400 hover:text-brand-600'}`}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold rounded-md transition-all ${activeTab === 'client' ? 'bg-white text-brand-900 shadow-sm ring-1 ring-black/5' : 'text-brand-400 hover:text-brand-600'}`}
                 >
                     <UserCircle className="w-4 h-4" /> Espace Client
                 </button>
-                <button 
+                <button
+                    role="tab"
+                    aria-selected={activeTab === 'expert'}
                     onClick={() => { setActiveTab('expert'); setError(''); setIsSignUp(false); setInfoMessage(''); }}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-md transition-all ${activeTab === 'expert' ? 'bg-white text-brand-900 shadow-sm ring-1 ring-black/5' : 'text-brand-400 hover:text-brand-600'}`}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold rounded-md transition-all ${activeTab === 'expert' ? 'bg-white text-brand-900 shadow-sm ring-1 ring-black/5' : 'text-brand-400 hover:text-brand-600'}`}
                 >
                     <ShieldCheck className="w-4 h-4" /> Espace Consultant
                 </button>
@@ -235,8 +244,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                     <div className="flex justify-between items-center mb-1">
                         <label className="block text-xs font-bold text-brand-700 uppercase">Mot de passe</label>
                         {!isSignUp && (
-                            <button type="button" onClick={handleResetPassword} className="text-xs font-bold text-brand-500 hover:text-brand-700 flex items-center gap-1">
-                                <KeyRound className="w-3 h-3" /> Oublié ?
+                            <button type="button" onClick={handleResetPassword} className="text-xs font-bold text-brand-600 hover:text-brand-800 flex items-center gap-1 py-1 px-2 -my-1 -mr-2 rounded hover:bg-brand-50 transition">
+                                <KeyRound className="w-3 h-3" /> Mot de passe oublié ?
                             </button>
                         )}
                     </div>
@@ -278,13 +287,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             </form>
             
             {/* TOGGLE MODE LINK */}
-            <div className="mt-6 text-center border-t border-brand-50 pt-4">
-                <button 
+            <div className="mt-6 text-center border-t border-brand-100 pt-4">
+                <button
                     onClick={toggleMode}
-                    className="text-xs text-brand-500 hover:text-brand-800 font-medium transition-colors"
+                    className="text-sm text-brand-600 hover:text-brand-900 font-semibold transition-colors py-2 px-3 rounded-md hover:bg-brand-50"
                 >
-                    {isSignUp 
-                        ? "J'ai déjà un mot de passe. Me connecter." 
+                    {isSignUp
+                        ? "J'ai déjà un mot de passe. Me connecter."
                         : (activeTab === 'expert' ? "Invité par l'admin ? Activer mon accès." : "Première connexion ? Créer mon accès.")
                     }
                 </button>

@@ -8,6 +8,7 @@
 
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { initializeApp, getApp } from 'firebase/app';
+import { auth } from '../firebase';
 
 let functions: ReturnType<typeof getFunctions>;
 
@@ -47,6 +48,67 @@ export async function askFinancialAdvisor(params: AskAdvisorParams): Promise<Ask
 
   const result = await fn(params);
   return result.data;
+}
+
+// =============================================
+// GEMINI AI — STREAMING (SSE)
+// =============================================
+// Streaming version of askFinancialAdvisor — uses HTTP SSE instead of callable.
+export interface StreamingChunk {
+  text?: string;
+  done?: boolean;
+  remaining?: number;
+  error?: string;
+}
+
+export async function askFinancialAdvisorStream(
+  body: { query: string; financialContext: any; history?: any[]; attachments?: any[]; },
+  onChunk: (chunk: StreamingChunk) => void,
+): Promise<void> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Non authentifié');
+  const idToken = await user.getIdToken();
+
+  const url = 'https://europe-west1-app-ab-consultant.cloudfunctions.net/askFinancialAdvisorStream';
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${idToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+    throw new Error(errBody.error || `HTTP ${res.status}`);
+  }
+
+  if (!res.body) throw new Error('Pas de body de réponse');
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    // Process SSE frames separated by \n\n
+    let idx: number;
+    while ((idx = buffer.indexOf('\n\n')) !== -1) {
+      const frame = buffer.slice(0, idx);
+      buffer = buffer.slice(idx + 2);
+      if (!frame.startsWith('data: ')) continue;
+      const dataStr = frame.slice(6);
+      try {
+        const data = JSON.parse(dataStr) as StreamingChunk;
+        onChunk(data);
+        if (data.done || data.error) return;
+      } catch (e) {
+        // Malformed chunk — ignore
+      }
+    }
+  }
 }
 
 // =============================================

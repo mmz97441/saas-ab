@@ -1,6 +1,139 @@
 import * as functions from 'firebase-functions';
+import * as admin from 'firebase-admin';
 import { GoogleGenAI } from '@google/genai';
 import { checkRateLimit } from '../middleware/rateLimiter';
+
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+
+// Allowed mime types for vision attachments (F-15)
+const ALLOWED_ATTACHMENT_MIMES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'image/webp',
+  'application/pdf',
+]);
+const MAX_ATTACHMENTS = 4;
+const MAX_TOTAL_ATTACHMENT_BYTES = 10 * 1024 * 1024; // 10MB decoded
+const ALLOWED_ORIGINS = new Set([
+  'https://app-ab-consultant.web.app',
+  'https://app-ab-consultant.firebaseapp.com',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+]);
+
+interface Attachment {
+  mimeType: string;
+  data: string;
+  name?: string;
+}
+
+interface ValidatedAttachments {
+  valid: boolean;
+  error?: string;
+  attachments: Attachment[];
+}
+
+function validateAttachments(raw: unknown): ValidatedAttachments {
+  if (raw === undefined || raw === null) {
+    return { valid: true, attachments: [] };
+  }
+  if (!Array.isArray(raw)) {
+    return { valid: false, error: 'attachments doit être un tableau.', attachments: [] };
+  }
+  if (raw.length > MAX_ATTACHMENTS) {
+    return {
+      valid: false,
+      error: `Trop de pièces jointes (max ${MAX_ATTACHMENTS}).`,
+      attachments: [],
+    };
+  }
+
+  const out: Attachment[] = [];
+  let totalBytes = 0;
+
+  for (let i = 0; i < raw.length; i++) {
+    const item = raw[i] as any;
+    if (!item || typeof item !== 'object') {
+      return { valid: false, error: `Pièce jointe ${i + 1} invalide.`, attachments: [] };
+    }
+    const mimeType = typeof item.mimeType === 'string' ? item.mimeType.toLowerCase() : '';
+    const data = typeof item.data === 'string' ? item.data : '';
+    if (!mimeType || !ALLOWED_ATTACHMENT_MIMES.has(mimeType)) {
+      return {
+        valid: false,
+        error: `Type de fichier non supporté: ${mimeType || '(inconnu)'}.`,
+        attachments: [],
+      };
+    }
+    if (!data) {
+      return { valid: false, error: `Pièce jointe ${i + 1} vide.`, attachments: [] };
+    }
+    // base64 decoded size = ~ length * 3/4 (minus padding)
+    const padding = (data.endsWith('==') ? 2 : data.endsWith('=') ? 1 : 0);
+    const decodedSize = Math.floor((data.length * 3) / 4) - padding;
+    totalBytes += decodedSize;
+    if (totalBytes > MAX_TOTAL_ATTACHMENT_BYTES) {
+      return {
+        valid: false,
+        error: 'Pièces jointes trop volumineuses (max 10MB au total).',
+        attachments: [],
+      };
+    }
+    out.push({
+      mimeType,
+      data,
+      name: typeof item.name === 'string' ? item.name : undefined,
+    });
+  }
+
+  return { valid: true, attachments: out };
+}
+
+function buildContents(
+  history: unknown,
+  query: string,
+  attachments: Attachment[]
+): Array<{ role: string; parts: any[] }> {
+  const contents: Array<{ role: string; parts: any[] }> = [];
+
+  if (Array.isArray(history)) {
+    for (const msg of (history as any[]).slice(-20)) {
+      if (msg && msg.role && msg.text) {
+        contents.push({
+          role: msg.role === 'user' ? 'user' : 'model',
+          parts: [{ text: String(msg.text) }],
+        });
+      }
+    }
+  }
+
+  // Current user turn: attachments first (inlineData), text last (Gemini convention).
+  const parts: any[] = [];
+  for (const att of attachments) {
+    parts.push({ inlineData: { mimeType: att.mimeType, data: att.data } });
+  }
+  parts.push({ text: query });
+  contents.push({ role: 'user', parts });
+
+  return contents;
+}
+
+function setCorsHeaders(req: functions.https.Request, res: functions.Response) {
+  const origin = req.get('origin') || '';
+  if (ALLOWED_ORIGINS.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  } else {
+    // Public app, endpoint still requires Bearer token. Allow any origin for safety.
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+  res.setHeader('Access-Control-Max-Age', '3600');
+}
 
 export const askFinancialAdvisor = functions.region('europe-west1').https.onCall(async (data, context) => {
   if (!context.auth) {
@@ -22,7 +155,7 @@ export const askFinancialAdvisor = functions.region('europe-west1').https.onCall
     );
   }
 
-  const { query, financialContext, history, mode } = data;
+  const { query, financialContext, history, mode, attachments } = data;
 
   if (!query || typeof query !== 'string' || query.trim().length === 0) {
     throw new functions.https.HttpsError('invalid-argument', 'La question est vide.');
@@ -30,6 +163,14 @@ export const askFinancialAdvisor = functions.region('europe-west1').https.onCall
 
   if (query.length > 10000) {
     throw new functions.https.HttpsError('invalid-argument', 'Question trop longue.');
+  }
+
+  const attCheck = validateAttachments(attachments);
+  if (!attCheck.valid) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      attCheck.error || 'Pièces jointes invalides.'
+    );
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
@@ -46,19 +187,7 @@ export const askFinancialAdvisor = functions.region('europe-west1').https.onCall
 
   const systemPrompt = buildSystemPrompt(financialContext || {});
 
-  const contents = [];
-  if (Array.isArray(history)) {
-    for (const msg of history.slice(-20)) {
-      if (msg.role && msg.text) {
-        contents.push({
-          role: msg.role === 'user' ? 'user' : 'model',
-          parts: [{ text: msg.text }],
-        });
-      }
-    }
-  }
-
-  contents.push({ role: 'user', parts: [{ text: query }] });
+  const contents = buildContents(history, query, attCheck.attachments);
 
   try {
     const response = await ai.models.generateContent({
@@ -111,6 +240,176 @@ TRANSCRIPT : ${transcript}
     return { text: 'Erreur résumé.', remaining: rateCheck.remaining };
   }
 }
+
+/**
+ * Streaming HTTP endpoint for the financial advisor (SSE).
+ *
+ * Contract:
+ *   POST https://europe-west1-app-ab-consultant.cloudfunctions.net/askFinancialAdvisorStream
+ *   Headers:
+ *     Authorization: Bearer <Firebase ID token>
+ *     Content-Type: application/json
+ *   Body: { query, financialContext, history?, attachments? }
+ *   Response: text/event-stream
+ *     data: {"text": "..."}\n\n     (incremental tokens)
+ *     data: {"done": true, "remaining": N}\n\n
+ *     data: {"error": "..."}\n\n    (mid-stream error)
+ *   Pre-stream errors: HTTP 4xx/5xx with JSON { error }.
+ */
+export const askFinancialAdvisorStream = functions
+  .region('europe-west1')
+  .runWith({ timeoutSeconds: 120, memory: '512MB' })
+  .https.onRequest(async (req, res) => {
+    setCorsHeaders(req, res);
+
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Méthode non autorisée. POST attendu.' });
+      return;
+    }
+
+    // ----- Auth -----
+    const authHeader = req.get('authorization') || req.get('Authorization') || '';
+    const match = authHeader.match(/^Bearer\s+(.+)$/i);
+    if (!match) {
+      res.status(401).json({ error: 'Authentification requise (Bearer token manquant).' });
+      return;
+    }
+    const idToken = match[1].trim();
+
+    let uid: string;
+    let role: string | undefined;
+    try {
+      const decoded = await admin.auth().verifyIdToken(idToken);
+      uid = decoded.uid;
+      role = (decoded as any).role;
+    } catch (err: any) {
+      functions.logger.warn('askFinancialAdvisorStream: invalid token', { error: err?.message });
+      res.status(401).json({ error: 'Token invalide ou expiré.' });
+      return;
+    }
+
+    if (!role) {
+      res.status(403).json({ error: 'Rôle non défini.' });
+      return;
+    }
+
+    // ----- Rate limit -----
+    const rateCheck = checkRateLimit(uid, 30, 60 * 60 * 1000);
+    if (!rateCheck.allowed) {
+      const minutes = Math.ceil((rateCheck.resetAt - Date.now()) / 60000);
+      res.status(429).json({
+        error: `Limite de requêtes atteinte (30/heure). Réessayez dans ${minutes} minutes.`,
+      });
+      return;
+    }
+
+    // ----- Body validation -----
+    const body = req.body || {};
+    const query = typeof body.query === 'string' ? body.query : '';
+    if (!query || query.trim().length === 0) {
+      res.status(400).json({ error: 'La question est vide.' });
+      return;
+    }
+    if (query.length > 10000) {
+      res.status(400).json({ error: 'Question trop longue (max 10000 caractères).' });
+      return;
+    }
+
+    const attCheck = validateAttachments(body.attachments);
+    if (!attCheck.valid) {
+      res.status(400).json({ error: attCheck.error || 'Pièces jointes invalides.' });
+      return;
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      functions.logger.error('GEMINI_API_KEY not configured (stream).');
+      res.status(500).json({ error: 'Service IA non configuré.' });
+      return;
+    }
+
+    // ----- Build request -----
+    const ai = new GoogleGenAI({ apiKey });
+    const systemPrompt = buildSystemPrompt(body.financialContext || {});
+    const contents = buildContents(body.history, query, attCheck.attachments);
+
+    // ----- Start SSE response -----
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    if (typeof (res as any).flushHeaders === 'function') {
+      (res as any).flushHeaders();
+    }
+
+    functions.logger.info('askFinancialAdvisorStream: start', {
+      uid,
+      queryLength: query.length,
+      attachmentsCount: attCheck.attachments.length,
+      historyLength: Array.isArray(body.history) ? body.history.length : 0,
+      remaining: rateCheck.remaining,
+    });
+
+    let aborted = false;
+    req.on('close', () => {
+      aborted = true;
+    });
+
+    let totalChars = 0;
+    try {
+      const stream = await ai.models.generateContentStream({
+        model: 'gemini-2.5-flash',
+        contents,
+        config: {
+          systemInstruction: systemPrompt,
+          temperature: 0.35,
+          maxOutputTokens: 2048,
+        },
+      });
+
+      for await (const chunk of stream) {
+        if (aborted) break;
+        const text = (chunk as any)?.text;
+        if (typeof text === 'string' && text.length > 0) {
+          totalChars += text.length;
+          res.write(`data: ${JSON.stringify({ text })}\n\n`);
+        }
+      }
+
+      if (!aborted) {
+        res.write(
+          `data: ${JSON.stringify({ done: true, remaining: rateCheck.remaining })}\n\n`
+        );
+      }
+
+      functions.logger.info('askFinancialAdvisorStream: end', {
+        uid,
+        totalChars,
+        aborted,
+      });
+    } catch (err: any) {
+      functions.logger.error('askFinancialAdvisorStream: Gemini error', {
+        uid,
+        error: err?.message,
+      });
+      try {
+        res.write(`data: ${JSON.stringify({ error: 'Erreur du service IA.' })}\n\n`);
+      } catch {
+        // socket may be dead — ignore
+      }
+    } finally {
+      try {
+        res.end();
+      } catch {
+        // ignore
+      }
+    }
+  });
 
 function buildSystemPrompt(context: Record<string, any>): string {
   const companyName = context.companyName || 'l\'entreprise';

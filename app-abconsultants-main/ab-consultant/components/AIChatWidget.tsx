@@ -1,13 +1,36 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { MessageSquare, Send, X, Bot, Loader2, Sparkles, UserCheck, ChevronRight, Scale, Briefcase, ShieldCheck, UserCircle, Bell, Trash2, AlertTriangle, PhoneCall } from 'lucide-react';
+import { MessageSquare, Send, X, Bot, Loader2, Sparkles, UserCheck, ChevronRight, Scale, Briefcase, ShieldCheck, UserCircle, Bell, Trash2, AlertTriangle, PhoneCall, Paperclip, FileText, ThumbsUp, ThumbsDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Client, FinancialRecord, ChatMessage } from '../types';
-import { askFinancialAdvisor } from '../lib/cloudFunctions';
+import { askFinancialAdvisor, askFinancialAdvisorStream } from '../lib/cloudFunctions';
 import { useConfirmDialog } from '../contexts/ConfirmContext';
-import { sendMessage, subscribeToChat, sendConsultantAlertEmail, createConsultantAlert } from '../services/dataService';
+import { sendMessage, subscribeToChat, sendConsultantAlertEmail, createConsultantAlert, submitAiFeedback } from '../services/dataService';
 import { db, auth } from '../firebase';
 import { collection, writeBatch, getDocs, deleteDoc } from "firebase/firestore";
+
+interface Attachment {
+  id: string;          // local UUID
+  mimeType: string;
+  data: string;        // base64 (no data:... prefix)
+  name: string;
+  preview?: string;    // for images, the data URI for preview
+}
+
+const MAX_FILES = 4;
+const MAX_SIZE_BYTES = 8 * 1024 * 1024; // 8 MB per file
+const ALLOWED_MIMES = ['image/png', 'image/jpeg', 'image/webp', 'application/pdf'];
+
+const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const result = reader.result as string;
+    const base64 = result.split(',')[1] || '';
+    resolve(base64);
+  };
+  reader.onerror = () => reject(reader.error);
+  reader.readAsDataURL(file);
+});
 
 const QUICK_REPLIES: { label: string; prompt: string }[] = [
   { label: 'Mon CA ce mois', prompt: "Quel est mon chiffre d'affaires du dernier mois saisi ?" },
@@ -39,10 +62,21 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [dbMessages, setDbMessages] = useState<ChatMessage[]>([]);
   const [sessionCutoff, setSessionCutoff] = useState<number | null>(null);
-  
+
   // NOUVEAU : On stocke l'ID du dernier message lu localement pour éteindre le badge
   const [lastReadMessageId, setLastReadMessageId] = useState<string | null>(null);
-  
+
+  // F-04 : streaming state (local, not persisted until complete)
+  const [streamingText, setStreamingText] = useState<string | null>(null);
+  const streamingTextRef = useRef('');
+
+  // F-15 : file attachments
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // F-12 : feedback tracking per message
+  const [feedbackGiven, setFeedbackGiven] = useState<Record<string, 'up' | 'down'>>({});
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const SESSION_TIMEOUT_MS = 90 * 60 * 1000; // 90 minutes
@@ -176,7 +210,7 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [visibleMessages, isOpen]);
+  }, [visibleMessages, isOpen, streamingText]);
 
   // F-10 : Nouvelle conversation (RGPD-friendly)
   const handleClearHistory = async () => {
@@ -190,84 +224,179 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
       setSessionCutoff(Date.now());
   };
 
+  // F-15 : handle file picker
+  const handleFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';  // reset so same file can be re-selected
+    if (files.length === 0) return;
+
+    const newAttachments: Attachment[] = [];
+    for (const file of files) {
+      if (attachments.length + newAttachments.length >= MAX_FILES) break;
+      if (!ALLOWED_MIMES.includes(file.type)) {
+        await confirmDialog({
+          title: 'Format non supporté',
+          message: `${file.name}: seuls PDF / PNG / JPEG / WebP sont acceptés.`,
+          variant: 'danger',
+          confirmLabel: 'OK',
+          showCancel: false,
+        });
+        continue;
+      }
+      if (file.size > MAX_SIZE_BYTES) {
+        await confirmDialog({
+          title: 'Fichier trop volumineux',
+          message: `${file.name}: maximum 8 MB par fichier.`,
+          variant: 'danger',
+          confirmLabel: 'OK',
+          showCancel: false,
+        });
+        continue;
+      }
+      const data = await fileToBase64(file);
+      const isImage = file.type.startsWith('image/');
+      newAttachments.push({
+        id: `att_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        mimeType: file.type,
+        data,
+        name: file.name,
+        preview: isImage ? `data:${file.type};base64,${data}` : undefined,
+      });
+    }
+    if (newAttachments.length > 0) setAttachments([...attachments, ...newAttachments]);
+  };
+
+  // F-12 : thumbs feedback handler
+  const handleFeedback = async (messageId: string, rating: 'up' | 'down') => {
+    if (feedbackGiven[messageId]) return;
+    setFeedbackGiven(prev => ({ ...prev, [messageId]: rating }));
+    try {
+      await submitAiFeedback(client.id, messageId, rating);
+    } catch (e) {
+      console.warn('Feedback failed:', e);
+      // Don't revert UI — feedback is best-effort
+    }
+  };
+
+  // Build the financial context payload (shared between streaming + fallback callable)
+  const buildFinancialContext = () => {
+    const MONTH_ORDER = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+    const sortedRecords = [...data].sort((a, b) => a.year !== b.year ? a.year - b.year : MONTH_ORDER.indexOf(a.month) - MONTH_ORDER.indexOf(b.month));
+    const lastRecord = sortedRecords[sortedRecords.length - 1];
+
+    const byYear: Record<number, FinancialRecord[]> = {};
+    for (const r of sortedRecords) { if (!byYear[r.year]) byYear[r.year] = []; byYear[r.year].push(r); }
+
+    const syntheseAnnuelle = Object.entries(byYear).map(([year, recs]) => {
+        const totalCA = recs.reduce((s, r) => s + r.revenue.total, 0);
+        const totalObj = recs.reduce((s, r) => s + r.revenue.objective, 0);
+        const totalMargin = recs.reduce((s, r) => s + (r.margin?.total || 0), 0);
+        const totalSalaries = recs.reduce((s, r) => s + r.expenses.salaries, 0);
+        const totalHours = recs.reduce((s, r) => s + r.expenses.hoursWorked, 0);
+        const lastRec = recs[recs.length - 1];
+        return {
+            annee: Number(year), nb_mois: recs.length,
+            ca_total: Math.round(totalCA), objectif_total: Math.round(totalObj),
+            marge_totale: Math.round(totalMargin), masse_salariale: Math.round(totalSalaries),
+            heures: Math.round(totalHours),
+            tresorerie: lastRec ? Math.round(lastRec.cashFlow.treasury) : 0,
+            bfr: lastRec ? Math.round(lastRec.bfr.total) : 0,
+            detail_mensuel: recs.map(r => ({
+                mois: r.month, ca: Math.round(r.revenue.total), objectif: Math.round(r.revenue.objective),
+                marge: Math.round(r.margin?.total || 0), tresorerie: Math.round(r.cashFlow.treasury),
+                bfr: Math.round(r.bfr.total), salaires: Math.round(r.expenses.salaries), heures: Math.round(r.expenses.hoursWorked),
+            }))
+        };
+    });
+
+    return {
+        companyName: client.companyName, managerName: client.managerName,
+        sector: client.sector, legalForm: client.legalForm,
+        syntheseAnnuelle,
+        situationActuelle: lastRecord ? {
+            mois: `${lastRecord.month} ${lastRecord.year}`,
+            tresorerie: Math.round(lastRecord.cashFlow.treasury),
+            ca: Math.round(lastRecord.revenue.total),
+            bfr: Math.round(lastRecord.bfr.total),
+        } : null,
+    };
+  };
+
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() && attachments.length === 0) return;
     const userText = input;
+    const localAttachments = [...attachments];
     setInput('');
+    setAttachments([]);
     setIsLoading(true);
+    streamingTextRef.current = '';
+    setStreamingText('');
 
     try {
         await sendMessage(client.id, userText, 'user');
     } catch (e: any) {
         setIsLoading(false);
-        return; 
+        setStreamingText(null);
+        streamingTextRef.current = '';
+        return;
     }
 
+    // Build history + context once (shared between streaming + fallback)
+    const contextMessages = visibleMessages.filter(m => m.id !== 'welcome-msg');
+    const history = contextMessages
+        .filter(m => !m.isSystemSummary)
+        .slice(-15)
+        .map(m => ({ role: (m.sender === 'user' ? 'user' : 'model') as 'user' | 'model', text: m.text }));
+    const financialContext = buildFinancialContext();
+
     try {
-        const contextMessages = visibleMessages.filter(m => m.id !== 'welcome-msg');
-        const history = contextMessages
-            .filter(m => !m.isSystemSummary)
-            .slice(-15)
-            .map(m => ({ role: (m.sender === 'user' ? 'user' : 'model') as 'user' | 'model', text: m.text }));
+        await askFinancialAdvisorStream(
+            {
+                query: userText,
+                financialContext,
+                history,
+                attachments: localAttachments.map(a => ({ mimeType: a.mimeType, data: a.data, name: a.name })),
+            },
+            (chunk) => {
+                if (chunk.text) {
+                    streamingTextRef.current += chunk.text;
+                    setStreamingText(streamingTextRef.current);
+                }
+                if (chunk.error) throw new Error(chunk.error);
+            },
+        );
 
-        const MONTH_ORDER = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
-        const sortedRecords = [...data].sort((a, b) => a.year !== b.year ? a.year - b.year : MONTH_ORDER.indexOf(a.month) - MONTH_ORDER.indexOf(b.month));
-        const lastRecord = sortedRecords[sortedRecords.length - 1];
-
-        const byYear: Record<number, FinancialRecord[]> = {};
-        for (const r of sortedRecords) { if (!byYear[r.year]) byYear[r.year] = []; byYear[r.year].push(r); }
-
-        const syntheseAnnuelle = Object.entries(byYear).map(([year, recs]) => {
-            const totalCA = recs.reduce((s, r) => s + r.revenue.total, 0);
-            const totalObj = recs.reduce((s, r) => s + r.revenue.objective, 0);
-            const totalMargin = recs.reduce((s, r) => s + (r.margin?.total || 0), 0);
-            const totalSalaries = recs.reduce((s, r) => s + r.expenses.salaries, 0);
-            const totalHours = recs.reduce((s, r) => s + r.expenses.hoursWorked, 0);
-            const lastRec = recs[recs.length - 1];
-            return {
-                annee: Number(year), nb_mois: recs.length,
-                ca_total: Math.round(totalCA), objectif_total: Math.round(totalObj),
-                marge_totale: Math.round(totalMargin), masse_salariale: Math.round(totalSalaries),
-                heures: Math.round(totalHours),
-                tresorerie: lastRec ? Math.round(lastRec.cashFlow.treasury) : 0,
-                bfr: lastRec ? Math.round(lastRec.bfr.total) : 0,
-                detail_mensuel: recs.map(r => ({
-                    mois: r.month, ca: Math.round(r.revenue.total), objectif: Math.round(r.revenue.objective),
-                    marge: Math.round(r.margin?.total || 0), tresorerie: Math.round(r.cashFlow.treasury),
-                    bfr: Math.round(r.bfr.total), salaires: Math.round(r.expenses.salaries), heures: Math.round(r.expenses.hoursWorked),
-                }))
-            };
-        });
-
-        const financialContext = {
-            companyName: client.companyName, managerName: client.managerName,
-            sector: client.sector, legalForm: client.legalForm,
-            syntheseAnnuelle,
-            situationActuelle: lastRecord ? {
-                mois: `${lastRecord.month} ${lastRecord.year}`,
-                tresorerie: Math.round(lastRecord.cashFlow.treasury),
-                ca: Math.round(lastRecord.revenue.total),
-                bfr: Math.round(lastRecord.bfr.total),
-            } : null,
-        };
-
-        const result = await askFinancialAdvisor({ query: userText, mode: 'chat', financialContext, history });
-
-        let finalText = result.text;
+        // Stream complete — persist final message (single Firestore write)
+        let finalText = streamingTextRef.current;
         let isAlert = false;
         if (finalText.includes('[ALERT_HUMAN]')) {
             isAlert = true;
             finalText = finalText.replace('[ALERT_HUMAN]', '').trim();
             handleManualHandoff(true);
         }
-
         await sendMessage(client.id, finalText, 'ai', isAlert);
 
-    } catch (e: any) {
-        const errorMsg = e?.message?.includes('Limite') ? e.message : "Erreur connexion IA.";
-        try { await sendMessage(client.id, errorMsg, 'ai'); } catch(err) {}
+    } catch (streamErr: any) {
+        // FALLBACK to non-streaming callable on stream failure
+        console.warn('Stream failed, falling back:', streamErr);
+        try {
+            const result = await askFinancialAdvisor({ query: userText, mode: 'chat', financialContext, history });
+            let finalText = result.text;
+            let isAlert = false;
+            if (finalText.includes('[ALERT_HUMAN]')) {
+                isAlert = true;
+                finalText = finalText.replace('[ALERT_HUMAN]', '').trim();
+                handleManualHandoff(true);
+            }
+            await sendMessage(client.id, finalText, 'ai', isAlert);
+        } catch (e: any) {
+            const errorMsg = e?.message?.includes('Limite') ? e.message : "Erreur connexion IA.";
+            try { await sendMessage(client.id, errorMsg, 'ai'); } catch(err) {}
+        }
     } finally {
         setIsLoading(false);
+        setStreamingText(null);
+        streamingTextRef.current = '';
     }
   };
 
@@ -451,13 +580,58 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
                     ) : (
                       msg.text
                     )}
+
+                    {/* F-12 : thumbs feedback on AI messages (excluding welcome + handoff) */}
+                    {msg.sender === 'ai' && msg.id !== 'welcome-msg' && (
+                      <div className="mt-2 flex gap-1 opacity-60 hover:opacity-100 transition-opacity">
+                        {[
+                          { rating: 'up' as const, Icon: ThumbsUp, label: 'Utile' },
+                          { rating: 'down' as const, Icon: ThumbsDown, label: 'Pas utile' },
+                        ].map(({ rating, Icon, label }) => {
+                          const given = feedbackGiven[msg.id];
+                          const active = given === rating;
+                          return (
+                            <button
+                              key={rating}
+                              type="button"
+                              onClick={() => handleFeedback(msg.id, rating)}
+                              disabled={!!given}
+                              aria-label={label}
+                              title={label}
+                              className={`p-1 rounded transition-colors ${
+                                active
+                                  ? rating === 'up' ? 'text-emerald-600 bg-emerald-50' : 'text-red-600 bg-red-50'
+                                  : 'text-paper-400 hover:text-paper-700 hover:bg-paper-100'
+                              }`}
+                            >
+                              <Icon className="w-3 h-3" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               </React.Fragment>
               );
             })}
             
-            {isLoading && (
+            {/* F-04 : streaming bubble (local state, not yet in Firestore) */}
+            {streamingText !== null && (
+              <div className="flex justify-start">
+                <div className="w-8 h-8 rounded-full bg-white border border-paper-200 flex items-center justify-center shadow-paper-sm mr-2 shrink-0 self-end mb-1">
+                  <Bot className="w-4 h-4 text-brand-600" />
+                </div>
+                <div className="max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed shadow-paper-sm bg-white text-paper-700 border border-paper-200 rounded-bl-none">
+                  <div className="prose prose-sm max-w-none [&_p]:my-1 [&_ul]:my-1 [&_strong]:font-semibold [&_strong]:text-paper-900">
+                    <ReactMarkdown>{streamingText}</ReactMarkdown>
+                  </div>
+                  <span className="inline-block w-1 h-4 bg-brand-500 ml-0.5 animate-pulse align-middle" aria-hidden="true" />
+                </div>
+              </div>
+            )}
+
+            {isLoading && streamingText === null && (
               <div className="flex justify-start items-end">
                 <div className="w-8 h-8 rounded-full bg-white border border-brand-100 flex items-center justify-center shadow-sm mr-2 shrink-0 mb-1"><Bot className="w-4 h-4 text-brand-600 animate-pulse" /></div>
                 <div className="bg-white p-3 rounded-2xl rounded-bl-none border border-brand-100 shadow-sm flex items-center gap-2">
@@ -477,6 +651,29 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
                      <span>Votre session expire bientôt. Envoyez un message pour la prolonger.</span>
                  </div>
              )}
+             {/* F-15 : attachment preview row */}
+             {attachments.length > 0 && (
+               <div className="mb-2 flex gap-2 flex-wrap">
+                 {attachments.map(a => (
+                   <div key={a.id} className="relative flex items-center gap-2 px-2 py-1 bg-brand-50 border border-brand-200 rounded-lg max-w-[150px]">
+                     {a.preview ? (
+                       <img src={a.preview} alt={a.name} className="w-8 h-8 rounded object-cover" />
+                     ) : (
+                       <FileText className="w-5 h-5 text-brand-600 shrink-0" />
+                     )}
+                     <span className="text-xs font-medium text-brand-800 truncate">{a.name}</span>
+                     <button
+                       type="button"
+                       onClick={() => setAttachments(attachments.filter(x => x.id !== a.id))}
+                       aria-label={`Retirer ${a.name}`}
+                       className="text-brand-400 hover:text-red-600 shrink-0"
+                     >
+                       <X className="w-3 h-3" />
+                     </button>
+                   </div>
+                 ))}
+               </div>
+             )}
              {/* F-06 : suggestions persistantes au-dessus du champ de saisie */}
              <div className="flex gap-1.5 overflow-x-auto pb-2 no-scrollbar -mx-3 px-3" style={{scrollbarWidth: 'none'}}>
                  {QUICK_REPLIES.map((q) => (
@@ -492,7 +689,27 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
              </div>
             <div className="flex items-center gap-2 relative">
               <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder="Votre message..." className="flex-1 bg-brand-50 text-brand-900 text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:bg-white transition-all" />
-              <button onClick={handleSend} disabled={isLoading || !input.trim()} aria-label="Envoyer le message" title="Envoyer le message" className="p-3 bg-brand-700 text-white rounded-xl hover:bg-brand-800 disabled:opacity-50 transition-all shadow-md"><Send className="w-4 h-4" /></button>
+              {/* F-15 : hidden file input + paperclip button */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,application/pdf"
+                multiple
+                onChange={handleFilesSelected}
+                className="hidden"
+                aria-hidden="true"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                aria-label="Joindre un fichier"
+                title="Joindre un PDF ou une image (bilan, facture…)"
+                className="p-3 bg-paper-100 hover:bg-paper-200 text-paper-700 rounded-xl transition-colors"
+                disabled={isLoading || attachments.length >= MAX_FILES}
+              >
+                <Paperclip className="w-4 h-4" />
+              </button>
+              <button onClick={handleSend} disabled={isLoading || (!input.trim() && attachments.length === 0)} aria-label="Envoyer le message" title="Envoyer le message" className="p-3 bg-brand-700 text-white rounded-xl hover:bg-brand-800 disabled:opacity-50 transition-all shadow-md"><Send className="w-4 h-4" /></button>
             </div>
             {/* ALERT CONSULTANT - More visible after 3+ messages */}
             {visibleMessages.length > 3 ? (

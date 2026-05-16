@@ -659,3 +659,56 @@ export async function markAlertResolved(alertId: string, consultantEmail: string
     resolvedBy: consultantEmail,
   });
 }
+
+// =============================================
+// AI FEEDBACK
+// =============================================
+export interface AiFeedback {
+  id: string;
+  clientId: string;       // which client dossier the conversation belonged to
+  messageId: string;      // ID of the AI message being rated
+  rating: 'up' | 'down';
+  comment?: string;       // optional, future-proof
+  userId: string;         // the rater's UID (could be client owner or collaborator)
+  userEmail: string;
+  createdAt: any;
+}
+
+const COLL_AI_FEEDBACK = 'aiFeedback';
+
+/**
+ * Submit user feedback on an AI message.
+ * Best-effort — failures should not block the chat experience.
+ */
+export async function submitAiFeedback(
+  clientId: string,
+  messageId: string,
+  rating: 'up' | 'down',
+  comment?: string
+): Promise<void> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Non authentifié');
+
+  await addDoc(collection(db, COLL_AI_FEEDBACK), {
+    clientId,
+    messageId,
+    rating,
+    comment: comment?.slice(0, 1000) || null,
+    userId: user.uid,
+    userEmail: user.email || '',
+    createdAt: serverTimestamp(),
+  });
+}
+
+export function subscribeToAiFeedback(
+  callback: (feedback: AiFeedback[]) => void
+): () => void {
+  const q = query(
+    collection(db, COLL_AI_FEEDBACK),
+    orderBy('createdAt', 'desc'),
+    limit(100),
+  );
+  return onSnapshot(q, (snap) => {
+    callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as AiFeedback)));
+  });
+}

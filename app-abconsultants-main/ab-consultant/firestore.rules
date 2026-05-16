@@ -170,6 +170,20 @@ service cloud.firestore {
     }
 
     // =============================================
+    // AI FEEDBACK (thumbs up/down on AI messages)
+    // =============================================
+    match /aiFeedback/{feedbackId} {
+      // Read: consultants (for telemetry / quality analysis) + admin
+      allow read: if isConsultant();
+
+      // Create: any authenticated user (clients rate AI messages in their chat)
+      allow create: if isAuthenticated();
+
+      // Update / Delete: nobody (immutable telemetry)
+      allow update, delete: if false;
+    }
+
+    // =============================================
     // DEFAULT: Deny everything else
     // =============================================
     match /{document=**} {

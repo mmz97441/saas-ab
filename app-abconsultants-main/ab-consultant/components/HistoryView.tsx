@@ -147,11 +147,11 @@ const HistoryView: React.FC<HistoryViewProps> = ({
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <div>
-                    <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                        <Database className="w-6 h-6 text-brand-500" />
+                    <p className="eyebrow mb-2">Dossier</p>
+                    <h2 className="font-display text-3xl font-semibold text-paper-900 tracking-tight flex items-center gap-3">
                         Historique & Rapports
                     </h2>
-                    <p className="text-slate-500 text-sm mt-1">Consultez, modifiez ou exportez les données passées.</p>
+                    <p className="text-paper-500 text-sm mt-1">Consultez, modifiez ou exportez les données passées.</p>
                 </div>
                 <div className="flex gap-2 w-full md:w-auto">
                     {userRole === 'ab_consultant' && onImportExcel && (

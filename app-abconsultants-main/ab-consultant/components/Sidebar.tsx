@@ -33,7 +33,7 @@ const ClientCompanySelector: React.FC<{ companies: Client[], selectedId: string,
 
     return (
         <div className="mb-4 relative">
-            <label className="text-xs font-bold text-brand-300 uppercase mb-1 block">Sélectionner un dossier</label>
+            <label className="eyebrow text-brand-300 mb-1 block">Sélectionner un dossier</label>
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className="w-full flex items-center justify-between bg-brand-800 text-white text-sm font-bold px-3 py-2.5 rounded-lg border border-brand-600 hover:bg-brand-700 transition-colors"
@@ -119,7 +119,7 @@ const HelpPanel: React.FC<{ userRole: 'ab_consultant' | 'client' }> = ({ userRol
                 <div className="mt-2 mx-1 bg-brand-800/60 rounded-xl border border-brand-700/50 overflow-hidden animate-in slide-in-from-top-2 duration-200">
                     {/* GLOSSAIRE */}
                     <div className="p-3 border-b border-brand-700/40">
-                        <p className="text-xs font-bold text-brand-300 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                        <p className="eyebrow text-brand-300 flex items-center gap-1.5 mb-2">
                             <BookOpen className="w-3 h-3" /> Glossaire des indicateurs
                         </p>
                         <div className="space-y-2 max-h-56 overflow-y-auto custom-scrollbar pr-1">
@@ -134,7 +134,7 @@ const HelpPanel: React.FC<{ userRole: 'ab_consultant' | 'client' }> = ({ userRol
 
                     {/* CONTACT */}
                     <div className="p-3">
-                        <p className="text-xs font-bold text-brand-300 uppercase tracking-wider mb-2">Contact</p>
+                        <p className="eyebrow text-brand-300 mb-2">Contact</p>
                         <p className="text-xs text-brand-300 leading-relaxed">
                             Un doute ou une question ? Contactez-nous :
                         </p>
@@ -217,10 +217,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                             </div>
                             {!isCollapsed && (
                                 <div>
-                                    <h1 className="text-lg font-bold tracking-tight leading-none mb-1 text-white">
+                                    <h1 className="font-display text-lg font-semibold tracking-tight leading-none mb-1 text-white">
                                         {selectedClient ? selectedClient.companyName : 'Espace Client'}
                                     </h1>
-                                    <p className="text-xs text-brand-300 uppercase tracking-widest font-semibold flex items-center gap-1">
+                                    <p className="eyebrow text-brand-300 flex items-center gap-1">
                                         Espace Client
                                     </p>
                                 </div>
@@ -235,7 +235,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 {/* SECTION 1: ADMIN - Visible only to Consultant */}
                 {userRole === 'ab_consultant' && (
                     <div className="animate-in slide-in-from-left-2">
-                        {!isCollapsed && <h3 className="text-xs font-bold text-brand-200 uppercase tracking-wider mb-3 px-2">Pilotage Cabinet</h3>}
+                        {!isCollapsed && <h3 className="eyebrow text-brand-200 mb-3 px-2">Pilotage Cabinet</h3>}
 
                         {/* BOUTON VUE D'ENSEMBLE (Nouveau) */}
                          <button
@@ -267,7 +267,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <div className="animate-in slide-in-from-left-2 duration-300">
                         {userRole === 'ab_consultant' && !isCollapsed && (
                             <div className="mb-3 mt-2 mx-1 px-3 py-2 bg-accent-500/10 rounded-lg border border-accent-500/20">
-                                <h3 className="text-xs font-bold text-accent-400 uppercase tracking-wider">Dossier actif</h3>
+                                <h3 className="eyebrow text-accent-400">Dossier actif</h3>
                             </div>
                         )}
                         {isCollapsed && selectedClient && (

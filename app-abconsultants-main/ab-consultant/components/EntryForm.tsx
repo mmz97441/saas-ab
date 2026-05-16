@@ -125,7 +125,7 @@ const SmartBigInput = ({ value, onChange, disabled, placeholder = "0 €", color
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             disabled={disabled}
-            className={`text-2xl font-bold ${colorClass} bg-transparent text-center border-b-2 ${borderColorClass} focus:border-brand-500 focus:outline-none w-36 placeholder-slate-300 transition-all`}
+            className={`font-display text-3xl font-semibold tabular-nums tracking-tight ${colorClass} bg-transparent text-center border-b-2 ${borderColorClass} focus:border-brand-500 focus:outline-none w-44 placeholder-slate-300 transition-all`}
             placeholder={placeholder}
         />
     );
@@ -169,7 +169,7 @@ const SectionHeader = ({ number, title, icon: Icon, colorClass = "text-brand-700
                     {number}
                 </div>
             )}
-            <h3 className={`text-lg font-bold ${colorClass} flex items-center gap-2`}>
+            <h3 className={`font-display text-xl font-semibold tracking-tight ${colorClass} flex items-center gap-2`}>
                 <Icon className="w-5 h-5 opacity-80" />
                 {title}
             </h3>
@@ -186,7 +186,7 @@ const ResultCard = ({ label, value, subtext, icon: Icon, colorClass, bgClass }: 
             <Icon className="w-5 h-5" />
         </div>
         <span className="text-xs font-bold uppercase tracking-widest mb-1 opacity-90">{label}</span>
-        <div className="text-2xl font-extrabold tracking-tight mb-1">
+        <div className="font-display text-3xl font-semibold tabular-nums tracking-tight mb-1">
             {value}
         </div>
         {subtext && <div className="text-xs font-semibold opacity-80">{subtext}</div>}
@@ -898,12 +898,13 @@ const EntryForm: React.FC<EntryFormProps> = ({
             {/* HEADER */}
             <div className={`flex justify-between items-center p-6 border-b border-slate-100 rounded-t-xl ${isAdminOverride ? 'bg-amber-50' : 'bg-slate-50'}`}>
                 <div>
-                    <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                        {initialData ? 'Modification du rapport' : 'Nouvelle saisie'}
+                    <p className="eyebrow mb-1.5">Mon Dossier</p>
+                    <h2 className="font-display text-3xl font-semibold text-paper-900 tracking-tight flex items-center gap-2">
+                        {initialData ? 'Modification du rapport' : 'Saisie Mensuelle'}
                         {isLocked && <Lock className="w-5 h-5 text-amber-500" />}
                         {isAdminOverride && <ShieldAlert className="w-5 h-5 text-amber-600" />}
                     </h2>
-                    <p className="text-sm text-slate-500">Remplissez les informations mensuelles.</p>
+                    <p className="text-sm text-slate-500 mt-1">Remplissez les informations mensuelles.</p>
                 </div>
                 <div className="flex items-center gap-3">
                     {/* AUTO-SAVE INDICATOR */}
@@ -1147,7 +1148,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                                 <RotateCcw className="w-6 h-6 text-brand-600" />
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm font-bold text-brand-900 mb-0.5">
+                                <p className="font-display text-lg font-semibold text-brand-900 tracking-tight mb-0.5">
                                     Gagnez 5 minutes — reprenez {previousMonthRecord.month} {previousMonthRecord.year}
                                 </p>
                                 <p className="text-xs text-brand-700/80 leading-relaxed">
@@ -1194,7 +1195,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                                         <span className="text-xs font-bold text-slate-600 uppercase mb-1">Taux Global (%)</span>
                                         <div className="flex items-center gap-2">
                                             <PieChart className="w-5 h-5 text-purple-500" />
-                                            <span className="text-2xl font-bold text-slate-800">{formData.margin?.rate?.toFixed(1) || 0}%</span>
+                                            <span className="font-display text-3xl font-semibold text-paper-900 tabular-nums tracking-tight">{formData.margin?.rate?.toFixed(1) || 0}%</span>
                                         </div>
                                         <span className="text-xs text-slate-500 font-medium mt-1">Calculé (Marge € / CA €)</span>
                                     </div>

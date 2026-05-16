@@ -588,11 +588,14 @@ Expertise & Stratégie Financière`;
 
                 {/* Header + Onglets */}
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
-                        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                            <Users className="w-6 h-6 text-brand-500" /> Portefeuille Clients
-                            <span className="text-sm font-normal text-slate-400">({filtered.length} dossier{filtered.length !== 1 ? 's' : ''})</span>
-                        </h2>
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                        <div>
+                            <p className="eyebrow mb-2">Pilotage Cabinet</p>
+                            <h2 className="font-display text-3xl font-semibold text-paper-900 tracking-tight flex items-baseline gap-3">
+                                Portefeuille Clients
+                                <span className="font-sans text-sm font-normal text-paper-400">({filtered.length} dossier{filtered.length !== 1 ? 's' : ''})</span>
+                            </h2>
+                        </div>
                         <button onClick={onNewClient} className="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700 font-bold shadow-sm transition">
                             <Plus className="w-4 h-4" /> Nouveau Dossier
                         </button>
@@ -638,8 +641,8 @@ Expertise & Stratégie Financière`;
                                 >
                                     <Icon className={`w-4 h-4 ${classes.iconColor} shrink-0`} />
                                     <div className="min-w-0">
-                                        <div className="text-xs font-semibold text-slate-700 truncate">{label}</div>
-                                        <div className={`text-lg font-bold ${classes.countColor}`}>{count}</div>
+                                        <div className="eyebrow truncate">{label}</div>
+                                        <div className={`font-display text-2xl font-semibold tabular-nums tracking-tight ${classes.countColor}`}>{count}</div>
                                     </div>
                                 </button>
                             );

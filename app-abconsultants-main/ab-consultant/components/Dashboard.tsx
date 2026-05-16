@@ -755,6 +755,12 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
 
+      {/* EDITORIAL PAGE TITLE */}
+      <div className="px-1">
+         <p className="eyebrow mb-2">{client.companyName || 'Mon Dossier'}</p>
+         <h1 className="font-display text-3xl font-semibold text-paper-900 tracking-tight">Tableau de Bord</h1>
+      </div>
+
       {/* HEADER: Year + Period Presets + Month Grid */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-brand-100 space-y-3">
          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
@@ -930,8 +936,8 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                 </div>
                 )}
             </div>
-            <p className="text-xs font-bold uppercase tracking-wider mb-0.5 text-slate-400" title="CA HT facturé sur la période sélectionnée">Chiffre d'Affaires</p>
-            <h3 className="text-xl font-bold text-slate-800">
+            <p className="eyebrow mb-1" title="CA HT facturé sur la période sélectionnée">Chiffre d'Affaires</p>
+            <h3 className="font-display text-3xl font-semibold text-paper-900 tabular-nums tracking-tight">
                 <AnimatedNumber value={kpis.revenue} />
             </h3>
             {kpis.revenueVariation !== null && (
@@ -972,10 +978,10 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                     <Percent className="w-4 h-4" />
                 </div>
             </div>
-            <p className="text-xs font-bold uppercase tracking-wider mb-0.5 text-slate-400" title="Marge commerciale brute en % du CA HT">Taux de Marge</p>
+            <p className="eyebrow mb-1" title="Marge commerciale brute en % du CA HT">Taux de Marge</p>
             {kpis.marginUnset ? (
               <>
-                <h3 className="text-xl text-slate-400 font-semibold">Non renseigné</h3>
+                <h3 className="font-display text-2xl text-slate-400 font-medium italic">Non renseigné</h3>
                 <button
                   type="button"
                   className="mt-1 text-xs font-semibold text-brand-600 hover:underline"
@@ -985,7 +991,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
               </>
             ) : (
               <>
-                <h3 className="text-xl font-bold text-slate-800">
+                <h3 className="font-display text-3xl font-semibold text-paper-900 tabular-nums tracking-tight">
                     {kpis.globalMarginRate.toFixed(1)}%
                 </h3>
                 {kpis.marginVariation !== null && (
@@ -1007,8 +1013,8 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                 </div>
                 {kpis.treasury < 0 && <div className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">ALERTE</div>}
              </div>
-             <p className="text-xs font-bold uppercase tracking-wider mb-0.5 text-slate-400" title="Soldes bancaires créditeurs - Soldes débiteurs et découverts">Trésorerie Nette</p>
-             <h3 className={`text-xl font-bold ${kpis.treasury >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+             <p className="eyebrow mb-1" title="Soldes bancaires créditeurs - Soldes débiteurs et découverts">Trésorerie Nette</p>
+             <h3 className={`font-display text-3xl font-semibold tabular-nums tracking-tight ${kpis.treasury >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
                 <AnimatedNumber value={kpis.treasury} />
              </h3>
              {kpis.treasuryVariation !== null && (
@@ -1026,8 +1032,8 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                     <Briefcase className="w-4 h-4" />
                 </div>
              </div>
-             <p className="text-xs font-bold uppercase tracking-wider mb-0.5 text-slate-400" title="Besoin en Fonds de Roulement : (Créances + Stocks) - Dettes courantes">BFR Moyen</p>
-             <h3 className="text-xl font-bold text-cyan-800">
+             <p className="eyebrow mb-1" title="Besoin en Fonds de Roulement : (Créances + Stocks) - Dettes courantes">BFR Moyen</p>
+             <h3 className="font-display text-3xl font-semibold text-cyan-800 tabular-nums tracking-tight">
                 <AnimatedNumber value={kpis.bfr} />
              </h3>
              {kpis.bfrVariation !== null && (
@@ -1042,10 +1048,10 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
       {/* RATIOS FINANCIERS BADGES */}
       {kpis.revenue > 0 && (
         <div className="bg-white p-4 rounded-xl shadow-sm border border-brand-100">
-          <h3 className="text-xs font-bold text-brand-900 uppercase tracking-wider mb-3 flex items-center gap-2">
+          <div className="flex items-center gap-2 mb-3">
             <Activity className="w-4 h-4 text-indigo-500" />
-            Ratios Financiers
-          </h3>
+            <p className="eyebrow">Ratios Financiers</p>
+          </div>
           <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2">
             {[
               { label: 'DSO', value: `${kpis.dso.toFixed(0)}j`, sub: 'Délai clients', color: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
@@ -1058,7 +1064,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
             ].map(r => (
               <div key={r.label} className={`flex flex-col items-center p-2.5 rounded-lg border ${r.color}`}>
                 <span className="text-xs font-bold uppercase tracking-wider opacity-70">{r.label}</span>
-                <span className="text-lg font-bold">{r.value}</span>
+                <span className="font-display text-2xl font-semibold tabular-nums tracking-tight">{r.value}</span>
                 <span className="text-xs opacity-60">{r.sub}</span>
               </div>
             ))}
@@ -1073,7 +1079,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
          {/* CA Chart */}
          <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
             <div className="flex justify-between items-center mb-4">
-                <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2">
+                <h3 className="font-display text-xl font-semibold text-paper-900 tracking-tight flex items-center gap-2">
                     <DollarSign className="w-4 h-4 text-brand-600" />
                     Chiffre d'Affaires
                 </h3>
@@ -1109,7 +1115,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
          {/* Trésorerie Chart */}
          <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
             <div className="flex justify-between items-center mb-4">
-                <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2">
+                <h3 className="font-display text-xl font-semibold text-paper-900 tracking-tight flex items-center gap-2">
                     <Landmark className={`w-4 h-4 ${kpis.treasury >= 0 ? 'text-emerald-600' : 'text-red-600'}`} />
                     Trésorerie
                 </h3>
@@ -1156,7 +1162,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
          {/* BFR Evolution (stacked: creances, stocks, dettes) */}
          <div className="lg:col-span-2 bg-white p-5 rounded-xl shadow-sm border border-brand-100">
             <div className="flex justify-between items-center mb-4">
-                <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2">
+                <h3 className="font-display text-xl font-semibold text-paper-900 tracking-tight flex items-center gap-2">
                     <Briefcase className="w-4 h-4 text-cyan-600" />
                     Évolution du BFR
                 </h3>
@@ -1186,7 +1192,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
 
          {/* BFR Breakdown */}
          <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
-            <h3 className="text-sm font-bold text-brand-900 mb-3 flex items-center gap-2 uppercase tracking-wide">
+            <h3 className="font-display text-xl font-semibold text-paper-900 tracking-tight mb-3 flex items-center gap-2">
                 <Briefcase className="w-4 h-4 text-cyan-500" /> Répartition du BFR
             </h3>
             {snapshotRecord ? (() => {
@@ -1201,8 +1207,8 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
 
                   {/* BFR Net — highlighted card at top */}
                   <div className={`rounded-lg p-3 mb-4 text-center ${r.bfr.total < 0 ? 'bg-emerald-50 border border-emerald-200' : 'bg-red-50 border border-red-200'}`}>
-                    <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-0.5">BFR Net</div>
-                    <div className={`text-2xl font-bold ${r.bfr.total < 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                    <p className="eyebrow mb-1">BFR Net</p>
+                    <div className={`font-display text-3xl font-semibold tabular-nums tracking-tight ${r.bfr.total < 0 ? 'text-emerald-700' : 'text-red-700'}`}>
                       {formatCurrency(r.bfr.total, 0)}
                     </div>
                     <div className={`text-xs font-medium mt-0.5 ${r.bfr.total < 0 ? 'text-emerald-600' : 'text-red-600'}`}>
@@ -1270,7 +1276,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
           {displayData.some(d => d.expenses.hoursWorked > 0) && (
             <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2">
+                  <h3 className="font-display text-xl font-semibold text-paper-900 tracking-tight flex items-center gap-2">
                       <Users className="w-4 h-4 text-amber-600" />
                       Productivité
                   </h3>
@@ -1301,7 +1307,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
           {/* Activity Breakdown */}
           {kpis.topActivities.length > 0 && (
             <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
-               <h3 className="text-sm font-bold text-brand-900 mb-4 flex items-center gap-2 uppercase tracking-wide">
+               <h3 className="font-display text-xl font-semibold text-paper-900 tracking-tight mb-4 flex items-center gap-2">
                   <ShoppingBag className="w-4 h-4 text-indigo-500" /> Répartition Activité
                </h3>
                <div className="space-y-3">
@@ -1334,7 +1340,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
         {chartData.some(d => d.DSO !== null || d.DPO !== null || d.DIO !== null) && (
           <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2">
+              <h3 className="font-display text-xl font-semibold text-paper-900 tracking-tight flex items-center gap-2">
                 <Activity className="w-4 h-4 text-indigo-500" />
                 Évolution des Ratios (jours)
               </h3>
@@ -1364,7 +1370,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
         {activityTrendData.length > 0 && kpis.topActivities.length > 0 && (
           <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2">
+              <h3 className="font-display text-xl font-semibold text-paper-900 tracking-tight flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-blue-500" />
                 Tendances par Activité
               </h3>
@@ -1413,7 +1419,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
         <div className="bg-white p-5 rounded-xl shadow-sm border border-brand-100">
            {/* Header */}
            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-sm font-bold text-brand-900 flex items-center gap-2 uppercase tracking-wide">
+              <h3 className="font-display text-xl font-semibold text-paper-900 tracking-tight flex items-center gap-2">
                   <Fuel className="w-4 h-4 text-blue-600" />
                   Volume Carburant
               </h3>
@@ -1506,7 +1512,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
       {/* EXPERT COMMENT SECTION */}
       <div className="bg-white rounded-xl shadow-lg border border-brand-100 overflow-hidden">
           <div className="bg-brand-900 p-4 flex justify-between items-center text-white">
-              <h3 className="font-bold flex items-center gap-2">
+              <h3 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
                   <MessageSquare className="w-5 h-5 text-accent-500" />
                   Le mot du Consultant
                   {snapshotRecord && (

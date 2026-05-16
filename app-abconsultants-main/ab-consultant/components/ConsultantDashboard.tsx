@@ -629,7 +629,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-brand-100 to-brand-50 border border-brand-200 flex items-center justify-center mb-6 shadow-sm">
                 <Briefcase className="w-9 h-9 text-brand-600" />
             </div>
-            <h2 className="text-2xl font-bold text-slate-800 mb-2">Bienvenue dans votre cockpit</h2>
+            <h2 className="font-display text-3xl font-semibold text-paper-900 tracking-tight mb-2">Bienvenue dans votre cockpit</h2>
             <p className="text-slate-500 max-w-md mb-6 leading-relaxed">
                 Votre portefeuille est vide pour le moment. Ajoutez un premier dossier client pour commencer à suivre sa performance financière, recevoir ses données et planifier vos rendez-vous.
             </p>
@@ -652,12 +652,12 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
             {/* HEADER + SELECTEUR PERIODE */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                        <Shield className="w-6 h-6 text-brand-600" />
+                    <p className="eyebrow mb-2">Pilotage Cabinet</p>
+                    <h1 className="font-display text-3xl font-semibold text-paper-900 tracking-tight flex items-center gap-3">
                         Cockpit de Pilotage
                     </h1>
-                    <p className="text-slate-500 mt-1">
-                        Vue d'ensemble de vos <strong>{summaries.length}</strong> dossiers actifs
+                    <p className="text-paper-500 mt-1">
+                        Vue d'ensemble de vos <strong className="text-paper-700">{summaries.length}</strong> dossiers actifs
                     </p>
                 </div>
 
@@ -736,8 +736,8 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
                         <div className="flex items-center gap-2 mb-3">
                             <Zap className="w-5 h-5 text-accent-500" />
-                            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider">À faire aujourd'hui</h3>
-                            <span className="text-xs text-slate-400">— {todayLabel}</span>
+                            <h3 className="font-display text-lg font-semibold text-paper-800 tracking-tight">À faire aujourd'hui</h3>
+                            <span className="text-xs text-paper-400">— {todayLabel}</span>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                             {/* À valider */}
@@ -750,7 +750,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                                         <ShieldCheck className="w-4 h-4" />
                                     </div>
                                     {toValidateCount > 0 ? (
-                                        <span className="text-2xl font-extrabold text-amber-700">{toValidateCount}</span>
+                                        <span className="font-display text-3xl font-semibold text-amber-700 tabular-nums tracking-tight">{toValidateCount}</span>
                                     ) : (
                                         <CheckCircle className="w-5 h-5 text-emerald-500 ml-auto" />
                                     )}
@@ -773,7 +773,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                                         <TrendingDown className="w-4 h-4" />
                                     </div>
                                     {treasuryAlertCount > 0 ? (
-                                        <span className="text-2xl font-extrabold text-red-700">{treasuryAlertCount}</span>
+                                        <span className="font-display text-3xl font-semibold text-red-700 tabular-nums tracking-tight">{treasuryAlertCount}</span>
                                     ) : (
                                         <CheckCircle className="w-5 h-5 text-emerald-500 ml-auto" />
                                     )}
@@ -796,7 +796,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                                         <MessageSquare className="w-4 h-4" />
                                     </div>
                                     {unreadCount > 0 ? (
-                                        <span className="text-2xl font-extrabold text-brand-700">{unreadCount}</span>
+                                        <span className="font-display text-3xl font-semibold text-brand-700 tabular-nums tracking-tight">{unreadCount}</span>
                                     ) : (
                                         <CheckCircle className="w-5 h-5 text-emerald-500 ml-auto" />
                                     )}
@@ -819,7 +819,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                                         <CalendarClock className="w-4 h-4" />
                                     </div>
                                     {thisWeekCount > 0 ? (
-                                        <span className="text-2xl font-extrabold text-brand-700">{thisWeekCount}</span>
+                                        <span className="font-display text-3xl font-semibold text-brand-700 tabular-nums tracking-tight">{thisWeekCount}</span>
                                     ) : (
                                         <CheckCircle className="w-5 h-5 text-emerald-500 ml-auto" />
                                     )}
@@ -848,8 +848,8 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                             </span>
                         )}
                     </div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-0.5">CA Portefeuille <InfoTip text={`CA HT cumulé Jan → ${MONTHS[selectedMonthIdx]} ${selectedYear}. Cliquez pour voir le détail par client.`} /></p>
-                    <div className="text-lg font-bold text-slate-800">{fmtEur(portfolioKpis.totalCA)}</div>
+                    <p className="eyebrow mb-1">CA Portefeuille <InfoTip text={`CA HT cumulé Jan → ${MONTHS[selectedMonthIdx]} ${selectedYear}. Cliquez pour voir le détail par client.`} /></p>
+                    <div className="font-display text-2xl font-semibold text-paper-900 tabular-nums tracking-tight">{fmtEur(portfolioKpis.totalCA)}</div>
                     {portfolioKpis.totalObj > 0 && (
                         <div className="mt-2">
                             <div className="flex justify-between text-xs text-slate-400 mb-0.5">
@@ -865,27 +865,27 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                 {/* MARGE MOYENNE */}
                 <button onClick={() => togglePanel('MARGE')} className={kpiCardClass('MARGE', 'p-4 rounded-xl border bg-white border-brand-100 shadow-sm')}>
                     <div className="p-1.5 rounded-lg bg-purple-50 text-purple-600 w-fit mb-2"><Percent className="w-4 h-4" /></div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-0.5">Marge Moyenne <InfoTip text="Taux de marge commerciale brute pondéré par le CA. Cliquez pour voir le détail par client." /></p>
-                    <div className="text-lg font-bold text-slate-800">{portfolioKpis.avgMarginRate.toFixed(1)}%</div>
-                    <p className="text-xs text-slate-400 mt-1">Marge brute : {fmtEur(portfolioKpis.totalMargin)}</p>
+                    <p className="eyebrow mb-1">Marge Moyenne <InfoTip text="Taux de marge commerciale brute pondéré par le CA. Cliquez pour voir le détail par client." /></p>
+                    <div className="font-display text-2xl font-semibold text-paper-900 tabular-nums tracking-tight">{portfolioKpis.avgMarginRate.toFixed(1)}%</div>
+                    <p className="text-xs text-paper-400 mt-1">Marge brute : {fmtEur(portfolioKpis.totalMargin)}</p>
                 </button>
 
                 {/* TRESORERIE GLOBALE */}
                 <button onClick={() => togglePanel('TRESORERIE')} className={kpiCardClass('TRESORERIE', `p-4 rounded-xl border shadow-sm ${portfolioKpis.totalTreasury < 0 ? 'bg-red-50 border-red-200' : 'bg-white border-brand-100'}`)}>
                     <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 w-fit mb-2"><Landmark className="w-4 h-4" /></div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-0.5">Trésorerie Globale <InfoTip text="Somme des soldes bancaires. Cliquez pour voir le classement par client." /></p>
-                    <div className={`text-lg font-bold ${portfolioKpis.totalTreasury >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                    <p className="eyebrow mb-1">Trésorerie Globale <InfoTip text="Somme des soldes bancaires. Cliquez pour voir le classement par client." /></p>
+                    <div className={`font-display text-2xl font-semibold tabular-nums tracking-tight ${portfolioKpis.totalTreasury >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
                         {fmtEur(portfolioKpis.totalTreasury)}
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">{totalAlerts} client{totalAlerts > 1 ? 's' : ''} en négatif</p>
+                    <p className="text-xs text-paper-400 mt-1">{totalAlerts} client{totalAlerts > 1 ? 's' : ''} en négatif</p>
                 </button>
 
                 {/* TAUX ATTEINTE OBJECTIFS */}
                 <button onClick={() => togglePanel('OBJECTIF')} className={kpiCardClass('OBJECTIF', 'p-4 rounded-xl border bg-white border-brand-100 shadow-sm')}>
                     <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600 w-fit mb-2"><Target className="w-4 h-4" /></div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-0.5">Objectifs Atteints <InfoTip text="Cliquez pour voir l'atteinte par client." /></p>
-                    <div className="text-lg font-bold text-slate-800">
-                        {portfolioKpis.clientsOnTarget}<span className="text-sm text-slate-400 font-normal">/{portfolioKpis.clientsWithObj}</span>
+                    <p className="eyebrow mb-1">Objectifs Atteints <InfoTip text="Cliquez pour voir l'atteinte par client." /></p>
+                    <div className="font-display text-2xl font-semibold text-paper-900 tabular-nums tracking-tight">
+                        {portfolioKpis.clientsOnTarget}<span className="font-sans text-sm text-paper-400 font-normal">/{portfolioKpis.clientsWithObj}</span>
                     </div>
                     {portfolioKpis.clientsWithObj > 0 && (
                         <div className="mt-1.5">
@@ -903,8 +903,8 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                     className={kpiCardClass('FRAICHEUR', `p-4 rounded-xl border shadow-sm ${portfolioKpis.staleCount > 0 ? 'bg-amber-50 border-amber-200' : 'bg-white border-brand-100'}`)}
                 >
                     <div className="p-1.5 rounded-lg bg-amber-50 text-amber-600 w-fit mb-2"><CalendarClock className="w-4 h-4" /></div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-0.5">Données à Jour <InfoTip text="Cliquez pour voir les dossiers en retard." /></p>
-                    <div className="text-lg font-bold text-slate-800">
+                    <p className="eyebrow mb-1">Données à Jour <InfoTip text="Cliquez pour voir les dossiers en retard." /></p>
+                    <div className="font-display text-2xl font-semibold text-paper-900 tabular-nums tracking-tight">
                         {portfolioKpis.freshRate.toFixed(0)}%
                     </div>
                     {portfolioKpis.staleCount > 0 && (
@@ -915,11 +915,11 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                 {/* SCORE SANTE */}
                 <button onClick={() => togglePanel('SANTE')} className={kpiCardClass('SANTE', `p-4 rounded-xl border shadow-sm ${healthCol.bg}`)}>
                     <div className={`p-1.5 rounded-lg bg-white/60 ${healthCol.icon} w-fit mb-2`}><Activity className="w-4 h-4" /></div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-0.5">Santé Portefeuille <InfoTip text="Cliquez pour voir les dossiers en difficulté." /></p>
-                    <div className={`text-lg font-bold ${healthCol.text}`}>
+                    <p className="eyebrow mb-1">Santé Portefeuille <InfoTip text="Cliquez pour voir les dossiers en difficulté." /></p>
+                    <div className={`font-display text-2xl font-semibold tabular-nums tracking-tight ${healthCol.text}`}>
                         {portfolioKpis.healthScore.toFixed(0)}%
                     </div>
-                    <p className="text-xs text-slate-500 mt-1">{portfolioKpis.healthyCount}/{summaries.length} dossiers sains</p>
+                    <p className="text-xs text-paper-500 mt-1">{portfolioKpis.healthyCount}/{summaries.length} dossiers sains</p>
                 </button>
             </div>
 
@@ -947,8 +947,8 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                         </div>
                         {totalUnread > 0 && <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">{totalUnread} Nouveaux</span>}
                     </div>
-                    <div className="text-2xl font-bold text-slate-800 mb-1">{totalUnread}</div>
-                    <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">Messages en attente <InfoTip text="Nombre de clients ayant des messages non lus dans la messagerie. Cliquez pour accéder à la messagerie." /></div>
+                    <div className="font-display text-3xl font-semibold text-paper-900 tabular-nums tracking-tight mb-1">{totalUnread}</div>
+                    <div className="eyebrow">Messages en attente <InfoTip text="Nombre de clients ayant des messages non lus dans la messagerie. Cliquez pour accéder à la messagerie." /></div>
                 </div>
 
                 {/* VALIDATIONS */}
@@ -961,8 +961,8 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                             <Clock className="w-5 h-5" />
                         </div>
                     </div>
-                    <div className="text-2xl font-bold text-slate-800 mb-1">{totalPending}</div>
-                    <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">Rapports à Valider <InfoTip text="Cliquez pour voir les clients avec rapports en attente." /></div>
+                    <div className="font-display text-3xl font-semibold text-paper-900 tabular-nums tracking-tight mb-1">{totalPending}</div>
+                    <div className="eyebrow">Rapports à Valider <InfoTip text="Cliquez pour voir les clients avec rapports en attente." /></div>
                 </button>
 
                 {/* ALERTS */}
@@ -975,8 +975,8 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                             <AlertTriangle className="w-5 h-5" />
                         </div>
                     </div>
-                    <div className="text-2xl font-bold text-red-700 mb-1">{totalAlerts}</div>
-                    <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">Trésoreries Négatives <InfoTip text="Cliquez pour voir les clients en découvert." /></div>
+                    <div className="font-display text-3xl font-semibold text-red-700 tabular-nums tracking-tight mb-1">{totalAlerts}</div>
+                    <div className="eyebrow">Trésoreries Négatives <InfoTip text="Cliquez pour voir les clients en découvert." /></div>
                 </button>
             </div>
 
@@ -995,7 +995,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
             <div id="rdv-section" className="space-y-3 scroll-mt-6">
                 {/* Bandeau KPI RDV */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-                    <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <h2 className="font-display text-xl font-semibold text-paper-800 tracking-tight flex items-center gap-2">
                         <Calendar className="w-5 h-5 text-brand-600" />
                         File d'attente — Consultations
                     </h2>

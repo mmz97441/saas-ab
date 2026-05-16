@@ -233,8 +233,10 @@ L'équipe AB Consultants`);
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                <p className="eyebrow mb-2">Pilotage Cabinet</p>
+                <h2 className="font-display text-3xl font-semibold text-paper-900 tracking-tight flex items-center gap-2">
                     <ShieldCheck className="w-6 h-6 text-brand-500" /> Mon Équipe
+                    <span className="font-sans text-base font-medium text-slate-400 tabular-nums">({consultants.length})</span>
                 </h2>
                 <p className="text-slate-500 text-sm mt-1">Gérez les accès consultants à la plateforme.</p>
             </div>
@@ -373,12 +375,12 @@ L'équipe AB Consultants`);
                     {/* FORMULAIRE D'AJOUT */}
                     {!lastAdded && (
                         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm sticky top-6">
-                            <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <h3 className="font-display text-lg font-semibold text-paper-900 tracking-tight mb-4 flex items-center gap-2">
                                 <Plus className="w-4 h-4 text-brand-600" /> Ajouter un membre
                             </h3>
                             <form onSubmit={handleAdd} className="space-y-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nom Complet</label>
+                                    <label className="eyebrow block mb-1">Nom Complet</label>
                                     <input 
                                         value={newName}
                                         onChange={e => setNewName(e.target.value)}
@@ -387,7 +389,7 @@ L'équipe AB Consultants`);
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email Pro</label>
+                                    <label className="eyebrow block mb-1">Email Pro</label>
                                     <input
                                         type="email"
                                         value={newEmail}

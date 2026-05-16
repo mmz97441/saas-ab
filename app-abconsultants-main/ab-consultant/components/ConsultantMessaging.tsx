@@ -98,10 +98,11 @@ const ConsultantMessaging: React.FC<ConsultantMessagingProps> = ({ clients, onMa
             {/* LEFT SIDEBAR: LISTE DES CONVERSATIONS */}
             <div className={`${selectedClientId ? 'hidden md:flex' : 'flex'} w-full md:w-1/3 border-r border-slate-200 flex-col bg-slate-50`}>
                 <div className="p-4 border-b border-slate-200 bg-white">
-                    <h2 className="font-bold text-slate-800 flex items-center gap-2">
+                    <p className="eyebrow mb-1">Pilotage Cabinet</p>
+                    <h2 className="font-display text-2xl font-semibold text-paper-900 tracking-tight flex items-center gap-2">
                         <MessageSquare className="w-5 h-5 text-brand-500" /> Messagerie
                     </h2>
-                    <p className="text-xs text-slate-500 mt-1">{activeClients.length} conversation(s) active(s)</p>
+                    <p className="text-xs text-slate-500 mt-1 tabular-nums">{activeClients.length} conversation(s) active(s)</p>
                     {/* Search conversations */}
                     <div className="relative mt-2">
                         <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />

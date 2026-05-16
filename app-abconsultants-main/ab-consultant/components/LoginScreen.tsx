@@ -162,13 +162,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                     {activeTab === 'expert' ? 'AB CONSULTANTS' : 'AB CONSULTANTS'}
                 </span>
             </div>
-            <p className="text-brand-200 text-sm font-medium tracking-wide uppercase">
+            <p className="eyebrow text-brand-200">
                 {activeTab === 'expert' ? 'Suite de pilotage financier' : 'Espace Client Sécurisé'}
             </p>
           </div>
 
           <div className="space-y-6">
-             <h2 className="text-3xl font-bold leading-tight text-white [text-wrap:balance]">
+             <h2 className="font-display text-3xl md:text-4xl font-semibold tracking-tight leading-tight text-white [text-wrap:balance]">
                 {activeTab === 'expert'
                     ? "Expertise et Stratégie."
                     : "Votre performance financière en temps réel."}
@@ -215,7 +215,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             </div>
 
             <div className="mb-6">
-                <h3 className="text-2xl font-bold text-brand-900 mb-1">
+                <h3 className="font-display text-2xl font-semibold text-brand-900 tracking-tight mb-1">
                     {activeTab === 'expert' ? (isSignUp ? 'Activer mon accès' : 'Connexion Admin') : (isSignUp ? 'Activer mon accès' : 'Connexion')}
                 </h3>
                 <p className="text-brand-500 text-sm">
@@ -227,7 +227,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
 
             <form onSubmit={handleAuthAction} className="space-y-4">
                 <div>
-                    <label className="block text-xs font-bold text-brand-700 uppercase mb-1">Email</label>
+                    <label className="eyebrow text-brand-700 block mb-1">Email</label>
                     <div className="relative">
                         <Mail className="absolute left-3 top-3 w-4 h-4 text-brand-400" />
                         <input 
@@ -242,7 +242,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                 </div>
                 <div>
                     <div className="flex justify-between items-center mb-1">
-                        <label className="block text-xs font-bold text-brand-700 uppercase">Mot de passe</label>
+                        <label className="eyebrow text-brand-700 block">Mot de passe</label>
                         {!isSignUp && (
                             <button type="button" onClick={handleResetPassword} className="text-xs font-bold text-brand-600 hover:text-brand-800 flex items-center gap-1 py-1 px-2 -my-1 -mr-2 rounded hover:bg-brand-50 transition">
                                 <KeyRound className="w-3 h-3" /> Mot de passe oublié ?

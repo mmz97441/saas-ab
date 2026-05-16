@@ -122,18 +122,19 @@ const SettingsView: React.FC<SettingsViewProps> = ({
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                    <p className="eyebrow mb-2">Dossier</p>
+                    <h2 className="font-display text-3xl font-semibold text-paper-900 tracking-tight flex items-center gap-2">
                         <Settings className="w-6 h-6 text-brand-500" />
-                        Configuration Dossier
+                        Paramétrage Dossier
                     </h2>
-                    <p className="text-slate-500">Paramètres administratifs et analytiques de {client.companyName}</p>
+                    <p className="text-slate-500 mt-1">Paramètres administratifs et analytiques de {client.companyName}</p>
                 </div>
             </div>
 
             {/* 1. FICHE ADMINISTRATIVE */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                    <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                    <h3 className="font-display text-lg font-semibold text-paper-900 tracking-tight flex items-center gap-2">
                         <Building className="w-4 h-4" /> Identité & Coordonnées
                     </h3>
                     <button
@@ -149,17 +150,17 @@ const SettingsView: React.FC<SettingsViewProps> = ({
 
                             {/* Company Info */}
                             <div className="space-y-4">
-                                <h4 className="text-xs font-bold text-slate-400 uppercase border-b pb-1">Société</h4>
+                                <h4 className="eyebrow border-b border-paper-200 pb-1">Société</h4>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Raison Sociale</label>
+                                    <label className="eyebrow block mb-1">Raison Sociale</label>
                                     <input value={formValues.companyName} onChange={(e) => handleFieldChange('companyName', e.target.value)} disabled={!isEditingSettings} className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">SIRET</label>
+                                    <label className="eyebrow block mb-1">SIRET</label>
                                     <input value={formValues.siret} onChange={(e) => handleFieldChange('siret', e.target.value)} disabled={!isEditingSettings} className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Téléphone Standard</label>
+                                    <label className="eyebrow block mb-1">Téléphone Standard</label>
                                     <div className="relative">
                                         <Phone className="absolute left-2 top-2 w-4 h-4 text-slate-400" />
                                         <input value={formValues.companyPhone} onChange={(e) => handleFieldChange('companyPhone', e.target.value)} disabled={!isEditingSettings} className="w-full pl-8 p-2 border rounded bg-slate-50 disabled:text-slate-500" />
@@ -167,7 +168,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Forme Juridique</label>
+                                        <label className="eyebrow block mb-1">Forme Juridique</label>
                                         <div className="relative">
                                             <select
                                                 value={formValues.legalForm}
@@ -184,7 +185,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Clôture Exercice</label>
+                                        <label className="eyebrow block mb-1">Clôture Exercice</label>
                                         <div className="flex gap-2">
                                             <div className="relative flex-1">
                                                 <select
@@ -227,9 +228,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({
 
                             {/* Contact Info & Address */}
                             <div className="space-y-4">
-                                <h4 className="text-xs font-bold text-slate-400 uppercase border-b pb-1">Coordonnées</h4>
+                                <h4 className="eyebrow border-b border-paper-200 pb-1">Coordonnées</h4>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Adresse Complète</label>
+                                    <label className="eyebrow block mb-1">Adresse Complète</label>
                                     <div className="relative">
                                         <MapPin className="absolute left-2 top-2 w-4 h-4 text-slate-400" />
                                         <input value={formValues.address} onChange={(e) => handleFieldChange('address', e.target.value)} disabled={!isEditingSettings} placeholder="Rue, ZI..." className="w-full pl-8 p-2 border rounded bg-slate-50 disabled:text-slate-500" />
@@ -237,23 +238,23 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                                 </div>
                                 <div className="grid grid-cols-3 gap-2">
                                     <div className="col-span-1">
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Code Postal</label>
+                                        <label className="eyebrow block mb-1">Code Postal</label>
                                         <input value={formValues.zipCode} onChange={(e) => handleFieldChange('zipCode', e.target.value)} disabled={!isEditingSettings} className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
                                     </div>
                                     <div className="col-span-2">
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Ville</label>
+                                        <label className="eyebrow block mb-1">Ville</label>
                                         <input value={formValues.city} onChange={(e) => handleFieldChange('city', e.target.value)} disabled={!isEditingSettings} className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
                                     </div>
                                 </div>
 
                                 <div className="pt-2"></div>
-                                <h4 className="text-xs font-bold text-slate-400 uppercase border-b pb-1">Dirigeant</h4>
+                                <h4 className="eyebrow border-b border-paper-200 pb-1">Dirigeant</h4>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nom Dirigeant</label>
+                                    <label className="eyebrow block mb-1">Nom Dirigeant</label>
                                     <input value={formValues.managerName} onChange={(e) => handleFieldChange('managerName', e.target.value)} disabled={!isEditingSettings} className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Mobile</label>
+                                    <label className="eyebrow block mb-1">Mobile</label>
                                     <div className="relative">
                                         <Phone className="absolute left-2 top-2 w-4 h-4 text-slate-400" />
                                         <input value={formValues.managerPhone} onChange={(e) => handleFieldChange('managerPhone', e.target.value)} disabled={!isEditingSettings} className="w-full pl-8 p-2 border rounded bg-slate-50 disabled:text-slate-500" />
@@ -275,7 +276,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
             {/* 2.5 MODULE MARGE CONFIG */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="p-4 bg-purple-50 border-b border-purple-100 flex justify-between items-center">
-                    <h3 className="font-bold text-purple-900 flex items-center gap-2">
+                    <h3 className="font-display text-lg font-semibold text-purple-900 tracking-tight flex items-center gap-2">
                         <PieChart className="w-4 h-4" /> Suivi Marge Commerciale
                     </h3>
                     <button
@@ -303,7 +304,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
             {/* 2.6 OBJECTIF CA MENSUEL */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="p-4 bg-emerald-50 border-b border-emerald-100 flex justify-between items-center">
-                    <h3 className="font-bold text-emerald-900 flex items-center gap-2">
+                    <h3 className="font-display text-lg font-semibold text-emerald-900 tracking-tight flex items-center gap-2">
                         <Target className="w-4 h-4" /> Objectif CA Mensuel
                         {isRevenueObjectiveDirty && <span className="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full animate-pulse">Non sauvegardé</span>}
                     </h3>
@@ -314,13 +315,13 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                         Le client ne peut pas modifier cet objectif.
                     </p>
                     <div className="max-w-xs">
-                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Objectif CA / mois (€)</label>
+                        <label className="eyebrow block mb-1">Objectif CA / mois (€)</label>
                         <input
                             type="number"
                             value={settingsRevenueObjective || ''}
                             onChange={(e) => setSettingsRevenueObjective(parseFloat(e.target.value) || 0)}
                             placeholder="Ex: 50000"
-                            className="w-full p-2 border border-slate-300 rounded font-bold text-emerald-900"
+                            className="w-full p-2 border border-slate-300 rounded font-display font-semibold text-emerald-900 tabular-nums text-lg"
                         />
                     </div>
                     <div className="mt-4 flex justify-end">
@@ -337,7 +338,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
             {/* 2. CENTRES DE PROFIT CONFIG */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="p-4 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center">
-                    <h3 className="font-bold text-indigo-900 flex items-center gap-2">
+                    <h3 className="font-display text-lg font-semibold text-indigo-900 tracking-tight flex items-center gap-2">
                         <ShoppingBag className="w-4 h-4" /> Ventilation Analytique
                         {isProfitCentersDirty && <span className="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full animate-pulse">Non sauvegardé</span>}
                     </h3>
@@ -355,11 +356,11 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                     </p>
 
                     <div className="space-y-3">
-                        <div className="grid grid-cols-12 gap-2 text-xs uppercase font-bold text-slate-400 px-2">
-                            <div className="col-span-5">Nom de l'Activité</div>
-                            <div className="col-span-3">Type</div>
-                            <div className="col-span-3">Marge Théorique (%)</div>
-                            <div className="col-span-1">Action</div>
+                        <div className="grid grid-cols-12 gap-2 px-2">
+                            <div className="col-span-5"><span className="eyebrow">Nom de l'Activité</span></div>
+                            <div className="col-span-3"><span className="eyebrow">Type</span></div>
+                            <div className="col-span-3"><span className="eyebrow">Marge Théorique (%)</span></div>
+                            <div className="col-span-1"><span className="eyebrow">Action</span></div>
                         </div>
 
                         {settingsProfitCenters.length > 0 ? (
@@ -426,7 +427,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
             {/* 3. MODULE CARBURANT CONFIG */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="p-4 bg-blue-50 border-b border-blue-100 flex justify-between items-center">
-                    <h3 className="font-bold text-blue-900 flex items-center gap-2">
+                    <h3 className="font-display text-lg font-semibold text-blue-900 tracking-tight flex items-center gap-2">
                         <Droplets className="w-4 h-4" /> Suivi Carburant
                         {isFuelObjectivesDirty && <span className="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full animate-pulse">Non sauvegardé</span>}
                     </h3>
@@ -447,30 +448,30 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                         </p>
                         <div className="grid grid-cols-3 gap-4">
                             <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase mb-1">Obj. Gasoil (L)</label>
+                                <label className="eyebrow block mb-1">Obj. Gasoil (L)</label>
                                 <input
                                     type="number"
                                     value={settingsFuelObjectives.gasoil}
                                     onChange={(e) => setSettingsFuelObjectives({ ...settingsFuelObjectives, gasoil: parseFloat(e.target.value) || 0 })}
-                                    className="w-full p-2 border border-slate-300 rounded font-bold text-blue-900"
+                                    className="w-full p-2 border border-slate-300 rounded font-display font-semibold text-blue-900 tabular-nums text-lg"
                                 />
                             </div>
                             <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase mb-1">Obj. SP (L)</label>
+                                <label className="eyebrow block mb-1">Obj. SP (L)</label>
                                 <input
                                     type="number"
                                     value={settingsFuelObjectives.sansPlomb}
                                     onChange={(e) => setSettingsFuelObjectives({ ...settingsFuelObjectives, sansPlomb: parseFloat(e.target.value) || 0 })}
-                                    className="w-full p-2 border border-slate-300 rounded font-bold text-blue-900"
+                                    className="w-full p-2 border border-slate-300 rounded font-display font-semibold text-blue-900 tabular-nums text-lg"
                                 />
                             </div>
                             <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase mb-1">Obj. GNR (L)</label>
+                                <label className="eyebrow block mb-1">Obj. GNR (L)</label>
                                 <input
                                     type="number"
                                     value={settingsFuelObjectives.gnr}
                                     onChange={(e) => setSettingsFuelObjectives({ ...settingsFuelObjectives, gnr: parseFloat(e.target.value) || 0 })}
-                                    className="w-full p-2 border border-slate-300 rounded font-bold text-blue-900"
+                                    className="w-full p-2 border border-slate-300 rounded font-display font-semibold text-blue-900 tabular-nums text-lg"
                                 />
                             </div>
                         </div>
@@ -488,7 +489,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
 
             {/* DANGER ZONE - Client status only */}
             <div className="pt-8 mt-8 border-t border-slate-200">
-                <h4 className="text-sm font-bold text-slate-500 mb-4 uppercase tracking-wider flex items-center gap-2">
+                <h4 className="eyebrow mb-4 flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4" /> Statut du dossier
                 </h4>
 

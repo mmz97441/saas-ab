@@ -111,6 +111,8 @@ export interface Client {
   // CHAT META DATA
   hasUnreadMessages?: boolean;
   lastMessageTime?: any;
+  lastMessagePreview?: string;        // first 80 chars of text
+  lastMessageSender?: 'user' | 'ai' | 'consultant';
 
   // RENDEZ-VOUS
   nextAppointment?: NextAppointment;

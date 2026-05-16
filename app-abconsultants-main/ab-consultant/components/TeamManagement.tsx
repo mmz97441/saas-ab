@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Trash2, Mail, Shield, ShieldCheck, AlertCircle, Check, Copy, Send, ExternalLink, Edit2, X } from 'lucide-react';
+import { Users, Plus, Trash2, Mail, Shield, ShieldCheck, AlertCircle, Check, Copy, Send, ExternalLink, Edit2, X, ShieldOff } from 'lucide-react';
 import { Consultant } from '../types';
-import { getConsultants, addConsultant, deleteConsultant, normalizeId, updateConsultant } from '../services/dataService';
+import { getConsultants, addConsultant, deleteConsultant, normalizeId, updateConsultant, updateConsultantRole } from '../services/dataService';
+import { refreshUserRole } from '../lib/cloudFunctions';
 import { useConfirmDialog } from '../contexts/ConfirmContext';
 
 interface TeamManagementProps {
@@ -17,6 +18,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ currentUserEmail }) => 
     const [error, setError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [promotingId, setPromotingId] = useState<string | null>(null);
 
     // État pour gérer la confirmation après ajout
     const [lastAdded, setLastAdded] = useState<{name: string, email: string} | null>(null);
@@ -105,6 +107,83 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ currentUserEmail }) => 
         } finally {
             setDeletingId(null);
         }
+    };
+
+    const handleToggleRole = async (c: Consultant) => {
+        if (promotingId) return;
+        const currentRole = c.role === 'admin' ? 'admin' : 'consultant';
+        const newRole: 'admin' | 'consultant' = currentRole === 'admin' ? 'consultant' : 'admin';
+
+        const isPromote = newRole === 'admin';
+        const ok = await confirm({
+            title: isPromote ? `Promouvoir ${c.name} administrateur ?` : `Rétrograder ${c.name} ?`,
+            message: isPromote
+                ? `${c.name} aura les mêmes droits que vous : gérer l'équipe, supprimer des dossiers, modifier les paramètres globaux. Confirmer ?`
+                : `${c.name} ne pourra plus gérer l'équipe ni supprimer des dossiers. Confirmer ?`,
+            variant: isPromote ? 'default' : 'danger',
+            confirmLabel: isPromote ? 'Promouvoir admin' : 'Rétrograder'
+        });
+        if (!ok) return;
+
+        setPromotingId(c.id);
+        try {
+            await updateConsultantRole(c.id, newRole);
+            try {
+                await refreshUserRole(c.id);
+                await loadTeam();
+                await confirm({
+                    title: isPromote ? 'Promotion effectuée' : 'Rétrogradation effectuée',
+                    message: isPromote
+                        ? `${c.name} est désormais administrateur.`
+                        : `${c.name} est désormais consultant.`,
+                    variant: 'success',
+                    showCancel: false,
+                    confirmLabel: 'OK'
+                });
+            } catch (claimErr) {
+                console.error('Erreur refreshUserRole:', claimErr);
+                await loadTeam();
+                await confirm({
+                    title: 'Rôle partiellement mis à jour',
+                    message: `Rôle mis à jour, mais le membre devra se reconnecter manuellement pour que les droits soient appliqués.`,
+                    variant: 'danger',
+                    showCancel: false,
+                    confirmLabel: 'OK'
+                });
+            }
+        } catch (e) {
+            console.error('Erreur updateConsultantRole:', e);
+            await confirm({
+                title: 'Erreur',
+                message: "Impossible de modifier le rôle. Vérifiez votre connexion et réessayez.",
+                variant: 'danger',
+                showCancel: false,
+                confirmLabel: 'OK'
+            });
+        } finally {
+            setPromotingId(null);
+        }
+    };
+
+    const handleResendInvite = (c: Consultant) => {
+        const url = window.location.origin;
+        const subject = encodeURIComponent(`Activation de votre accès AB Consultants`);
+        const body = encodeURIComponent(`Bonjour ${c.name},
+
+Votre accès à la suite de pilotage AB Consultants est prêt.
+
+POUR VOUS CONNECTER :
+1. Allez sur : ${url}
+2. Sélectionnez l'onglet « Espace Consultant »
+3. Cliquez sur « Invité par l'admin ? Activer mon accès »
+4. Utilisez votre identifiant : ${c.email}
+5. Définissez votre mot de passe
+
+Si vous avez déjà créé votre mot de passe, vous pouvez simplement vous connecter.
+
+À très vite,
+L'équipe AB Consultants`);
+        window.open(`mailto:${c.email}?subject=${subject}&body=${body}`, '_blank');
     };
 
     const handleStartEdit = (c: Consultant) => {
@@ -205,7 +284,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ currentUserEmail }) => 
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap justify-end">
                                 <span
                                     className={`px-2 py-1 text-xs font-bold rounded-full uppercase tracking-wide inline-flex items-center gap-1 ${isAdmin ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-slate-100 text-slate-700 border border-slate-200'}`}
                                     title={isAdmin ? 'Administrateur : accès total et gestion équipe' : 'Consultant : accès aux clients'}
@@ -214,15 +293,42 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ currentUserEmail }) => 
                                     {c.role}
                                 </span>
                                 {!isMe && (
-                                    <button
-                                        onClick={() => handleDelete(c)}
-                                        disabled={deletingId === c.id}
-                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-                                        title={`Révoquer l'accès de ${c.name}`}
-                                        aria-label={`Révoquer l'accès de ${c.name}`}
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
+                                    <>
+                                        <button
+                                            onClick={() => handleResendInvite(c)}
+                                            className="min-h-[44px] inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 text-slate-600 text-xs font-bold hover:bg-slate-50 hover:text-slate-800 transition"
+                                            title={`Renvoyer l'invitation à ${c.email}`}
+                                            aria-label={`Renvoyer l'invitation à ${c.name}`}
+                                        >
+                                            <Mail className="w-4 h-4" />
+                                            <span className="hidden sm:inline">Renvoyer</span>
+                                        </button>
+                                        <button
+                                            onClick={() => handleToggleRole(c)}
+                                            disabled={promotingId === c.id}
+                                            className={`min-h-[44px] inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-bold transition disabled:opacity-50 disabled:cursor-not-allowed ${isAdmin ? 'border-slate-300 text-slate-500 hover:bg-slate-50 hover:text-slate-700' : 'border-amber-300 text-amber-700 hover:bg-amber-50'}`}
+                                            title={isAdmin ? `Rétrograder ${c.name} en consultant` : `Promouvoir ${c.name} administrateur`}
+                                            aria-label={isAdmin ? `Rétrograder ${c.name}` : `Promouvoir ${c.name} administrateur`}
+                                        >
+                                            {promotingId === c.id ? (
+                                                <span className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" />
+                                            ) : isAdmin ? (
+                                                <ShieldOff className="w-4 h-4" />
+                                            ) : (
+                                                <ShieldCheck className="w-4 h-4" />
+                                            )}
+                                            <span className="hidden sm:inline">{isAdmin ? 'Rétrograder' : 'Promouvoir admin'}</span>
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(c)}
+                                            disabled={deletingId === c.id}
+                                            className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                            title={`Révoquer l'accès de ${c.name}`}
+                                            aria-label={`Révoquer l'accès de ${c.name}`}
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </>
                                 )}
                             </div>
                         </div>

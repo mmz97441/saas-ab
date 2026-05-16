@@ -167,6 +167,13 @@ const ConsultantMessaging: React.FC<ConsultantMessagingProps> = ({ clients, onMa
                                         )}
                                     </div>
                                     <p className="text-xs text-slate-500 truncate">{client.managerName}</p>
+                                    {client.lastMessagePreview && (
+                                        <p className={`text-xs mt-0.5 truncate ${client.hasUnreadMessages ? 'text-slate-700 font-medium' : 'text-slate-400'}`}>
+                                            {client.lastMessageSender === 'consultant' && <span className="text-brand-500 font-semibold">Vous : </span>}
+                                            {client.lastMessageSender === 'ai' && <span className="text-slate-400 italic">IA : </span>}
+                                            {client.lastMessagePreview}
+                                        </p>
+                                    )}
                                 </div>
                             </button>
                         ))

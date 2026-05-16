@@ -107,9 +107,14 @@ export const sendMessage = async (
         batch.set(conversationRef, conversationUpdate, { merge: true });
 
         if (!isSystemSummary) {
-             batch.update(clientRef, { 
+             // Preview shown in consultant's inbox list (denormalized to avoid N+1 reads).
+             // 80 chars matches typical 1-line truncation in the conversation list row.
+             const preview = text.slice(0, 80).replace(/\n/g, ' ');
+             batch.update(clientRef, {
                  hasUnreadMessages: sender === 'user' || isExpertHandoff,
-                 lastMessageTime: timestamp
+                 lastMessageTime: timestamp,
+                 lastMessagePreview: preview,
+                 lastMessageSender: sender,
              });
         }
 
@@ -235,6 +240,13 @@ export const addConsultant = async (consultant: Consultant): Promise<void> => {
 
 export const updateConsultant = async (id: string, newName: string): Promise<void> => {
     await updateDoc(doc(db, COLL_CONSULTANTS, id), { name: newName });
+};
+
+export const updateConsultantRole = async (
+    consultantId: string,
+    newRole: 'admin' | 'consultant'
+): Promise<void> => {
+    await updateDoc(doc(db, COLL_CONSULTANTS, consultantId), { role: newRole });
 };
 
 export const deleteConsultant = async (id: string): Promise<void> => {

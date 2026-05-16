@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Calendar, Clock, MapPin, Check, AlertTriangle, Loader2, CalendarPlus, RefreshCw } from 'lucide-react';
 import { Client, NextAppointment } from '../types';
 import { scheduleAppointment } from '../lib/cloudFunctions';
@@ -101,6 +101,26 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
     return Math.ceil((rdv.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
   };
 
+  // Libellé humain pour l'écart en jours
+  const formatDayDelta = (daysUntil: number): string => {
+    if (daysUntil === 0) return "Aujourd'hui";
+    if (daysUntil < 0) return `J+${Math.abs(daysUntil)}`;
+    return `J-${daysUntil}`;
+  };
+
+  // Détection de conflit : un autre client a-t-il déjà un RDV à cette date/heure ?
+  const conflict = useMemo(() => {
+    if (!formData.date || !formData.time) return null;
+    const others = allAppointments.filter(a =>
+      a.date === formData.date
+      && a.time === formData.time
+      // exclure le RDV du client courant (cas reprogrammation)
+      && a.clientName !== (client.owner?.name || client.managerName || client.companyName || 'Client')
+    );
+    if (others.length === 0) return null;
+    return { clientName: others[0].clientName, location: others[0].location };
+  }, [formData.date, formData.time, allAppointments, client.owner?.name, client.managerName, client.companyName]);
+
   // Calendrier des relances automatiques (cf. sendDashboardReminders.ts)
   const REMINDER_DAYS = [20, 14, 7, 3, 1];
 
@@ -125,12 +145,37 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
         <div>
           <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Heure</label>
           <input type="time" value={formData.time} onChange={(e) => setFormData({ ...formData, time: e.target.value })} required className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 outline-none" />
+          <div className="flex gap-1.5 flex-wrap mt-2">
+            {['09:00', '10:00', '14:00', '15:00'].map(t => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setFormData({ ...formData, time: t })}
+                className={`px-3 py-1 rounded-md text-xs font-semibold border transition ${
+                  formData.time === t
+                    ? 'bg-brand-600 text-white border-brand-600'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-brand-300 hover:bg-brand-50'
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
         </div>
         <div>
           <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Lieu</label>
           <input type="text" value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} placeholder="Sainte-Clotilde" className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 outline-none" />
         </div>
       </div>
+      {conflict && (
+        <div className="flex items-start gap-2 p-3 mt-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold">Conflit potentiel</p>
+            <p>{conflict.clientName} a déjà un RDV à cette date/heure{conflict.location ? ` (${conflict.location})` : ''}.</p>
+          </div>
+        </div>
+      )}
       <div className="flex gap-2">
         <button type="submit" disabled={isLoading} className="px-4 py-2 bg-brand-600 text-white rounded-lg text-xs font-bold hover:bg-brand-700 transition disabled:opacity-50 flex items-center gap-1">
           {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Calendar className="w-3 h-3" />}
@@ -157,7 +202,7 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
               <div className="bg-white/60 rounded-lg p-3">
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-xs font-bold text-amber-600 uppercase">Date actuelle</p>
-                  <span className="text-xs text-slate-500 font-medium">J-{getDaysUntil(appointment.date)}</span>
+                  <span className="text-xs text-slate-500 font-medium">{formatDayDelta(getDaysUntil(appointment.date))}</span>
                 </div>
                 <p className="text-sm font-bold text-slate-800">{formatDate(appointment.date)}</p>
                 <p className="text-xs text-slate-500">{appointment.time} — {appointment.location || 'Lieu non précisé'}</p>
@@ -165,7 +210,7 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
               <div className="bg-white/60 rounded-lg p-3 border-2 border-amber-300">
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-xs font-bold text-amber-700 uppercase">Date proposée</p>
-                  <span className="text-xs text-amber-800 font-bold">J-{getDaysUntil(appointment.proposedDate)}</span>
+                  <span className="text-xs text-amber-800 font-bold">{formatDayDelta(getDaysUntil(appointment.proposedDate))}</span>
                 </div>
                 <p className="text-sm font-bold text-slate-800">{formatDate(appointment.proposedDate)}</p>
                 <p className="text-xs text-slate-500">{appointment.proposedTime}{appointment.location ? ` — ${appointment.location}` : ''}</p>
@@ -247,7 +292,7 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
                 {isConfirmed ? <><Check className="w-3 h-3" /> Confirmé</> : <><Clock className="w-3 h-3" /> En attente</>}
               </span>
               <span className="text-xs text-slate-400 font-medium">
-                J-{daysUntil}
+                {formatDayDelta(daysUntil)}
               </span>
             </div>
             <p className="text-sm font-bold text-slate-800">{formatDate(appointment.date)}</p>

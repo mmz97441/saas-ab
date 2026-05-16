@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo, useRef, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import { Menu, X, UserCircle, CheckCircle, Eye, EyeOff, Users, Plus, Edit2, Trash2, Search, Briefcase, Phone, Mail, MapPin, Archive, Send, Power, Loader2, UserPlus, Crown, ShieldCheck, ChevronRight, Home, Bell } from 'lucide-react';
 import LoginScreen from './components/LoginScreen';
 import Sidebar from './components/Sidebar';
@@ -475,17 +475,30 @@ const App: React.FC = () => {
 
   const dashboardData = useMemo(() => userRole === 'client' ? data.filter(r => r.isPublished) : data, [data, userRole]);
 
-  // Track new published data for client
-  const prevPublishedCountRef = useRef<number | null>(null);
+  // Track new published data for client.
+  // Persist baseline in localStorage per-client so the banner only fires when
+  // the count ACTUALLY increased since the last visit (or live during this session).
+  // Previously, this compared against an in-memory ref starting at null/0, which
+  // false-triggered on every login the moment data loaded (0 → N).
   useEffect(() => {
-    if (userRole !== 'client') return;
+    if (userRole !== 'client' || !selectedClient) return;
     const publishedCount = data.filter(r => r.isPublished).length;
-    if (prevPublishedCountRef.current !== null && publishedCount > prevPublishedCountRef.current) {
+    const storageKey = `ab.lastSeenPublished.${selectedClient.id}`;
+    let stored: number | null = null;
+    try {
+      const raw = localStorage.getItem(storageKey);
+      stored = raw === null ? null : parseInt(raw, 10);
+      if (Number.isNaN(stored as number)) stored = null;
+    } catch { /* localStorage blocked — fail open */ }
+
+    // Fire only when stored baseline exists AND current count is strictly greater.
+    // First visit ever (stored === null) → silent baseline write, no banner.
+    if (stored !== null && publishedCount > stored) {
       setNewDataBanner(true);
       setTimeout(() => setNewDataBanner(false), 10000);
     }
-    prevPublishedCountRef.current = publishedCount;
-  }, [data, userRole]);
+    try { localStorage.setItem(storageKey, String(publishedCount)); } catch { /* ignore */ }
+  }, [data, userRole, selectedClient]);
   const accessibleCompanies = useMemo(() => {
     if (userRole !== 'client' || !simulatedUserEmail) return [];
     const email = simulatedUserEmail.toLowerCase();

@@ -28,7 +28,17 @@ firebase deploy --only functions   # Functions only
 firebase deploy --only hosting     # Hosting only
 ```
 
-There are no test or lint commands configured.
+## Testing & CI
+
+- Frontend tests: `npm test` (from `app-abconsultants-main/ab-consultant/`)
+- Rules tests: `npm run test:rules` (needs firebase emulator)
+- Functions tests: `cd functions && npm test`
+
+CI runs on every push/PR via `.github/workflows/test.yml`. Production deploy on push to main (`.github/workflows/deploy.yml`) requires:
+- `FIREBASE_TOKEN` secret
+- Functions secrets (`GEMINI_API_KEY`, `SMTP_*`, `SUPER_ADMIN_EMAIL`)
+
+See `.github/SETUP.md` for details.
 
 ## Architecture
 

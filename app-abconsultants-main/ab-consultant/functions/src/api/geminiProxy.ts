@@ -36,7 +36,7 @@ interface ValidatedAttachments {
   attachments: Attachment[];
 }
 
-function validateAttachments(raw: unknown): ValidatedAttachments {
+export function validateAttachments(raw: unknown): ValidatedAttachments {
   if (raw === undefined || raw === null) {
     return { valid: true, attachments: [] };
   }

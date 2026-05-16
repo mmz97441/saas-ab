@@ -1,0 +1,42 @@
+name: Deploy production
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
+  deploy:
+    name: Deploy to Firebase
+    needs: test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app-abconsultants-main/ab-consultant
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: app-abconsultants-main/ab-consultant/package-lock.json
+      - run: npm ci --legacy-peer-deps
+      - run: npm run build
+      - run: cd functions && npm ci && npm run build
+      - name: Setup functions/.env from secrets
+        run: |
+          cat > functions/.env <<EOF
+          GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+          SUPER_ADMIN_EMAIL=${{ secrets.SUPER_ADMIN_EMAIL }}
+          SMTP_HOST=${{ secrets.SMTP_HOST }}
+          SMTP_PORT=${{ secrets.SMTP_PORT }}
+          SMTP_USER=${{ secrets.SMTP_USER }}
+          SMTP_PASS=${{ secrets.SMTP_PASS }}
+          SMTP_FROM=${{ secrets.SMTP_FROM }}
+          EOF
+      - name: Deploy to Firebase
+        run: npx firebase-tools deploy --only hosting,firestore:rules,functions --non-interactive
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}

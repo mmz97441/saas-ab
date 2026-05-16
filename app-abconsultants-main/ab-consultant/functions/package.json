@@ -8,7 +8,8 @@
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
     "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
+    "logs": "firebase functions:log",
+    "test": "vitest run"
   },
   "engines": {
     "node": "20"
@@ -20,7 +21,9 @@
     "nodemailer": "^8.0.1"
   },
   "devDependencies": {
+    "@types/node": "^25.8.0",
     "@types/nodemailer": "^7.0.10",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^4.1.6"
   }
 }

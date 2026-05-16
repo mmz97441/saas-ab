@@ -259,10 +259,12 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className={`fixed bottom-6 right-6 z-50 p-4 rounded-full shadow-2xl hover:scale-105 transition-all duration-300 flex items-center gap-2 group border 
-            ${hasUnreadConsultantMessage 
-                ? 'bg-red-600 text-white border-red-500 animate-bounce' 
-                : 'bg-gradient-to-r from-brand-700 to-brand-900 text-white border-brand-600/50' 
+          aria-label={hasUnreadConsultantMessage ? 'Ouvrir le chat — 1 message non lu de votre consultant' : 'Ouvrir l\'assistant IA'}
+          title={hasUnreadConsultantMessage ? 'Message de votre consultant non lu' : 'Assistant IA — Conseiller financier'}
+          className={`fixed bottom-6 right-6 z-50 p-4 rounded-full shadow-2xl hover:scale-105 transition-all duration-300 flex items-center gap-2 group border
+            ${hasUnreadConsultantMessage
+                ? 'bg-red-600 text-white border-red-500 animate-bounce'
+                : 'bg-gradient-to-r from-brand-700 to-brand-900 text-white border-brand-600/50'
             }`}
         >
           <div className="relative">

@@ -4,7 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Line, ComposedChart, ReferenceLine, AreaChart, Area, PieChart, Pie, Cell, LineChart
 } from 'recharts';
 import { FinancialRecord, Month, Client } from '../types';
-import { TrendingUp, TrendingDown, DollarSign, Users, MousePointerClick, Calendar, Filter, Check, Trophy, AlertCircle, Target, Droplets, ArrowRight, ArrowUpRight, ArrowDownRight, FileText, ShieldAlert, MessageSquare, Send, Bell, Clock, Fuel, Briefcase, Zap, Activity, ShoppingBag, Percent, Landmark, Maximize2, Minimize2, Printer } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Users, MousePointerClick, Calendar, Filter, Check, Trophy, AlertCircle, Target, Droplets, ArrowRight, ArrowUpRight, ArrowDownRight, FileText, ShieldAlert, MessageSquare, Send, Bell, Clock, Fuel, Briefcase, Zap, Activity, ShoppingBag, Percent, Landmark, Maximize2, Minimize2, Printer, BarChart3 } from 'lucide-react';
 // @ts-ignore
 import confetti from 'canvas-confetti';
 import { toShortMonth } from '../services/dataService';
@@ -260,6 +260,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
          },
          topActivities: [],
          globalMarginRate: 0,
+         marginUnset: true,
          revenueVariation: null,
          treasuryVariation: null,
          bfrVariation: null,
@@ -271,6 +272,9 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
     const totalRevenue = displayData.reduce((acc, curr) => acc + curr.revenue.total, 0);
     const totalObjective = displayData.reduce((acc, curr) => acc + curr.revenue.objective, 0);
     const totalMargin = displayData.reduce((acc, curr) => acc + (curr.margin?.total || 0), 0);
+    // Margin is "unset" if no record has margin.total explicitly defined (undefined/null treated as not entered)
+    const marginHasExplicitValue = displayData.some(curr => curr.margin?.total !== undefined && curr.margin?.total !== null);
+    const marginUnset = totalMargin === 0 && !marginHasExplicitValue;
     const totalHours = displayData.reduce((acc, curr) => acc + curr.expenses.hoursWorked, 0);
     const totalOvertime = displayData.reduce((acc, curr) => acc + (curr.expenses.overtimeHours || 0), 0);
     
@@ -413,6 +417,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
       },
       topActivities,
       globalMarginRate,
+      marginUnset,
       revenueVariation,
       treasuryVariation,
       bfrVariation,
@@ -968,16 +973,30 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                 </div>
             </div>
             <p className="text-xs font-bold uppercase tracking-wider mb-0.5 text-slate-400" title="Marge commerciale brute en % du CA HT">Taux de Marge</p>
-            <h3 className="text-xl font-bold text-slate-800">
-                {kpis.globalMarginRate.toFixed(1)}%
-            </h3>
-            {kpis.marginVariation !== null && (
-              <div className={`flex items-center gap-1 mt-1 text-xs font-bold ${kpis.marginVariation >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                {kpis.marginVariation >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                {kpis.marginVariation > 0 ? '+' : ''}{kpis.marginVariation.toFixed(1)} pts vs N-1
-              </div>
+            {kpis.marginUnset ? (
+              <>
+                <h3 className="text-xl text-slate-400 font-semibold">Non renseigné</h3>
+                <button
+                  type="button"
+                  className="mt-1 text-xs font-semibold text-brand-600 hover:underline"
+                >
+                  Saisir →
+                </button>
+              </>
+            ) : (
+              <>
+                <h3 className="text-xl font-bold text-slate-800">
+                    {kpis.globalMarginRate.toFixed(1)}%
+                </h3>
+                {kpis.marginVariation !== null && (
+                  <div className={`flex items-center gap-1 mt-1 text-xs font-bold ${kpis.marginVariation >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {kpis.marginVariation >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                    {kpis.marginVariation > 0 ? '+' : ''}{kpis.marginVariation.toFixed(1)} pts vs N-1
+                  </div>
+                )}
+                <p className="text-xs text-slate-400 mt-1">Sur CA HT total</p>
+              </>
             )}
-            <p className="text-xs text-slate-400 mt-1">Sur CA HT total</p>
          </div>
 
          {/* TREASURY CARD */}
@@ -1065,6 +1084,13 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                 </div>
             </div>
             <div className="h-[250px] w-full">
+                {chartData.filter(d => (d.CA || 0) > 0).length < 2 ? (
+                    <div className="flex flex-col items-center justify-center h-48 text-center px-6">
+                      <BarChart3 className="w-10 h-10 text-slate-300 mb-3" />
+                      <p className="text-sm font-semibold text-slate-700 mb-1">Pas encore de tendance</p>
+                      <p className="text-xs text-slate-500">Saisissez un 2e mois pour voir l'évolution.</p>
+                    </div>
+                ) : (
                 <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={chartData} onClick={handleChartClick} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -1076,6 +1102,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                         <Line type="monotone" dataKey="Objectif" stroke="#f59e0b" strokeWidth={2} dot={false} strokeDasharray="4 4" />
                     </ComposedChart>
                 </ResponsiveContainer>
+                )}
             </div>
          </div>
 
@@ -1092,6 +1119,13 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                 </div>
             </div>
             <div className="h-[250px] w-full">
+                {chartData.filter(d => d.Trésorerie !== null && d.Trésorerie !== undefined).length < 2 ? (
+                    <div className="flex flex-col items-center justify-center h-48 text-center px-6">
+                      <BarChart3 className="w-10 h-10 text-slate-300 mb-3" />
+                      <p className="text-sm font-semibold text-slate-700 mb-1">Pas encore de tendance</p>
+                      <p className="text-xs text-slate-500">Saisissez un 2e mois pour voir l'évolution.</p>
+                    </div>
+                ) : (
                 <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={chartData} onClick={handleChartClick} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -1109,6 +1143,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                         <Line type="monotone" dataKey="Trésorerie_N1" stroke="#94a3b8" strokeWidth={1.5} dot={false} strokeDasharray="4 4" name="Trésorerie N-1" />
                     </ComposedChart>
                 </ResponsiveContainer>
+                )}
             </div>
          </div>
       </div>

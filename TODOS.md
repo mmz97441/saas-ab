@@ -135,6 +135,7 @@ Backlog des chantiers post-design-review (waves 1-3.5 shippées). Trié par cat�
 | 4.4 | `ac9e532` | Motion : AnimatedNumber out-quint + hover-lift KPI + reveal/pulse utilities |
 | 5 | `a246616` | Audit IA + fix critique (summary undefined, ALERT_HUMAN narrowed, data prop unfiltered, contextual welcome, persistent chips, react-markdown, RGPD clear, consultantAlerts Firestore channel) |
 | 5.5 | `a948f1f` | IA streaming SSE (askFinancialAdvisorStream HTTP fn) + vision (PDF/image upload) + feedback thumbs (aiFeedback collection) |
+| 6 (Wave 4) | `3e65985` | Test framework (82 tests) + CI/CD GitHub Actions (3 agents) — frontend vitest, Firestore rules emulator, functions tests, deploy.yml gated sur tests |
 
 ---
 

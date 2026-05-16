@@ -458,6 +458,16 @@ const App: React.FC = () => {
     showNotification(updated.settings?.showCommercialMargin ? "Module Marge activé." : "Module Marge désactivé.", 'info');
   };
 
+  const handleToggleAiAssistant = async () => {
+    if (userRole !== 'ab_consultant' || !selectedClient) return;
+    const nextValue = !selectedClient.settings?.enableAiAssistant;
+    const updated = { ...selectedClient, settings: { ...selectedClient.settings!, enableAiAssistant: nextValue }};
+    await saveClient(updated);
+    setSelectedClient(updated);
+    await refreshClients();
+    showNotification(nextValue ? "Assistant IA activé pour ce dossier." : "Assistant IA désactivé.", 'info');
+  };
+
   // --- UI UPDATES (LOCAL) ---
   const handleClientRead = (clientId: string) => {
     setClients(prev => prev.map(c => c.id === clientId ? { ...c, hasUnreadMessages: false } : c));
@@ -549,7 +559,10 @@ const App: React.FC = () => {
 
       {/* CHAT WIDGET */}
       <Suspense fallback={null}>
-        {selectedClient && (userRole === 'client' || (userRole === 'ab_consultant' && simulatedUserEmail)) && (
+        {selectedClient
+            && selectedClient.settings?.enableAiAssistant === true
+            && (userRole === 'client' || (userRole === 'ab_consultant' && simulatedUserEmail))
+            && (
             <AIChatWidget client={selectedClient} data={data} />
         )}
       </Suspense>
@@ -725,7 +738,7 @@ const App: React.FC = () => {
 
             {currentView === View.Settings && userRole === 'ab_consultant' && selectedClient && (
                 <div key="settings" className="animate-in fade-in duration-200">
-                <SettingsView client={selectedClient} onUpdateClientSettings={handleUpdateClientSettings} onUpdateProfitCenters={handleUpdateProfitCenters} onUpdateFuelObjectives={handleUpdateFuelObjectives} onUpdateRevenueObjective={handleUpdateRevenueObjective} onUpdateClientStatus={(c, s) => { setStatusModal({isOpen: true, client: c}); }} onResetDatabase={handleResetDatabase} onToggleFuelModule={handleToggleFuelModule} onToggleCommercialMargin={handleToggleCommercialMargin} />
+                <SettingsView client={selectedClient} onUpdateClientSettings={handleUpdateClientSettings} onUpdateProfitCenters={handleUpdateProfitCenters} onUpdateFuelObjectives={handleUpdateFuelObjectives} onUpdateRevenueObjective={handleUpdateRevenueObjective} onUpdateClientStatus={(c, s) => { setStatusModal({isOpen: true, client: c}); }} onResetDatabase={handleResetDatabase} onToggleFuelModule={handleToggleFuelModule} onToggleCommercialMargin={handleToggleCommercialMargin} onToggleAiAssistant={handleToggleAiAssistant} />
                 </div>
             )}
             
@@ -791,6 +804,14 @@ const App: React.FC = () => {
                         await logActivity(updated.id, 'config_updated', `Module marge ${updated.settings?.showCommercialMargin ? 'activé' : 'désactivé'}`);
                         await refreshClients();
                         showNotification(updated.settings?.showCommercialMargin ? "Module Marge activé." : "Module Marge désactivé.", 'info');
+                    }}
+                    onToggleAiAssistant={async (client) => {
+                        const nextValue = !client.settings?.enableAiAssistant;
+                        const updated = { ...client, settings: { ...client.settings!, enableAiAssistant: nextValue }};
+                        await saveClient(updated);
+                        await logActivity(updated.id, 'config_updated', `Assistant IA ${nextValue ? 'activé' : 'désactivé'}`);
+                        await refreshClients();
+                        showNotification(nextValue ? "Assistant IA activé." : "Assistant IA désactivé.", 'info');
                     }}
                     onUpdateClientStatus={handleUpdateClientStatus}
                 />

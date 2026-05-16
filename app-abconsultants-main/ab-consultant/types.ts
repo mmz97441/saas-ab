@@ -96,6 +96,7 @@ export interface Client {
   settings?: {
     showCommercialMargin: boolean;
     showFuelTracking?: boolean;
+    enableAiAssistant?: boolean;   // Option premium — activable par le consultant. Default OFF.
     revenueObjective?: number;
     fuelObjectives?: {
         gasoil: number;

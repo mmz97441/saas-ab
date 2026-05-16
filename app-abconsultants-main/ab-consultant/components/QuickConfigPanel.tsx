@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import {
     Settings, Building, ShoppingBag, Droplets, PieChart, Save,
     Plus, Trash2, Percent, Power, Archive, ChevronDown, ChevronUp,
-    Phone, MapPin, User, Mail, ShieldCheck
+    Phone, MapPin, User, Mail, ShieldCheck, Sparkles
 } from 'lucide-react';
 import { Client, ProfitCenter } from '../types';
 
@@ -13,6 +13,7 @@ interface QuickConfigPanelProps {
     onUpdateProfitCenters: (pcs: ProfitCenter[]) => void;
     onToggleFuelModule: () => void;
     onToggleCommercialMargin: () => void;
+    onToggleAiAssistant?: () => void;
     onUpdateClientStatus: (client: Client, status: 'active' | 'inactive') => void;
 }
 
@@ -22,6 +23,7 @@ const QuickConfigPanel: React.FC<QuickConfigPanelProps> = ({
     onUpdateProfitCenters,
     onToggleFuelModule,
     onToggleCommercialMargin,
+    onToggleAiAssistant,
     onUpdateClientStatus
 }) => {
     const [expandedSection, setExpandedSection] = useState<string | null>('identity');
@@ -172,7 +174,7 @@ const QuickConfigPanel: React.FC<QuickConfigPanelProps> = ({
                     id="modules"
                     icon={<PieChart className="w-4 h-4 text-purple-600" />}
                     title="Modules Actifs"
-                    subtitle={`${[client.settings?.showCommercialMargin && 'Marge', client.settings?.showFuelTracking && 'Carburant'].filter(Boolean).join(', ') || 'Aucun'}`}
+                    subtitle={`${[client.settings?.showCommercialMargin && 'Marge', client.settings?.showFuelTracking && 'Carburant', client.settings?.enableAiAssistant && 'IA'].filter(Boolean).join(', ') || 'Aucun'}`}
                     iconBg="bg-purple-50"
                 />
                 {expandedSection === 'modules' && (
@@ -204,6 +206,24 @@ const QuickConfigPanel: React.FC<QuickConfigPanelProps> = ({
                                 <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition ${client.settings?.showFuelTracking ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
                             </button>
                         </div>
+
+                        {/* Assistant IA Toggle (premium) */}
+                        {onToggleAiAssistant && (
+                            <div className="flex items-center justify-between p-2 rounded-lg bg-gradient-to-r from-brand-50/60 to-paper-100/60">
+                                <div className="flex items-center gap-2">
+                                    <Sparkles className="w-3.5 h-3.5 text-accent-500" />
+                                    <span className="text-xs font-bold text-slate-700">Assistant IA</span>
+                                    <span className="text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-accent-500/10 text-accent-700">Premium</span>
+                                </div>
+                                <button
+                                    onClick={onToggleAiAssistant}
+                                    aria-label={client.settings?.enableAiAssistant ? "Désactiver l'Assistant IA" : "Activer l'Assistant IA"}
+                                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${client.settings?.enableAiAssistant ? 'bg-brand-700' : 'bg-slate-200'}`}
+                                >
+                                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition ${client.settings?.enableAiAssistant ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

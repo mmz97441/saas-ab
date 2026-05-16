@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Settings, Building, Lock, ShoppingBag, Plus, Trash2, Save, Droplets, AlertTriangle, Power, MapPin, Phone, Percent, PieChart, ChevronDown, Calendar, Target } from 'lucide-react';
+import { Settings, Building, Lock, ShoppingBag, Plus, Trash2, Save, Droplets, AlertTriangle, Power, MapPin, Phone, Percent, PieChart, ChevronDown, Calendar, Target, Sparkles } from 'lucide-react';
 import { Client, ProfitCenter } from '../types';
 import { useConfirmDialog } from '../contexts/ConfirmContext';
 
@@ -40,6 +40,7 @@ interface SettingsViewProps {
     onResetDatabase: () => void;
     onToggleFuelModule: () => void;
     onToggleCommercialMargin: () => void;
+    onToggleAiAssistant: () => void;
 }
 
 const SettingsView: React.FC<SettingsViewProps> = ({
@@ -51,7 +52,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({
     onUpdateClientStatus,
     onResetDatabase,
     onToggleFuelModule,
-    onToggleCommercialMargin
+    onToggleCommercialMargin,
+    onToggleAiAssistant
 }) => {
     const confirm = useConfirmDialog();
     const [isEditingSettings, setIsEditingSettings] = useState(false);
@@ -297,6 +299,55 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                  {!client.settings?.showCommercialMargin && (
                     <div className="p-6 text-sm text-slate-400 italic">
                          Module désactivé. Seul le Chiffre d'Affaires sera suivi.
+                    </div>
+                )}
+            </div>
+
+            {/* 2.55 ASSISTANT IA (OPTION PREMIUM) */}
+            <div className="bg-white rounded-xl shadow-paper border border-paper-200 overflow-hidden">
+                <div className="p-4 bg-gradient-to-r from-brand-50 to-paper-100 border-b border-paper-200 flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-700 to-brand-900 flex items-center justify-center shadow-sm">
+                            <Sparkles className="w-5 h-5 text-accent-500" />
+                        </div>
+                        <div>
+                            <h3 className="font-display text-lg font-semibold text-paper-900 tracking-tight flex items-center gap-2">
+                                Assistant IA
+                                <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-accent-500/10 text-accent-700">Premium</span>
+                            </h3>
+                            <p className="text-xs text-paper-500 mt-0.5">Conseiller virtuel propulsé par Gemini AI</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={async () => {
+                            const isCurrentlyOn = !!client.settings?.enableAiAssistant;
+                            const ok = await confirm({
+                                title: isCurrentlyOn ? 'Désactiver l\'Assistant IA ?' : 'Activer l\'Assistant IA ?',
+                                message: isCurrentlyOn
+                                    ? `Le client ${client.companyName} n'aura plus accès au chat IA. Les conversations passées sont conservées en base.`
+                                    : `Le client ${client.companyName} pourra accéder à un assistant IA dans son tableau de bord pour poser des questions sur sa gestion financière, RH ou fiscale.\n\nIl s'agit d'une option premium incluant : analyses contextuelles, streaming temps réel, upload de PDF/factures (Vision), escalade vers consultant.`,
+                                variant: 'info',
+                                confirmLabel: isCurrentlyOn ? 'Désactiver' : 'Activer'
+                            });
+                            if (ok) onToggleAiAssistant();
+                        }}
+                        aria-label={client.settings?.enableAiAssistant ? "Désactiver l'Assistant IA" : "Activer l'Assistant IA"}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${client.settings?.enableAiAssistant ? 'bg-brand-700' : 'bg-slate-200'}`}
+                    >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${client.settings?.enableAiAssistant ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                </div>
+                {client.settings?.enableAiAssistant ? (
+                    <div className="p-6 text-sm text-paper-600 space-y-2">
+                        <p className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            <span><strong className="text-paper-800">Module actif.</strong> Le client voit le bouton flottant « Assistant IA » dans son tableau de bord.</span>
+                        </p>
+                        <p className="text-xs text-paper-500 ml-4">Limite : 30 requêtes / heure / utilisateur. Les conversations sont enregistrées et visibles dans la Messagerie.</p>
+                    </div>
+                ) : (
+                    <div className="p-6 text-sm text-paper-400 italic">
+                        Module désactivé. Le client n'a pas accès à l'assistant IA depuis son tableau de bord.
                     </div>
                 )}
             </div>

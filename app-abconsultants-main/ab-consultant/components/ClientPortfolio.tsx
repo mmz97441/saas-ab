@@ -31,6 +31,7 @@ interface ClientPortfolioProps {
     onUpdateProfitCenters?: (client: Client, pcs: ProfitCenter[]) => void;
     onToggleFuelModule?: (client: Client) => void;
     onToggleCommercialMargin?: (client: Client) => void;
+    onToggleAiAssistant?: (client: Client) => void;
     onUpdateClientStatus?: (client: Client, status: 'active' | 'inactive') => void;
 }
 
@@ -199,7 +200,7 @@ const ClientPortfolio: React.FC<ClientPortfolioProps> = ({
     onSetClientViewMode, onSetClientSearchQuery,
     onSelectClient, onEditClient, onNewClient, onToggleStatus,
     onSaveClient, onUpdateProfitCenters, onToggleFuelModule,
-    onToggleCommercialMargin, onUpdateClientStatus
+    onToggleCommercialMargin, onToggleAiAssistant, onUpdateClientStatus
 }) => {
     const [clientKpis, setClientKpis] = useState<ClientWithKpis[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -1207,6 +1208,7 @@ Expertise & Stratégie Financière`;
                                     onUpdateProfitCenters={(pcs) => onUpdateProfitCenters(panelClient, pcs)}
                                     onToggleFuelModule={() => onToggleFuelModule(panelClient)}
                                     onToggleCommercialMargin={() => onToggleCommercialMargin(panelClient)}
+                                    onToggleAiAssistant={onToggleAiAssistant ? () => onToggleAiAssistant(panelClient) : undefined}
                                     onUpdateClientStatus={onUpdateClientStatus}
                                 />
                             ) : (

@@ -23,8 +23,22 @@ const ConsultantMessaging: React.FC<ConsultantMessagingProps> = ({ clients, onMa
     const [replyInput, setReplyInput] = useState('');
     const [showTemplates, setShowTemplates] = useState(false);
     const [chatSearch, setChatSearch] = useState('');
+    const [isSending, setIsSending] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const confirmDialog = useConfirmDialog();
+
+    // Smart timestamp: time if today, date otherwise. Helps consultant triage freshness fast.
+    const formatConversationTime = (ts: any): string => {
+        const ms = ts?.toMillis?.() ?? (ts ? new Date(ts).getTime() : 0);
+        if (!ms) return '';
+        const date = new Date(ms);
+        const now = new Date();
+        const isToday = date.toDateString() === now.toDateString();
+        if (isToday) {
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+        return date.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+    };
 
     // FILTRE ET TRI DE LA LISTE DES CONVERSATIONS
     // 1. Filtre : On garde les clients qui ont un historique (lastMessageTime) OU des non-lus OU qui sont sélectionnés.
@@ -60,13 +74,16 @@ const ConsultantMessaging: React.FC<ConsultantMessagingProps> = ({ clients, onMa
     }, [messages]);
 
     const handleSendReply = async () => {
-        if (!selectedClientId || !replyInput.trim()) return;
+        if (!selectedClientId || !replyInput.trim() || isSending) return;
+        setIsSending(true);
         try {
             await sendMessage(selectedClientId, replyInput, 'consultant');
             setReplyInput('');
             // Pas besoin de rafraichir ici, le onSnapshot mettra à jour la liste des messages
         } catch (e) {
             confirmDialog({ title: 'Erreur', message: 'Le message n\'a pas pu être envoyé. Veuillez réessayer.', variant: 'danger', showCancel: false, confirmLabel: 'OK' });
+        } finally {
+            setIsSending(false);
         }
     };
 
@@ -96,7 +113,7 @@ const ConsultantMessaging: React.FC<ConsultantMessagingProps> = ({ clients, onMa
                             className="w-full pl-8 pr-8 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-2 focus:ring-brand-500 outline-none"
                         />
                         {chatSearch && (
-                            <button onClick={() => setChatSearch('')} className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600">
+                            <button onClick={() => setChatSearch('')} aria-label="Effacer la recherche" title="Effacer la recherche" className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600">
                                 <X className="w-3.5 h-3.5" />
                             </button>
                         )}
@@ -128,7 +145,13 @@ const ConsultantMessaging: React.FC<ConsultantMessagingProps> = ({ clients, onMa
                             <button
                                 key={client.id}
                                 onClick={() => setSelectedClientId(client.id)}
-                                className={`w-full text-left p-4 border-b border-slate-100 hover:bg-white transition-colors flex items-start gap-3 ${selectedClientId === client.id ? 'bg-white border-l-4 border-l-brand-600 shadow-sm' : 'border-l-4 border-l-transparent'}`}
+                                className={`w-full text-left p-4 border-b border-slate-100 hover:bg-white transition-colors flex items-start gap-3 ${
+                                    selectedClientId === client.id
+                                        ? 'bg-white border-l-4 border-l-brand-600 shadow-sm'
+                                        : client.hasUnreadMessages
+                                            ? 'bg-brand-50/60 border-l-4 border-l-brand-400'
+                                            : 'border-l-4 border-l-transparent'
+                                }`}
                             >
                                 <div className={`relative w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shrink-0 ${client.hasUnreadMessages ? 'bg-brand-600' : 'bg-slate-300'}`}>
                                     {client.companyName.substring(0, 2).toUpperCase()}
@@ -136,10 +159,10 @@ const ConsultantMessaging: React.FC<ConsultantMessagingProps> = ({ clients, onMa
                                 </div>
                                 <div className="overflow-hidden w-full">
                                     <div className="flex justify-between items-center mb-0.5">
-                                        <h4 className="font-bold text-sm text-slate-800 truncate pr-2">{client.companyName}</h4>
+                                        <h4 className={`text-sm truncate pr-2 ${client.hasUnreadMessages ? 'font-extrabold text-slate-900' : 'font-bold text-slate-800'}`}>{client.companyName}</h4>
                                         {client.lastMessageTime && (
-                                            <span className="text-xs text-slate-400 shrink-0">
-                                                {new Date(client.lastMessageTime?.toMillis?.() || Date.now()).toLocaleDateString([], {day:'2-digit', month:'2-digit'})}
+                                            <span className={`text-xs shrink-0 ${client.hasUnreadMessages ? 'text-brand-600 font-bold' : 'text-slate-400'}`}>
+                                                {formatConversationTime(client.lastMessageTime)}
                                             </span>
                                         )}
                                     </div>
@@ -229,16 +252,30 @@ const ConsultantMessaging: React.FC<ConsultantMessagingProps> = ({ clients, onMa
                                 >
                                     <Zap className="w-4 h-4" />
                                 </button>
-                                <input
-                                    type="text"
+                                <textarea
                                     value={replyInput}
                                     onChange={(e) => setReplyInput(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleSendReply()}
-                                    placeholder="Répondre au client..."
-                                    className="flex-1 border border-slate-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleSendReply();
+                                        }
+                                    }}
+                                    rows={1}
+                                    placeholder="Répondre au client... (Maj+Entrée pour saut de ligne)"
+                                    className="flex-1 border border-slate-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm resize-none max-h-32"
                                 />
-                                <button onClick={handleSendReply} className="px-4 md:px-6 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition shadow-sm font-bold shrink-0">
-                                    <Send className="w-5 h-5" />
+                                <button
+                                    onClick={handleSendReply}
+                                    disabled={isSending || !replyInput.trim()}
+                                    aria-label="Envoyer le message"
+                                    className="px-4 md:px-6 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition shadow-sm font-bold shrink-0 disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center"
+                                >
+                                    {isSending ? (
+                                        <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                        <Send className="w-5 h-5" />
+                                    )}
                                 </button>
                             </div>
                             <p className="text-xs text-slate-400 mt-2 text-center items-center justify-center gap-1 hidden md:flex">
@@ -247,9 +284,14 @@ const ConsultantMessaging: React.FC<ConsultantMessagingProps> = ({ clients, onMa
                         </div>
                     </>
                 ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-slate-300">
-                        <MessageSquare className="w-16 h-16 mb-4 opacity-50" />
-                        <p className="font-medium">Sélectionnez une conversation</p>
+                    <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+                        <div className="w-16 h-16 rounded-full bg-brand-50 border border-brand-100 flex items-center justify-center mb-4">
+                            <MessageSquare className="w-8 h-8 text-brand-500" />
+                        </div>
+                        <p className="font-semibold text-slate-700 mb-1">Sélectionnez une conversation</p>
+                        <p className="text-xs text-slate-500 max-w-xs leading-relaxed">
+                            Astuce : utilisez les réponses rapides <Zap className="w-3 h-3 inline -mt-0.5 text-brand-500" /> pour traiter plusieurs messages en quelques secondes.
+                        </p>
                     </div>
                 )}
             </div>

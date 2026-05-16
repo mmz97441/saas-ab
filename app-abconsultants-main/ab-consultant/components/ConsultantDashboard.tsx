@@ -278,7 +278,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({ panel, summaries, portfolioKp
                     {config.title}
                     <span className="text-slate-400 font-normal">({items.length} client{items.length !== 1 ? 's' : ''})</span>
                 </h4>
-                <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 transition rounded-full hover:bg-white/60">
+                <button onClick={onClose} aria-label="Fermer" title="Fermer" className="p-1 text-slate-400 hover:text-slate-600 transition rounded-full hover:bg-white/60">
                     <X className="w-3.5 h-3.5" />
                 </button>
             </div>
@@ -672,14 +672,14 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                         <select
                             value={selectedMonthIdx}
                             onChange={(e) => setSelectedMonthIdx(Number(e.target.value))}
-                            className="bg-transparent text-sm font-bold text-slate-700 border-none outline-none cursor-pointer appearance-none pr-1"
+                            className="bg-transparent text-sm font-bold text-slate-700 border-none outline-none focus:ring-2 focus:ring-brand-500 rounded cursor-pointer appearance-none pr-1"
                         >
                             {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
                         </select>
                         <select
                             value={selectedYear}
                             onChange={(e) => setSelectedYear(Number(e.target.value))}
-                            className="bg-transparent text-sm font-bold text-slate-700 border-none outline-none cursor-pointer appearance-none"
+                            className="bg-transparent text-sm font-bold text-slate-700 border-none outline-none focus:ring-2 focus:ring-brand-500 rounded cursor-pointer appearance-none"
                         >
                             {Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i).map(y => (
                                 <option key={y} value={y}>{y}</option>
@@ -1200,7 +1200,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                     className="w-full pl-10 pr-10 py-2 rounded-lg border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition placeholder-slate-400 shadow-sm"
                 />
                 {searchQuery && (
-                    <button onClick={() => setSearchQuery('')} className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+                    <button onClick={() => setSearchQuery('')} aria-label="Effacer la recherche" title="Effacer la recherche" className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
                         <X className="w-4 h-4" />
                     </button>
                 )}

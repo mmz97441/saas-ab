@@ -15,7 +15,9 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ currentUserEmail }) => 
     const [newEmail, setNewEmail] = useState('');
     const [newName, setNewName] = useState('');
     const [error, setError] = useState('');
-    
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+
     // État pour gérer la confirmation après ajout
     const [lastAdded, setLastAdded] = useState<{name: string, email: string} | null>(null);
 
@@ -23,6 +25,11 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ currentUserEmail }) => 
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editName, setEditName] = useState('');
     const confirm = useConfirmDialog();
+
+    // Validation email stricte (RFC-lite, suffisant pour un email pro)
+    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    const isEmailValid = EMAIL_RE.test(newEmail.trim());
+    const emailAlreadyExists = consultants.some(c => c.email.toLowerCase() === newEmail.toLowerCase().trim());
 
     useEffect(() => {
         loadTeam();
@@ -40,40 +47,64 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ currentUserEmail }) => 
         setError('');
         setLastAdded(null);
 
-        if (!newEmail || !newName) return;
+        if (!newEmail.trim() || !newName.trim()) return;
+        if (!isEmailValid) {
+            setError("Format d'email invalide. Exemple : jean@ab-conseil.fr");
+            return;
+        }
+        if (emailAlreadyExists) {
+            setError("Cet email est déjà dans l'équipe.");
+            return;
+        }
+        if (isSubmitting) return;
 
         const ok = await confirm({ title: 'Ajouter ce consultant ?', message: `${newName} (${newEmail}) aura accès aux données confidentielles de tous les clients.`, variant: 'default', confirmLabel: 'Autoriser l\'accès' });
         if (!ok) return;
 
+        setIsSubmitting(true);
         try {
             const emailClean = newEmail.toLowerCase().trim();
+            const nameClean = newName.trim();
             // On utilise la fonction partagée pour être sûr que l'ID est identique au Login
             const robustId = normalizeId(emailClean);
 
             const newConsultant: Consultant = {
                 id: robustId,
                 email: emailClean,
-                name: newName,
+                name: nameClean,
                 role: 'consultant',
                 addedAt: new Date().toISOString()
             };
             await addConsultant(newConsultant);
-            
+
             // Succès
-            setLastAdded({ name: newName, email: emailClean });
+            setLastAdded({ name: nameClean, email: emailClean });
             setNewEmail('');
             setNewName('');
             await loadTeam();
         } catch (e) {
             setError("Erreur lors de l'ajout.");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
-    const handleDelete = async (id: string) => {
-        const ok = await confirm({ title: 'Révoquer cet accès ?', message: 'Ce consultant ne pourra plus se connecter à la plateforme.\nCette action est irréversible.', variant: 'danger', confirmLabel: 'Révoquer' });
+    const handleDelete = async (c: Consultant) => {
+        if (deletingId) return;
+        const ok = await confirm({
+            title: `Révoquer l'accès de ${c.name} ?`,
+            message: `${c.name} (${c.email}) ne pourra plus se connecter à la plateforme et perdra l'accès à toutes les données clients.\n\nCette action est irréversible.`,
+            variant: 'danger',
+            confirmLabel: 'Révoquer l\'accès'
+        });
         if (!ok) return;
-        await deleteConsultant(id);
-        await loadTeam();
+        setDeletingId(c.id);
+        try {
+            await deleteConsultant(c.id);
+            await loadTeam();
+        } finally {
+            setDeletingId(null);
+        }
     };
 
     const handleStartEdit = (c: Consultant) => {
@@ -133,16 +164,19 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ currentUserEmail }) => 
                 
                 {/* COLONNE GAUCHE : LISTE */}
                 <div className="lg:col-span-2 space-y-4">
-                    {consultants.map(c => (
-                        <div key={c.id} className="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm">
+                    {consultants.map(c => {
+                        const isMe = c.email === currentUserEmail;
+                        const isAdmin = c.role === 'admin';
+                        return (
+                        <div key={c.id} className={`bg-white p-4 rounded-xl border flex items-center justify-between shadow-sm ${isMe ? 'border-brand-300 ring-1 ring-brand-200' : 'border-slate-200'}`}>
                             <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-full bg-brand-50 flex items-center justify-center text-brand-700 font-bold">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${isMe ? 'bg-brand-600 text-white' : 'bg-brand-50 text-brand-700'}`}>
                                     {c.name.substring(0, 2).toUpperCase()}
                                 </div>
                                 <div>
                                     {editingId === c.id ? (
                                         <div className="flex items-center gap-2 mb-1">
-                                            <input 
+                                            <input
                                                 value={editName}
                                                 onChange={e => setEditName(e.target.value)}
                                                 className="border border-slate-300 rounded px-2 py-1 text-sm font-bold"
@@ -154,6 +188,9 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ currentUserEmail }) => 
                                     ) : (
                                         <h4 className="font-bold text-slate-800 flex items-center gap-2">
                                             {c.name}
+                                            {isMe && (
+                                                <span className="px-2 py-0.5 bg-brand-600 text-white text-xs font-bold rounded-full">Vous</span>
+                                            )}
                                             <button onClick={() => handleStartEdit(c)} className="text-slate-300 hover:text-brand-500 transition"><Edit2 className="w-3 h-3"/></button>
                                         </h4>
                                     )}
@@ -169,21 +206,28 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ currentUserEmail }) => 
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                <span className="px-2 py-1 bg-brand-100 text-brand-800 text-xs font-bold rounded-md uppercase tracking-wide">
+                                <span
+                                    className={`px-2 py-1 text-xs font-bold rounded-full uppercase tracking-wide inline-flex items-center gap-1 ${isAdmin ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-slate-100 text-slate-700 border border-slate-200'}`}
+                                    title={isAdmin ? 'Administrateur : accès total et gestion équipe' : 'Consultant : accès aux clients'}
+                                >
+                                    {isAdmin ? <ShieldCheck className="w-3 h-3" /> : <Shield className="w-3 h-3" />}
                                     {c.role}
                                 </span>
-                                {c.email !== currentUserEmail && (
-                                    <button 
-                                        onClick={() => handleDelete(c.id)}
-                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
-                                        title="Révoquer l'accès"
+                                {!isMe && (
+                                    <button
+                                        onClick={() => handleDelete(c)}
+                                        disabled={deletingId === c.id}
+                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                        title={`Révoquer l'accès de ${c.name}`}
+                                        aria-label={`Révoquer l'accès de ${c.name}`}
                                     >
                                         <Trash2 className="w-4 h-4" />
                                     </button>
                                 )}
                             </div>
                         </div>
-                    ))}
+                        );
+                    })}
                     {consultants.length === 0 && !isLoading && (
                         <div className="p-8 text-center bg-slate-50 rounded-xl text-slate-400 italic">Aucun consultant dans l'équipe.</div>
                     )}
@@ -238,26 +282,40 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ currentUserEmail }) => 
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email Pro</label>
-                                    <input 
+                                    <input
                                         type="email"
                                         value={newEmail}
                                         onChange={e => setNewEmail(e.target.value)}
                                         placeholder="jean@ab-conseil.fr"
-                                        className="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-brand-500 outline-none"
+                                        className={`w-full p-2 rounded-lg border outline-none focus:ring-2 ${newEmail && !isEmailValid ? 'border-red-300 focus:ring-red-500' : 'border-slate-300 focus:ring-brand-500'}`}
+                                        aria-invalid={!!newEmail && !isEmailValid}
                                     />
+                                    {newEmail && !isEmailValid && (
+                                        <div className="text-red-600 text-xs mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> Format invalide. Exemple : jean@ab-conseil.fr</div>
+                                    )}
+                                    {newEmail && isEmailValid && emailAlreadyExists && (
+                                        <div className="text-amber-600 text-xs mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> Cet email est déjà dans l'équipe.</div>
+                                    )}
                                 </div>
-                                {newEmail && (
+                                {newEmail && isEmailValid && (
                                     <div className="text-xs text-slate-400 font-mono">
                                         ID généré : {normalizeId(newEmail)}
                                     </div>
                                 )}
                                 {error && <div className="text-red-500 text-xs font-bold flex items-center gap-1"><AlertCircle className="w-3 h-3"/> {error}</div>}
-                                <button 
-                                    type="submit" 
-                                    disabled={!newEmail || !newName}
-                                    className="w-full py-2 bg-brand-800 text-white rounded-lg font-bold hover:bg-brand-900 transition disabled:opacity-50"
+                                <button
+                                    type="submit"
+                                    disabled={!newEmail.trim() || !newName.trim() || !isEmailValid || emailAlreadyExists || isSubmitting}
+                                    className="w-full py-2 bg-brand-800 text-white rounded-lg font-bold hover:bg-brand-900 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                 >
-                                    Autoriser l'accès
+                                    {isSubmitting ? (
+                                        <>
+                                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            Ajout en cours...
+                                        </>
+                                    ) : (
+                                        <>Autoriser l'accès</>
+                                    )}
                                 </button>
                             </form>
                             <div className="mt-4 p-3 bg-brand-50 text-xs text-brand-600 rounded-lg leading-relaxed">

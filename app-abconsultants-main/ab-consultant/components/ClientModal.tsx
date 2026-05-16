@@ -188,7 +188,7 @@ Expertise & Stratégie Financière`;
                             {showInviteStep ? 'Prochaine étape : Inviter le client à activer son accès.' : 'Informations administratives et configuration d\'accès.'}
                         </p>
                     </div>
-                    <button onClick={onClose} className="p-2 bg-white rounded-full text-brand-400 hover:text-brand-700 hover:bg-brand-100 transition">
+                    <button onClick={onClose} aria-label="Fermer" title="Fermer" className="p-2 bg-white rounded-full text-brand-400 hover:text-brand-700 hover:bg-brand-100 transition">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -451,9 +451,9 @@ Expertise & Stratégie Financière`;
                                         <select 
                                             value={formData.status || 'active'}
                                             onChange={(e) => setFormData({...formData, status: e.target.value as 'active' | 'inactive'})}
-                                            className={`w-full pl-10 pr-4 py-2.5 rounded-lg border outline-none appearance-none font-bold cursor-pointer ${
-                                                formData.status === 'active' 
-                                                ? 'border-emerald-200 bg-emerald-50 text-emerald-800 focus:ring-emerald-500' 
+                                            className={`w-full pl-10 pr-4 py-2.5 rounded-lg border outline-none appearance-none font-bold cursor-pointer focus:ring-2 ${
+                                                formData.status === 'active'
+                                                ? 'border-emerald-200 bg-emerald-50 text-emerald-800 focus:ring-emerald-500'
                                                 : 'border-amber-200 bg-amber-50 text-amber-800 focus:ring-amber-500'
                                             }`}
                                         >
@@ -478,7 +478,7 @@ Expertise & Stratégie Financière`;
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                     {/* Statut */}
                                     <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
-                                        <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">Statut</p>
+                                        <p className="text-xs text-slate-400 uppercase font-bold mb-1">Statut</p>
                                         {initialData.owner?.lastLoginAt ? (
                                             <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700">
                                                 <span className="w-2 h-2 rounded-full bg-emerald-500" /> Connecté
@@ -496,7 +496,7 @@ Expertise & Stratégie Financière`;
 
                                     {/* Date inscription */}
                                     <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
-                                        <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">Inscription</p>
+                                        <p className="text-xs text-slate-400 uppercase font-bold mb-1">Inscription</p>
                                         <p className="text-xs font-semibold text-slate-700">
                                             {initialData.owner?.registeredAt
                                                 ? new Date(initialData.owner.registeredAt).toLocaleDateString('fr-FR')
@@ -506,7 +506,7 @@ Expertise & Stratégie Financière`;
 
                                     {/* Dernière connexion */}
                                     <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
-                                        <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">Dernière Connexion</p>
+                                        <p className="text-xs text-slate-400 uppercase font-bold mb-1">Dernière Connexion</p>
                                         <p className="text-xs font-semibold text-slate-700">
                                             {initialData.owner?.lastLoginAt
                                                 ? new Date(initialData.owner.lastLoginAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -516,7 +516,7 @@ Expertise & Stratégie Financière`;
 
                                     {/* Nombre de connexions */}
                                     <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
-                                        <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">Nb Connexions</p>
+                                        <p className="text-xs text-slate-400 uppercase font-bold mb-1">Nb Connexions</p>
                                         <p className="text-xs font-semibold text-slate-700">
                                             {initialData.owner?.loginCount ?? 0}
                                         </p>

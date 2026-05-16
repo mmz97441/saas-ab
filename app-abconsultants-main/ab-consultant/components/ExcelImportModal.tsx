@@ -172,7 +172,7 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
               </p>
             </div>
           </div>
-          <button onClick={onClose} disabled={step === 'importing'} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed">
+          <button onClick={onClose} disabled={step === 'importing'} aria-label="Fermer" title="Fermer" className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed">
             <X className="w-5 h-5" />
           </button>
         </div>

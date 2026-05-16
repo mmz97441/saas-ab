@@ -181,16 +181,16 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-sm text-slate-800 truncate">{collab.name}</span>
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${roleConfig.color}`}>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${roleConfig.color}`}>
                       {roleConfig.icon} {roleConfig.label}
                     </span>
-                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${statusConfig.color}`}>
+                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium ${statusConfig.color}`}>
                       {statusConfig.icon} {statusConfig.label}
                     </span>
                   </div>
                   <p className="text-xs text-slate-400 truncate">{collab.email}</p>
                   {collab.acceptedAt && (
-                    <p className="text-[10px] text-slate-400">
+                    <p className="text-xs text-slate-400">
                       Accepté le {new Date(collab.acceptedAt).toLocaleDateString('fr-FR')}
                       {collab.lastLoginAt && ` · Dernière connexion : ${new Date(collab.lastLoginAt).toLocaleDateString('fr-FR')}`}
                     </p>
@@ -211,6 +211,7 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
                   onClick={() => handleRevoke(collab.email)}
                   className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-md transition"
                   title="Révoquer l'accès"
+                  aria-label="Révoquer l'accès"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -223,7 +224,7 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
       {/* Revoked collaborators */}
       {revokedCollaborators.length > 0 && (
         <div className="space-y-1">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Accès révoqués</p>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Accès révoqués</p>
           {revokedCollaborators.map((collab) => (
             <div key={collab.email} className="flex items-center gap-3 bg-slate-50 rounded-lg p-2 border border-slate-100 opacity-60">
               <div className="flex-1 min-w-0">
@@ -243,6 +244,7 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
                 onClick={() => handleRemove(collab.email)}
                 className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-md transition"
                 title="Supprimer définitivement"
+                aria-label="Supprimer définitivement"
               >
                 <X className="w-3.5 h-3.5" />
               </button>

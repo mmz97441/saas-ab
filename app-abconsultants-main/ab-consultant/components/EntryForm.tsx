@@ -85,7 +85,7 @@ const SmartNumberInput = ({
                         onBlur={() => setIsFocused(false)}
                         disabled={disabled}
                         placeholder={placeholder}
-                        className={`w-full h-full bg-white text-sm font-bold text-slate-900 py-2.5 px-3 outline-none disabled:bg-slate-50 disabled:text-slate-600 ${className} ${prefix ? 'pl-8' : ''} ${suffix ? 'pr-8' : ''}`}
+                        className={`w-full h-full bg-white text-sm font-bold text-slate-900 py-2.5 px-3 outline-none focus:ring-2 focus:ring-brand-500 focus:ring-inset disabled:bg-slate-50 disabled:text-slate-600 ${className} ${prefix ? 'pl-8' : ''} ${suffix ? 'pr-8' : ''}`}
                     />
                     {suffix && <span className="absolute right-3 top-2.5 text-slate-400 text-xs font-bold pointer-events-none">{suffix}</span>}
                 </div>

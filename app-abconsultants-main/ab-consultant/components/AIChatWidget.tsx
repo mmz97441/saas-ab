@@ -300,10 +300,10 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
             </div>
             <div className="flex items-center gap-1">
                 {/* BOUTON CORBEILLE / RESET */}
-                <button onClick={handleClearHistory} className="text-brand-400 hover:text-red-400 p-1 rounded-full hover:bg-white/10 transition" title="Nouvelle conversation">
+                <button onClick={handleClearHistory} className="text-brand-400 hover:text-red-400 p-1 rounded-full hover:bg-white/10 transition" title="Nouvelle conversation" aria-label="Nouvelle conversation">
                     <Trash2 className="w-5 h-5" />
                 </button>
-                <button onClick={() => setIsOpen(false)} className="text-brand-400 hover:text-white p-1"><X className="w-5 h-5" /></button>
+                <button onClick={() => setIsOpen(false)} aria-label="Fermer la conversation" title="Fermer la conversation" className="text-brand-400 hover:text-white p-1"><X className="w-5 h-5" /></button>
             </div>
           </div>
 
@@ -381,7 +381,7 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
             )}
             <div className="flex items-center gap-2 relative">
               <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder="Votre message..." className="flex-1 bg-brand-50 text-brand-900 text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:bg-white transition-all" />
-              <button onClick={handleSend} disabled={isLoading || !input.trim()} className="p-3 bg-brand-700 text-white rounded-xl hover:bg-brand-800 disabled:opacity-50 transition-all shadow-md"><Send className="w-4 h-4" /></button>
+              <button onClick={handleSend} disabled={isLoading || !input.trim()} aria-label="Envoyer le message" title="Envoyer le message" className="p-3 bg-brand-700 text-white rounded-xl hover:bg-brand-800 disabled:opacity-50 transition-all shadow-md"><Send className="w-4 h-4" /></button>
             </div>
             {/* ALERT CONSULTANT - More visible after 3+ messages */}
             {visibleMessages.length > 3 ? (

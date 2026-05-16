@@ -225,6 +225,9 @@ const ClientPortfolio: React.FC<ClientPortfolioProps> = ({
         try { localStorage.setItem(DENSE_VIEW_STORAGE_KEY, denseView ? '1' : '0'); } catch { /* ignore */ }
     }, [denseView]);
 
+    // Connection-status filter (KPI strip)
+    const [connectionFilter, setConnectionFilter] = useState<ConnectionStatus | null>(null);
+
     // Side panel state
     const [panelClient, setPanelClient] = useState<Client | null>(null);
     const [panelTab, setPanelTab] = useState<PanelTab>('timeline');
@@ -338,6 +341,11 @@ Expertise & Stratégie Financière`;
         setSelectedIds(new Set());
     }, [clientSearchQuery, clientViewMode]);
 
+    // Reset connection filter when search or view mode changes
+    useEffect(() => {
+        setConnectionFilter(null);
+    }, [clientSearchQuery, clientViewMode]);
+
     const currentYear = new Date().getFullYear();
     const monthValues = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 
@@ -421,18 +429,22 @@ Expertise & Stratégie Financière`;
         return () => { cancelled = true; };
     }, [clients, clientViewMode, currentYear]);
 
-    // Filtrage par recherche
+    // Filtrage par recherche + statut de connexion
     const filtered = useMemo(() => {
-        if (!clientSearchQuery.trim()) return clientKpis;
+        let base = clientKpis;
+        if (connectionFilter !== null) {
+            base = base.filter(ck => getConnectionStatus(ck.client) === connectionFilter);
+        }
+        if (!clientSearchQuery.trim()) return base;
         const q = clientSearchQuery.toLowerCase();
-        return clientKpis.filter(ck =>
+        return base.filter(ck =>
             ck.client.companyName.toLowerCase().includes(q) ||
             (ck.client.managerName || '').toLowerCase().includes(q) ||
             (ck.client.city || '').toLowerCase().includes(q) ||
             (ck.client.siret || '').toLowerCase().includes(q) ||
             (ck.client.sector || '').toLowerCase().includes(q)
         );
-    }, [clientKpis, clientSearchQuery]);
+    }, [clientKpis, clientSearchQuery, connectionFilter]);
 
     // Tri
     const sorted = useMemo(() => {
@@ -586,6 +598,54 @@ Expertise & Stratégie Financière`;
                         </button>
                     </div>
 
+                    {/* Connection KPI strip */}
+                    <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-2">
+                        {([
+                            { key: 'active',      label: 'Actifs',            Icon: CheckCircle,   classes: {
+                                activeBorder: 'border-emerald-400', activeBg: 'bg-emerald-50', activeRing: 'ring-emerald-200',
+                                idleHoverBorder: 'hover:border-emerald-200', idleHoverBg: 'hover:bg-emerald-50/40',
+                                iconColor: 'text-emerald-600', countColor: 'text-emerald-700',
+                            } },
+                            { key: 'inactive',    label: 'Inactifs',          Icon: Clock,         classes: {
+                                activeBorder: 'border-amber-400', activeBg: 'bg-amber-50', activeRing: 'ring-amber-200',
+                                idleHoverBorder: 'hover:border-amber-200', idleHoverBg: 'hover:bg-amber-50/40',
+                                iconColor: 'text-amber-600', countColor: 'text-amber-700',
+                            } },
+                            { key: 'never',       label: 'Jamais connectés',  Icon: AlertTriangle, classes: {
+                                activeBorder: 'border-red-400', activeBg: 'bg-red-50', activeRing: 'ring-red-200',
+                                idleHoverBorder: 'hover:border-red-200', idleHoverBg: 'hover:bg-red-50/40',
+                                iconColor: 'text-red-600', countColor: 'text-red-700',
+                            } },
+                            { key: 'not_invited', label: 'Non invités',       Icon: Mail,          classes: {
+                                activeBorder: 'border-slate-400', activeBg: 'bg-slate-50', activeRing: 'ring-slate-200',
+                                idleHoverBorder: 'hover:border-slate-300', idleHoverBg: 'hover:bg-slate-50/60',
+                                iconColor: 'text-slate-600', countColor: 'text-slate-700',
+                            } },
+                        ] as const).map(({ key, label, Icon, classes }) => {
+                            const count = clientKpis.filter(c => getConnectionStatus(c.client) === key).length;
+                            const isActive = connectionFilter === key;
+                            return (
+                                <button
+                                    key={key}
+                                    type="button"
+                                    onClick={() => setConnectionFilter(isActive ? null : key)}
+                                    aria-pressed={isActive}
+                                    className={`flex items-center gap-2 p-3 rounded-lg border transition-all text-left ${
+                                        isActive
+                                            ? `${classes.activeBorder} ${classes.activeBg} ring-1 ${classes.activeRing}`
+                                            : `border-slate-200 bg-white ${classes.idleHoverBorder} ${classes.idleHoverBg}`
+                                    }`}
+                                >
+                                    <Icon className={`w-4 h-4 ${classes.iconColor} shrink-0`} />
+                                    <div className="min-w-0">
+                                        <div className="text-xs font-semibold text-slate-700 truncate">{label}</div>
+                                        <div className={`text-lg font-bold ${classes.countColor}`}>{count}</div>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+
                     {/* Search */}
                     <div className="relative mb-4">
                         <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
@@ -597,7 +657,7 @@ Expertise & Stratégie Financière`;
                             className="w-full pl-10 pr-10 py-2 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition placeholder-slate-400"
                         />
                         {clientSearchQuery && (
-                            <button onClick={() => onSetClientSearchQuery('')} className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+                            <button onClick={() => onSetClientSearchQuery('')} aria-label="Effacer la recherche" title="Effacer la recherche" className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
                                 <X className="w-4 h-4" />
                             </button>
                         )}
@@ -981,6 +1041,7 @@ Expertise & Stratégie Financière`;
                                                             onClick={(e) => { e.stopPropagation(); handleOpenPanel(client, 'config'); }}
                                                             className={`p-1.5 rounded-full transition ${isSelectedInPanel && panelTab === 'config' ? 'bg-brand-100 text-brand-600' : 'text-slate-300 hover:text-brand-500 hover:bg-brand-50'} opacity-40 group-hover:opacity-100`}
                                                             title="Configuration rapide"
+                                                            aria-label="Configuration rapide"
                                                         >
                                                             <Settings className="w-3.5 h-3.5" />
                                                         </button>
@@ -990,6 +1051,7 @@ Expertise & Stratégie Financière`;
                                                                 onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === client.id ? null : client.id); }}
                                                                 className="p-2 text-slate-400 hover:text-brand-600 bg-white rounded-full shadow-sm border border-slate-100 opacity-40 group-hover:opacity-100 transition"
                                                                 title="Actions"
+                                                                aria-label="Actions"
                                                             >
                                                                 <MoreVertical className="w-3.5 h-3.5" />
                                                             </button>
@@ -1105,6 +1167,8 @@ Expertise & Stratégie Financière`;
                             </div>
                             <button
                                 onClick={() => setPanelClient(null)}
+                                aria-label="Fermer le panneau"
+                                title="Fermer le panneau"
                                 className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition"
                             >
                                 <X className="w-4 h-4" />

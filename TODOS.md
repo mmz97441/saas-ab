@@ -130,6 +130,9 @@ Backlog des chantiers post-design-review (waves 1-3.5 shippées). Trié par cat�
 | 3 | `c488d1e` | Composite health pill, À faire aujourd'hui Cockpit, auto-save EntryForm |
 | 3.0 | `d6cdfaf` | Wave 3 polish — messaging textarea, RDV reminders, team validations, a11y debt |
 | 3.5 | `7f2d6dd` | Last-message preview, RDV polish (Aujourd'hui, conflict, quick chips), promote/demote team |
+| 4.1 | `b53a69b` | Fondations éditoriales : Fraunces + DM Sans + IBM Plex Mono + papier chaud + grain + CSS vars + shadow-paper |
+| 4.3 | `7d07d33` | Typo éditoriale 11 surfaces (66× font-display, 63× eyebrows) |
+| 4.4 | `ac9e532` | Motion : AnimatedNumber out-quint + hover-lift KPI + reveal/pulse utilities |
 
 ---
 

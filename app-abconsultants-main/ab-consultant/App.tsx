@@ -499,7 +499,7 @@ const App: React.FC = () => {
   }, [clients, clientViewMode, clientSearchQuery]);
 
   if (isAuthCheckLoading) return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-brand-50 gap-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-paper-50 gap-4">
       <img src="/logo.svg" alt="AB Consultants" className="h-10 mb-2 opacity-80" />
       <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
       <p className="text-sm text-brand-500 font-medium">Connexion en cours...</p>
@@ -516,7 +516,7 @@ const App: React.FC = () => {
   if (!isAuthenticated) return <LoginScreen onLogin={handleLoginSuccess} />;
 
   return (
-    <div className="min-h-screen flex bg-brand-50 relative">
+    <div className="min-h-screen flex bg-paper-50 relative">
       {notification && (
           <div role="alert" className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-xl border animate-in slide-in-from-right-10 flex items-center gap-3 ${
               notification.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' :

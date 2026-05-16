@@ -148,7 +148,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-brand-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-paper-50 p-4">
       <div className="max-w-4xl w-full bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[500px] animate-in fade-in zoom-in-95 duration-500">
         
         {/* Left Side: Visuals */}

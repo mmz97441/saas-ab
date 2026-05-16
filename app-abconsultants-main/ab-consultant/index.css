@@ -2,23 +2,141 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  background-color: #f0f4f8;
+/* =================================================
+   DESIGN TOKENS — Cabinet éditorial
+   ================================================= */
+:root {
+  /* Surfaces — warm paper neutrals */
+  --color-paper-bg:        #fbfaf6;
+  --color-paper-raised:    #ffffff;
+  --color-paper-sunken:    #f5f3ec;
+
+  /* Ink — text + headings */
+  --color-ink-heading:     #0f1722;  /* brand-900 */
+  --color-ink-body:        #28251f;  /* paper-800 */
+  --color-ink-muted:       #5a5547;  /* paper-600 */
+  --color-ink-subtle:      #76705f;  /* paper-500 */
+
+  /* Lines — warm borders that breathe */
+  --color-line-soft:       #ebe7da;  /* paper-200 */
+  --color-line-strong:     #d8d3c2;  /* paper-300 */
+
+  /* Easing — signature curve, used on every meaningful transition */
+  --ease-premium:          cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-editorial:        cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Typography — variable font axes for Fraunces */
+  --fraunces-soft-display:  60;   /* large headings: warmer */
+  --fraunces-soft-body:     20;   /* small text: sharper */
 }
 
-.custom-scrollbar::-webkit-scrollbar { width: 6px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 10px; }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.3); }
+/* =================================================
+   BODY — paper substrate with subtle grain
+   ================================================= */
+body {
+  background-color: var(--color-paper-bg);
+  color: var(--color-ink-body);
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-feature-settings: 'ss01', 'cv11';  /* DM Sans: alt 'a' + alt '6/9' */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 
-/* --- PRINT / PDF EXPORT STYLES --- */
+  /* Subtle film grain — gives paper-like texture without distracting */
+  /* SVG noise pattern, 2% opacity, baked once */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.1  0 0 0 0 0.1  0 0 0 0 0.1  0 0 0 0.04 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  background-repeat: repeat;
+  background-attachment: fixed;
+}
+
+/* =================================================
+   TABULAR NUMBERS — default for financial data
+   Numbers must align in columns — non-negotiable
+   ================================================= */
+.font-mono,
+[class*="font-mono"],
+table,
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Headings inherit display serif when explicitly opted-in via .font-display
+   (we don't force serif on every <h1> globally — components opt in) */
+.font-display,
+[class*="font-display"] {
+  font-family: 'Fraunces', Georgia, serif;
+  font-optical-sizing: auto;
+  font-variation-settings: 'SOFT' var(--fraunces-soft-display);
+  letter-spacing: -0.015em;
+  font-feature-settings: 'ss01', 'ss02';  /* Fraunces stylistic alternates */
+}
+
+.font-serif {
+  font-family: 'Fraunces', Georgia, serif;
+  font-optical-sizing: auto;
+}
+
+/* =================================================
+   EDITORIAL EYEBROW — section overline pattern
+   Use: <p className="eyebrow">Pilotage Cabinet</p>
+   ================================================= */
+.eyebrow {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-ink-subtle);
+  line-height: 1;
+}
+
+/* =================================================
+   CUSTOM SCROLLBAR — refined, less obtrusive
+   ================================================= */
+.custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(40, 37, 31, 0.15);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(40, 37, 31, 0.25);
+  background-clip: padding-box;
+}
+
+/* Default scrollbar across the app */
+* {
+  scrollbar-color: rgba(40, 37, 31, 0.20) transparent;
+  scrollbar-width: thin;
+}
+
+/* =================================================
+   SELECTION — warm highlight tied to brand
+   ================================================= */
+::selection {
+  background-color: rgba(245, 158, 11, 0.25);  /* accent-500 at 25% */
+  color: var(--color-ink-heading);
+}
+
+/* =================================================
+   FOCUS RING — premium signature, always visible
+   ================================================= */
+:focus-visible {
+  outline: 2px solid #f59e0b;  /* accent-500 */
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* =================================================
+   PRINT / PDF EXPORT
+   ================================================= */
 @media print {
-  /* Hide non-essential elements */
   nav, aside, .print\\:hidden, button, [data-sidebar] {
     display: none !important;
   }
 
-  /* Full-width main content */
   main {
     margin: 0 !important;
     padding: 0 !important;
@@ -28,29 +146,26 @@ body {
 
   body {
     background: white !important;
+    background-image: none !important;  /* strip grain for print */
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  /* Ensure charts/cards print properly */
-  .bg-white, .bg-brand-50, .bg-slate-50 {
+  .bg-white, .bg-paper-50, .bg-paper-100, .bg-slate-50, .bg-brand-50 {
     background-color: white !important;
     box-shadow: none !important;
   }
 
-  /* Keep colors for KPI cards */
   .bg-emerald-50, .bg-red-50, .bg-blue-50, .bg-amber-50 {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  /* Avoid page breaks inside charts */
   .recharts-wrapper, .recharts-responsive-container {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
 
-  /* Page setup */
   @page {
     size: A4 landscape;
     margin: 10mm;

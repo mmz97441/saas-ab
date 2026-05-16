@@ -2,6 +2,9 @@
 
 Source de vérité du design system. Toute nouvelle feature doit s'aligner sur les décisions ci-dessous. Si une exception est nécessaire, elle se documente ici.
 
+> **Direction visuelle (depuis Wave 4)** : « Cabinet éditorial ».
+> Ce n'est pas une app SaaS — c'est une revue financière. Typographie travaillée, papier chaud, chiffres traités avec soin, peu de couleurs mais utilisées avec intention. Référence mentale : Bloomberg, Financial Times, Stripe Press en serif.
+
 ## 1. Identité
 
 **Posture** : outil de pilotage financier sérieux pour TPE/PME du transport et de la logistique. Cible : consultants experts-comptables + gérants de PME. Ton : professionnel, dense, rassurant. Pas de fun gratuit, pas de gamification superflue. Le confetti sur objectif atteint est l'unique moment ludique — c'est une exception assumée.
@@ -10,30 +13,68 @@ Source de vérité du design system. Toute nouvelle feature doit s'aligner sur l
 
 ## 2. Typographie
 
-**Famille unique** : `Inter` (Google Fonts).
-Fallback : `sans-serif` (à étendre vers `system-ui, sans-serif` dans `tailwind.config.js` pour résilience CDN).
+**Trois familles, chacune un rôle distinct** :
 
-**Graisses utilisées** : `300`, `400`, `500`, `600`, `700`, `800` (extrabold uniquement sur les badges et logos d'initiales).
+| Token Tailwind | Famille | Rôle |
+|---|---|---|
+| `font-display` | **Fraunces** (variable serif, opsz 9-144, wght 300-800, SOFT 30-100) | H1/H2/H3 de page, KPI numbers, hero, moments éditoriaux |
+| `font-sans` (défaut) | **DM Sans** (variable, opsz 9-40, wght 300-700) | Corps de texte, UI labels, boutons, navigation |
+| `font-mono` | **IBM Plex Mono** (400/500/600) | Chiffres tabulaires (KPI cards quand pas en Fraunces), colonnes de tableau, codes/montants |
+
+**Pourquoi ces choix** :
+- **Fraunces** apporte le caractère « cabinet d'expertise » sans virer vintage. Les axes `opsz` (optical sizing) et `SOFT` permettent de la rendre douce sur les grands titres et incisive sur les petits.
+- **DM Sans** est le sans plus typographique d'Inter, lisible à toutes tailles, signature des produits B2B premium modernes (Stripe Press, Vercel docs).
+- **IBM Plex Mono** porte la mémoire de l'informatique financière (IBM) — donne du sérieux aux chiffres sans tomber dans le code-style.
+
+**Règle d'or sémantique** :
+- `font-display` (Fraunces) → tout ce qui DOIT être lu en premier (titres, big numbers)
+- `font-sans` (DM Sans) → tout ce qui est INTERFACE (boutons, labels, descriptions)
+- `font-mono` (IBM Plex Mono) → tout ce qui DOIT s'aligner en colonnes (montants, dates ISO, IDs)
 
 **Échelle** :
 
 | Token | Pixel | Usage |
 |---|---|---|
-| `text-xs` | 12 px | Labels, métadonnées, badges, captions, glossaire |
+| `text-xs` | 12 px | Labels, métadonnées, badges, captions, eyebrow |
 | `text-sm` | 14 px | Texte courant, items de navigation, contenu des cartes |
 | `text-base` | 16 px | Réservé au texte long (rare dans cette app) |
 | `text-lg` | 18 px | Titres de section dans les empty states |
-| `text-xl` | 20 px | Titres de modaux, cards titles |
-| `text-2xl` | 24 px | H1 de page (Cockpit, Tableau de Bord) |
-| `text-3xl` | 30 px | H2 hero (LoginScreen uniquement) |
+| `text-xl` | 20 px | Titres de modaux, cards titles (DM Sans bold OU Fraunces semi-bold) |
+| `text-2xl` | 24 px | H1 de page (Cockpit, Tableau de Bord) — **Fraunces** |
+| `text-3xl` | 30 px | H2 hero (LoginScreen) — **Fraunces** |
+| `text-4xl`/`5xl` | 36/48 px | KPI numbers très visibles — **Fraunces tabular-nums** |
 
-**Règle d'or** : **jamais en dessous de 12 px** pour du contenu textuel. `text-[11px]` est interdit (a11y SC 1.4.4). Si une étiquette ne tient pas en 12 px, raccourcir le label, pas réduire la taille.
+**Classe utilitaire `.eyebrow`** (définie dans `index.css`) :
+DM Sans 11px, 600, uppercase, letter-spacing 0.14em, couleur muted. Pour les overlines de section ("Pilotage Cabinet", "Dossier Actif", etc.).
 
-**Graisse par défaut sur fond sombre** : `font-normal` minimum. `font-light` interdit sur fonds sombres (lisibilité dégradée).
+**Règle d'or** : **jamais en dessous de 12 px** pour du contenu textuel. `text-[11px]` est interdit (a11y SC 1.4.4).
+
+**Tabular numbers** : appliqué automatiquement à toutes les classes `font-mono` et tous les `<table>` via `font-variant-numeric: tabular-nums` (cf `index.css`).
+
+**Graisse par défaut sur fond sombre** : `font-normal` minimum. `font-light` interdit (lisibilité dégradée).
 
 ## 3. Couleurs
 
-### Palette `brand` (slate-blue — structure, navigation, identité)
+### Palette `paper` (NEW — Wave 4 — surfaces et neutres chauds)
+
+Pour TOUTES les surfaces (body, raised cards, sunken sections), bordures discrètes, texte body. Remplace l'usage du `slate-*` froid sur les surfaces.
+
+| Token | Hex | Usage |
+|---|---|---|
+| `paper-50` | `#fbfaf6` | **Body background** (off-white chaud) |
+| `paper-100` | `#f5f3ec` | Surfaces "sunken" (sections en retrait) |
+| `paper-200` | `#ebe7da` | Bordures soft, dividers |
+| `paper-300` | `#d8d3c2` | Bordures fortes, inputs au repos |
+| `paper-400` | `#a8a294` | Texte disabled, icônes inactives |
+| `paper-500` | `#76705f` | Texte secondaire (subtle) |
+| `paper-600` | `#5a5547` | Texte body muted |
+| `paper-700` | `#3f3a30` | Texte body |
+| `paper-800` | `#28251f` | Texte fort |
+| `paper-900` | `#171612` | Headings (alternative chaude au brand-900) |
+
+**Pourquoi** : le `slate-50` (`#f0f4f8`) de Tailwind tire vers le bleu froid → impression "web app défaut". Le `paper-50` (`#fbfaf6`) tire vers le crème → impression "page imprimée, document de cabinet".
+
+### Palette `brand` (recalibrée — Wave 4 — navy légèrement plus warm)
 
 | Token | Hex | Usage type |
 |---|---|---|
@@ -105,15 +146,20 @@ Fallback : `sans-serif` (à étendre vers `system-ui, sans-serif` dans `tailwind
 
 ## 5. Élévation
 
+**Ombres « papier sur papier »** (Wave 4 — remplace les shadows Tailwind par défaut).
+Layered : 1-2px crisp top + diffuse ambient. Signature visuelle d'impression éditoriale.
+
 | Token | Usage |
 |---|---|
-| `shadow-sm` | **Défaut** pour cartes (`bg-white`), inputs au repos |
-| `shadow-md` | Items de navigation actifs, hover sur cartes |
-| `shadow-lg` | CTA primaires, panneaux flottants (dropdowns) |
-| `shadow-xl` | Modaux, popovers |
-| `shadow-2xl` | Réservé au panneau LoginScreen et sidebar mobile |
+| `shadow-paper-sm` | Inputs au repos, badges, mini-cards |
+| `shadow-paper` | **Défaut** pour cartes (`bg-white` ou `bg-paper-100`) |
+| `shadow-paper-md` | Items de navigation actifs, hover sur cartes |
+| `shadow-paper-lg` | CTA primaires importants, panneaux flottants (dropdowns) |
+| `shadow-paper-xl` | Modaux, panneau LoginScreen, popovers |
 
-**Règle** : pas de `shadow-2xl` sur du contenu interne. Si un élément a besoin de plus de présence, monter en taille ou en contraste, pas en ombre.
+Les anciens tokens `shadow-sm`/`md`/`lg`/`xl`/`2xl` de Tailwind restent disponibles mais leur usage est **deprecated** dans nouvelle UI. Migrer au fur et à mesure.
+
+**Règle** : pas de `shadow-paper-xl` sur du contenu interne. Si un élément a besoin de plus de présence, monter en taille ou en contraste, pas en ombre.
 
 ## 6. Iconographie
 

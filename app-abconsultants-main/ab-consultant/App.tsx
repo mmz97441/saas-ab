@@ -550,7 +550,7 @@ const App: React.FC = () => {
       {/* CHAT WIDGET */}
       <Suspense fallback={null}>
         {selectedClient && (userRole === 'client' || (userRole === 'ab_consultant' && simulatedUserEmail)) && (
-            <AIChatWidget client={selectedClient} data={dashboardData} />
+            <AIChatWidget client={selectedClient} data={data} />
         )}
       </Suspense>
 

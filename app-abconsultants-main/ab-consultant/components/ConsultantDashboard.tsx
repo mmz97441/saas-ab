@@ -1,13 +1,14 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { Client, FinancialRecord } from '../types';
-import { getRecordsByClient } from '../services/dataService';
+import { getRecordsByClient, subscribeToConsultantAlerts, markAlertResolved, ConsultantAlert } from '../services/dataService';
+import { auth } from '../firebase';
 import {
     AlertTriangle, Clock, CheckCircle, TrendingDown, TrendingUp, MessageSquare,
     ArrowRight, Briefcase, Loader2, Filter, Shield, Search, X, ChevronDown,
     ChevronLeft, ChevronRight as ChevronRightIcon,
     DollarSign, Percent, Landmark, Target, Activity, CalendarClock,
-    Calendar, MapPin, FileCheck, FileX, ChevronUp, Zap, ShieldCheck
+    Calendar, MapPin, FileCheck, FileX, ChevronUp, Zap, ShieldCheck, Sparkles
 } from 'lucide-react';
 import { DashboardSkeleton } from './ui/Skeleton';
 import InfoTip, { getPerfColor } from './ui/InfoTip';
@@ -418,6 +419,13 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
     const [filter, setFilter] = useState<'ALL' | 'ALERT' | 'PENDING' | 'STALE'>('ALL');
     const [searchQuery, setSearchQuery] = useState('');
     const [activePanel, setActivePanel] = useState<PanelType>(null);
+    const [alerts, setAlerts] = useState<ConsultantAlert[]>([]);
+
+    // Subscribe to live consultant alerts (chat handoffs etc.)
+    useEffect(() => {
+        const unsub = subscribeToConsultantAlerts(setAlerts);
+        return () => unsub();
+    }, []);
 
     const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 
@@ -731,6 +739,10 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                 const handleRdvClick = () => {
                     document.getElementById('rdv-section')?.scrollIntoView({ behavior: 'smooth' });
                 };
+                const handleAlertsIaClick = () => {
+                    document.getElementById('alerts-section')?.scrollIntoView({ behavior: 'smooth' });
+                };
+                const alertsIaCount = alerts.length;
 
                 return (
                     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
@@ -739,7 +751,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                             <h3 className="font-display text-lg font-semibold text-paper-800 tracking-tight">À faire aujourd'hui</h3>
                             <span className="text-xs text-paper-400">— {todayLabel}</span>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                             {/* À valider */}
                             <button
                                 onClick={handlePendingClick}
@@ -829,6 +841,29 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                                     {thisWeekCount > 0
                                         ? `${thisWeekCount > 1 ? 'Consultations programmées' : 'Consultation programmée'}`
                                         : 'Aucun RDV cette semaine'}
+                                </p>
+                            </button>
+
+                            {/* Alertes IA */}
+                            <button
+                                onClick={handleAlertsIaClick}
+                                className="text-left p-3 rounded-lg border border-slate-200 hover:border-amber-300 hover:bg-amber-50/50 hover:shadow-sm transition-all group"
+                            >
+                                <div className="flex items-center gap-2 mb-2">
+                                    <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center">
+                                        <Sparkles className="w-4 h-4" />
+                                    </div>
+                                    {alertsIaCount > 0 ? (
+                                        <span className="font-display text-3xl font-semibold text-amber-700 tabular-nums tracking-tight">{alertsIaCount}</span>
+                                    ) : (
+                                        <CheckCircle className="w-5 h-5 text-emerald-500 ml-auto" />
+                                    )}
+                                </div>
+                                <p className="text-xs font-bold text-slate-700">Alertes IA</p>
+                                <p className="text-xs text-slate-500">
+                                    {alertsIaCount > 0
+                                        ? `${alertsIaCount > 1 ? 'Demandes' : 'Demande'} de contact consultant`
+                                        : "Pas d'alertes"}
                                 </p>
                             </button>
                         </div>
@@ -989,6 +1024,53 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                     onSelectClient={onSelectClient}
                     onClose={() => { setActivePanel(null); setFilter('ALL'); }}
                 />
+            )}
+
+            {/* ═══ ALERTES IA (handoffs chat, etc.) ═══ */}
+            {alerts.length > 0 && (
+                <div id="alerts-section" className="bg-white rounded-xl shadow-paper border border-paper-200 p-5 scroll-mt-6">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Sparkles className="w-4 h-4 text-amber-600" />
+                        <h3 className="font-display text-lg font-semibold text-paper-900 tracking-tight">Alertes IA</h3>
+                        <span className="text-xs text-paper-500">({alerts.length})</span>
+                    </div>
+                    <div className="space-y-2">
+                        {alerts.slice(0, 5).map(a => (
+                            <div key={a.id} className="flex items-start gap-3 p-3 rounded-lg border border-paper-200 hover:border-amber-300 hover:bg-amber-50/30 transition">
+                                <div className="w-2 h-2 rounded-full bg-amber-500 mt-2 shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between gap-2 mb-0.5">
+                                        <p className="font-semibold text-sm text-paper-900 truncate">{a.clientName}</p>
+                                        <span className="text-xs text-paper-400 shrink-0">
+                                            {a.createdAt?.toDate ? new Date(a.createdAt.toDate()).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '...'}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-paper-600 line-clamp-2 mb-2">{a.message}</p>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => {
+                                                const c = clients.find(c => c.id === a.clientId);
+                                                if (c) onSelectClient(c);
+                                            }}
+                                            className="text-xs font-semibold text-brand-600 hover:underline"
+                                        >
+                                            Ouvrir le dossier →
+                                        </button>
+                                        <button
+                                            onClick={() => { markAlertResolved(a.id, auth.currentUser?.email || 'unknown').catch(err => console.error('markAlertResolved:', err)); }}
+                                            className="text-xs font-semibold text-paper-500 hover:text-paper-800"
+                                        >
+                                            Marquer comme traité
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                        {alerts.length > 5 && (
+                            <p className="text-xs text-paper-500 text-center pt-2">+ {alerts.length - 5} autres alertes</p>
+                        )}
+                    </div>
+                </div>
             )}
 
             {/* ═══ FILE D'ATTENTE RDV ═══ */}

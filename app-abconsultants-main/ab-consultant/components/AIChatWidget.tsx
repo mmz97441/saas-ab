@@ -1,12 +1,24 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { MessageSquare, Send, X, Bot, Loader2, Sparkles, UserCheck, ChevronRight, Scale, Briefcase, ShieldCheck, UserCircle, Bell, Trash2, AlertTriangle, PhoneCall } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { Client, FinancialRecord, ChatMessage } from '../types';
 import { askFinancialAdvisor } from '../lib/cloudFunctions';
 import { useConfirmDialog } from '../contexts/ConfirmContext';
-import { sendMessage, subscribeToChat, sendConsultantAlertEmail } from '../services/dataService';
-import { db, auth } from '../firebase'; 
+import { sendMessage, subscribeToChat, sendConsultantAlertEmail, createConsultantAlert } from '../services/dataService';
+import { db, auth } from '../firebase';
 import { collection, writeBatch, getDocs, deleteDoc } from "firebase/firestore";
+
+const QUICK_REPLIES: { label: string; prompt: string }[] = [
+  { label: 'Mon CA ce mois', prompt: "Quel est mon chiffre d'affaires du dernier mois saisi ?" },
+  { label: 'Évolution N vs N-1', prompt: "Compare mon CA et ma marge entre cette année et l'année dernière." },
+  { label: 'Risque trésorerie', prompt: "Y a-t-il des risques sur ma trésorerie à court terme ?" },
+  { label: 'Que dit mon BFR ?', prompt: "Analyse mon BFR et explique ce qui peut être amélioré." },
+  { label: 'Coût/heure', prompt: "Quel est mon coût horaire et est-il rentable ?" },
+  { label: 'Prévisionnel 3 mois', prompt: "Fais une projection de mon CA et ma trésorerie sur les 3 prochains mois." },
+  { label: 'Comparer à mon objectif', prompt: "Suis-je en ligne avec mon objectif annuel ?" },
+  { label: "Optimisation TVA", prompt: "Quelles sont les pistes d'optimisation TVA pour mon activité ?" },
+];
 
 interface AIChatWidgetProps {
   client: Client;
@@ -90,38 +102,90 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
       }
   }, [isOpen, dbMessages]);
 
-  // FILTRE DES MESSAGES VISIBLES ET DU CONTEXTE IA
-  const visibleMessages = useMemo(() => {
-      let filtered = dbMessages;
+  // F-05 : Message de bienvenue personnalisé et contextuel
+  const buildWelcomeMessage = (): string => {
+      const name = client.managerName?.split(' ')[0] || 'Monsieur/Madame';
+      const greeting = `Bonjour ${name}.`;
 
-      // 1. Appliquer le cutoff de session (Masque les vieux messages)
-      if (sessionCutoff) {
-          filtered = dbMessages.filter(m => getMessageTime(m) > sessionCutoff);
+      if (!data || data.length === 0) {
+          return `${greeting} Ravi de vous retrouver.\n\nQuand vous aurez saisi vos premières données mensuelles, je pourrai analyser votre situation. En attendant, je peux répondre à vos questions sur la gestion, la fiscalité ou le social.`;
       }
-      
-      // 2. Toujours masquer les messages système interne (résumés)
-      filtered = filtered.filter(m => !m.isSystemSummary);
 
-      // Si aucun message récent, afficher le message de bienvenue
+      const MONTH_ORDER = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+      const sortedByDate = [...data].sort((a, b) => {
+          if (a.year !== b.year) return a.year - b.year;
+          return MONTH_ORDER.indexOf(a.month) - MONTH_ORDER.indexOf(b.month);
+      });
+      const lastRecord = sortedByDate[sortedByDate.length - 1];
+      if (!lastRecord) return `${greeting} Comment puis-je vous aider aujourd'hui ?`;
+
+      const insights: string[] = [];
+
+      // Insight 1 : alerte trésorerie
+      if (lastRecord.cashFlow?.treasury < 0) {
+          insights.push("votre trésorerie est négative");
+      }
+
+      // Insight 2 : écart vs objectif
+      if (lastRecord.revenue?.objective > 0) {
+          const perf = (lastRecord.revenue.total / lastRecord.revenue.objective) * 100;
+          if (perf < 85) {
+              insights.push(`votre CA de ${lastRecord.month} est à ${perf.toFixed(0)}% de l'objectif`);
+          } else if (perf >= 110) {
+              insights.push(`votre CA de ${lastRecord.month} dépasse l'objectif de ${(perf - 100).toFixed(0)}%`);
+          }
+      }
+
+      // Insight 3 : comparaison N-1
+      const sameMonthN1 = sortedByDate.find(r =>
+          r.month === lastRecord.month && r.year === lastRecord.year - 1
+      );
+      if (sameMonthN1 && sameMonthN1.revenue?.total > 0) {
+          const variation = ((lastRecord.revenue.total - sameMonthN1.revenue.total) / sameMonthN1.revenue.total) * 100;
+          if (Math.abs(variation) > 15) {
+              insights.push(`votre CA évolue de ${variation > 0 ? '+' : ''}${variation.toFixed(0)}% vs N-1`);
+          }
+      }
+
+      if (insights.length === 0) {
+          return `${greeting} Vos chiffres de ${lastRecord.month} ${lastRecord.year} sont à jour. Sur quoi voulez-vous qu'on travaille ?`;
+      }
+
+      const topInsight = insights[0];
+      return `${greeting} Je viens de regarder votre dossier : **${topInsight}**.\n\nVoulez-vous qu'on en discute ?`;
+  };
+
+  // FILTRE DES MESSAGES VISIBLES (F-08 : on ne filtre plus par sessionCutoff)
+  const visibleMessages = useMemo(() => {
+      // Toujours masquer les messages système interne (résumés)
+      const filtered = dbMessages.filter(m => !m.isSystemSummary);
+
+      // Si aucun message réel, afficher le message de bienvenue personnalisé
       if (filtered.length === 0) {
           return [{
                 id: 'welcome-msg',
-                text: `Bonjour ${client.managerName || 'Monsieur/Madame'}. Ravi de vous retrouver.\n\nOn fait un point sur la situation financière, RH ou un sujet stratégique aujourd'hui ?`,
+                text: buildWelcomeMessage(),
                 sender: 'ai',
                 timestamp: new Date()
             } as ChatMessage];
       }
 
       return filtered;
-  }, [dbMessages, sessionCutoff, client.managerName]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dbMessages, client.managerName, data]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [visibleMessages, isOpen]);
 
-  // FONCTION POUR NETTOYER L'HISTORIQUE MANUELLEMENT
+  // F-10 : Nouvelle conversation (RGPD-friendly)
   const handleClearHistory = async () => {
-      const ok = await confirmDialog({ title: 'Effacer l\'historique ?', message: 'La conversation sera effacée et une nouvelle session démarrera.', variant: 'danger', confirmLabel: 'Effacer' });
+      const ok = await confirmDialog({
+          title: 'Démarrer une nouvelle conversation ?',
+          message: "La conversation actuelle sera masquée et une nouvelle session démarrera. Vos messages restent enregistrés dans votre dossier.\n\nPour une suppression définitive (RGPD), contactez votre consultant ou écrivez à contact@ab-consultants.fr.",
+          variant: 'info',
+          confirmLabel: 'Nouvelle conversation',
+      });
       if (!ok) return;
       setSessionCutoff(Date.now());
   };
@@ -232,26 +296,36 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
               financialContext: { companyName: client.companyName },
           });
           await sendMessage(client.id, summaryResult.text, 'ai', false, true);
-          await sendConsultantAlertEmail(client, "Demande de relais (Chat)", `Le client <strong>${client.companyName}</strong> demande de l'aide.<br/><br/><strong>Dernier résumé IA :</strong><br/><pre>${summary}</pre>`);
+
+          // FIX 1 : bug `summary` -> `summaryResult.text`
+          // FIX 2 : double notification — email + Firestore (resilient si SMTP down)
+          const triggeredBy = skipUserMessage ? 'ai_alert_human' : 'client_manual_handoff';
+
+          try {
+              await sendConsultantAlertEmail(
+                  client,
+                  "Demande de relais (Chat)",
+                  `Le client <strong>${client.companyName}</strong> demande de l'aide.<br/><br/><strong>Dernier résumé IA :</strong><br/><pre>${summaryResult.text}</pre>`
+              );
+          } catch (emailErr) {
+              console.error("Email alert failed (Firestore alert will still fire)", emailErr);
+          }
+
+          try {
+              await createConsultantAlert(client, 'chat_handoff', summaryResult.text, {
+                  source: 'ai_chat',
+                  triggeredBy,
+                  transcriptPreview: transcript.slice(0, 500),
+              });
+          } catch (alertErr) {
+              console.error("Firestore consultant alert failed", alertErr);
+          }
 
       } catch (e) {
           console.error("Handoff error", e);
       } finally {
           setIsLoading(false);
       }
-  };
-
-  const renderMessageContent = (text: string) => {
-    return text.split('\n').map((line, index) => {
-        const isBullet = line.trim().startsWith('* ') || line.trim().startsWith('- ');
-        const cleanLine = isBullet ? line.trim().substring(2) : line;
-        const parts = cleanLine.split(/(\*\*.*?\*\*)/g).map((part, i) => {
-            if (part.startsWith('**') && part.endsWith('**')) return <strong key={i} className="font-bold text-inherit">{part.slice(2, -2)}</strong>;
-            return part;
-        });
-        if (isBullet) return <div key={index} className="flex gap-2 ml-1 mb-1 items-start"><span className="text-inherit opacity-70 mt-1.5">•</span><span className="flex-1">{parts}</span></div>;
-        return <div key={index} className={`min-h-[1em] ${line.trim() === '' ? 'h-2' : 'mb-1'}`}>{parts}</div>;
-    });
   };
 
   return (
@@ -300,7 +374,7 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
             </div>
             <div className="flex items-center gap-1">
                 {/* BOUTON CORBEILLE / RESET */}
-                <button onClick={handleClearHistory} className="text-brand-400 hover:text-red-400 p-1 rounded-full hover:bg-white/10 transition" title="Nouvelle conversation" aria-label="Nouvelle conversation">
+                <button onClick={handleClearHistory} className="text-brand-400 hover:text-red-400 p-1 rounded-full hover:bg-white/10 transition" title="Démarrer une nouvelle conversation" aria-label="Démarrer une nouvelle conversation">
                     <Trash2 className="w-5 h-5" />
                 </button>
                 <button onClick={() => setIsOpen(false)} aria-label="Fermer la conversation" title="Fermer la conversation" className="text-brand-400 hover:text-white p-1"><X className="w-5 h-5" /></button>
@@ -308,50 +382,80 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-5 bg-brand-50">
-            {visibleMessages.map((msg) => (
-              <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                
-                {msg.sender === 'ai' && !msg.isExpertHandoff && (
-                   <div className="w-8 h-8 rounded-full bg-white border border-brand-200 flex items-center justify-center shadow-sm mr-2 shrink-0 self-end mb-1">
-                      <Bot className="w-4 h-4 text-brand-600" />
-                   </div>
+            {visibleMessages.map((msg, i) => {
+              // F-08 : séparateur visuel "Nouvelle session" si gap > 90min entre 2 messages
+              const prev = i > 0 ? visibleMessages[i - 1] : null;
+              const showSeparator = !!prev && (getMessageTime(msg) - getMessageTime(prev)) > 90 * 60 * 1000;
+              return (
+              <React.Fragment key={msg.id}>
+                {showSeparator && (
+                    <div className="flex items-center gap-3 my-4" aria-label="Nouvelle session">
+                        <div className="flex-1 h-px bg-paper-200" />
+                        <span className="eyebrow text-paper-500 italic">Nouvelle session</span>
+                        <div className="flex-1 h-px bg-paper-200" />
+                    </div>
                 )}
-                
-                {msg.sender === 'consultant' && (
-                   <div className="w-8 h-8 rounded-full bg-brand-900 border border-brand-700 flex items-center justify-center shadow-sm mr-2 shrink-0 self-end mb-1">
-                      <ShieldCheck className="w-4 h-4 text-accent-500" />
-                   </div>
-                )}
+                <div className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
 
-                <div 
-                  className={`
-                    max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed shadow-sm relative
-                    ${msg.sender === 'user' 
-                      ? 'bg-gradient-to-br from-brand-700 to-brand-900 text-white rounded-br-none shadow-brand-900/20' 
-                      : msg.sender === 'consultant'
-                        ? 'bg-white border-l-4 border-l-accent-500 text-slate-800 rounded-bl-none shadow-md'
-                        : msg.isExpertHandoff 
-                            ? 'bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 text-emerald-900'
-                            : 'bg-white text-slate-600 border border-brand-100 rounded-bl-none shadow-brand-200/50'
-                    }
-                  `}
-                >
+                  {msg.sender === 'ai' && !msg.isExpertHandoff && (
+                     <div className="w-8 h-8 rounded-full bg-white border border-brand-200 flex items-center justify-center shadow-sm mr-2 shrink-0 self-end mb-1">
+                        <Bot className="w-4 h-4 text-brand-600" />
+                     </div>
+                  )}
+
                   {msg.sender === 'consultant' && (
-                      <div className="text-xs font-bold text-accent-600 mb-1 uppercase tracking-wider flex items-center gap-1">
-                          <UserCircle className="w-3 h-3" /> Consultant
-                      </div>
+                     <div className="w-8 h-8 rounded-full bg-brand-900 border border-brand-700 flex items-center justify-center shadow-sm mr-2 shrink-0 self-end mb-1">
+                        <ShieldCheck className="w-4 h-4 text-accent-500" />
+                     </div>
                   )}
 
-                  {msg.isExpertHandoff && (
-                      <div className="flex items-center gap-2 font-bold mb-2 text-emerald-700 border-b border-emerald-200/50 pb-2">
-                          <div className="p-1 bg-emerald-100 rounded-full"><UserCheck className="w-3 h-3" /></div>
-                          Transmis au consultant
+                  <div
+                    className={`
+                      max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed shadow-sm relative
+                      ${msg.sender === 'user'
+                        ? 'bg-gradient-to-br from-brand-700 to-brand-900 text-white rounded-br-none shadow-brand-900/20'
+                        : msg.sender === 'consultant'
+                          ? 'bg-white border-l-4 border-l-accent-500 text-slate-800 rounded-bl-none shadow-md'
+                          : msg.isExpertHandoff
+                              ? 'bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 text-emerald-900'
+                              : 'bg-white text-slate-600 border border-brand-100 rounded-bl-none shadow-brand-200/50'
+                      }
+                    `}
+                  >
+                    {msg.sender === 'consultant' && (
+                        <div className="eyebrow text-accent-600 mb-1 flex items-center gap-1">
+                            <UserCircle className="w-3 h-3" /> Consultant
+                        </div>
+                    )}
+
+                    {msg.isExpertHandoff && (
+                        <div className="flex items-center gap-2 font-semibold mb-2 text-emerald-700 border-b border-emerald-200/50 pb-2 font-display">
+                            <div className="p-1 bg-emerald-100 rounded-full"><UserCheck className="w-3 h-3" /></div>
+                            Transmis au consultant
+                        </div>
+                    )}
+
+                    {/* F-09 : rendu markdown riche via react-markdown */}
+                    {msg.sender === 'ai' ? (
+                      <div className="prose prose-sm max-w-none [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_h1]:font-display [&_h1]:text-base [&_h1]:font-semibold [&_h1]:mt-3 [&_h1]:mb-1 [&_h2]:font-display [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-1 [&_h3]:font-display [&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-3 [&_h3]:mb-1 [&_strong]:font-semibold [&_strong]:text-paper-900 [&_em]:italic [&_a]:text-brand-700 [&_a]:underline [&_code]:font-mono [&_code]:text-xs [&_code]:bg-paper-100 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_pre]:bg-paper-100 [&_pre]:p-2 [&_pre]:rounded [&_pre]:overflow-x-auto [&_table]:text-xs [&_th]:font-semibold [&_th]:text-left [&_th]:p-1 [&_td]:p-1 [&_td]:border-t [&_td]:border-paper-200">
+                        <ReactMarkdown
+                          components={{
+                            ul: ({children}) => <ul className="list-disc ml-4 space-y-0.5">{children}</ul>,
+                            ol: ({children}) => <ol className="list-decimal ml-4 space-y-0.5">{children}</ol>,
+                            table: ({children}) => <table className="w-full my-2 border-collapse">{children}</table>,
+                          }}
+                        >
+                          {msg.text}
+                        </ReactMarkdown>
                       </div>
-                  )}
-                  {msg.sender === 'ai' ? renderMessageContent(msg.text) : msg.text}
+                    ) : (
+                      msg.text
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              </React.Fragment>
+              );
+            })}
             
             {isLoading && (
               <div className="flex justify-start items-end">
@@ -373,12 +477,19 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
                      <span>Votre session expire bientôt. Envoyez un message pour la prolonger.</span>
                  </div>
              )}
-             {visibleMessages.length === 1 && visibleMessages[0].id === 'welcome-msg' && (
-                 <div className="flex gap-2 overflow-x-auto pb-3 no-scrollbar px-1">
-                     <button onClick={() => { setInput("Analyse ma trésorerie."); }} className="whitespace-nowrap px-3 py-1.5 bg-brand-50 text-brand-700 text-xs rounded-full border border-brand-200 shadow-sm">Trésorerie</button>
-                     <button onClick={() => { setInput("Quels risques sur mon BFR ?"); }} className="whitespace-nowrap px-3 py-1.5 bg-brand-50 text-brand-700 text-xs rounded-full border border-brand-200 shadow-sm">BFR</button>
-                 </div>
-            )}
+             {/* F-06 : suggestions persistantes au-dessus du champ de saisie */}
+             <div className="flex gap-1.5 overflow-x-auto pb-2 no-scrollbar -mx-3 px-3" style={{scrollbarWidth: 'none'}}>
+                 {QUICK_REPLIES.map((q) => (
+                     <button
+                         key={q.label}
+                         type="button"
+                         onClick={() => setInput(q.prompt)}
+                         className="shrink-0 whitespace-nowrap px-3 py-1.5 bg-paper-100 hover:bg-brand-100 text-paper-700 hover:text-brand-700 text-xs font-medium rounded-full border border-paper-200 hover:border-brand-200 transition-colors duration-200 ease-premium"
+                     >
+                         {q.label}
+                     </button>
+                 ))}
+             </div>
             <div className="flex items-center gap-2 relative">
               <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder="Votre message..." className="flex-1 bg-brand-50 text-brand-900 text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:bg-white transition-all" />
               <button onClick={handleSend} disabled={isLoading || !input.trim()} aria-label="Envoyer le message" title="Envoyer le message" className="p-3 bg-brand-700 text-white rounded-xl hover:bg-brand-800 disabled:opacity-50 transition-all shadow-md"><Send className="w-4 h-4" /></button>

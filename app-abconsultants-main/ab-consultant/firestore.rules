@@ -152,6 +152,24 @@ service cloud.firestore {
     }
 
     // =============================================
+    // CONSULTANT ALERTS (handoffs from AI chat, etc.)
+    // =============================================
+    match /consultantAlerts/{alertId} {
+      // Read: consultants only (their inbox)
+      allow read: if isConsultant();
+
+      // Create: any authenticated user (clients trigger via AI chat handoff,
+      // Cloud Functions can also write via Admin SDK bypass)
+      allow create: if isAuthenticated();
+
+      // Update: consultants only (to mark as resolved)
+      allow update: if isConsultant();
+
+      // Delete: admin only
+      allow delete: if isAdmin();
+    }
+
+    // =============================================
     // DEFAULT: Deny everything else
     // =============================================
     match /{document=**} {

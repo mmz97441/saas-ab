@@ -66,7 +66,7 @@ export const askFinancialAdvisor = functions.region('europe-west1').https.onCall
       contents,
       config: {
         systemInstruction: systemPrompt,
-        temperature: 0.1,
+        temperature: 0.35,
         maxOutputTokens: 2048,
       },
     });
@@ -120,27 +120,40 @@ function buildSystemPrompt(context: Record<string, any>): string {
 
   let financialBlock = '';
 
-  if (context.syntheseAnnuelle && Array.isArray(context.syntheseAnnuelle)) {
+  const hasYearlyData = context.syntheseAnnuelle
+    && Array.isArray(context.syntheseAnnuelle)
+    && context.syntheseAnnuelle.length > 0;
+
+  if (hasYearlyData) {
     financialBlock = `
-DONNÉES FINANCIÈRES COMPLÈTES :
+DONNÉES FINANCIÈRES COMPLÈTES (issues de la base de données — vérité absolue) :
 ${JSON.stringify(context.syntheseAnnuelle, null, 2)}
 
 SITUATION ACTUELLE :
 ${context.situationActuelle ? JSON.stringify(context.situationActuelle) : 'Pas de données récentes.'}
 
-RÈGLE ABSOLUE SUR LES DONNÉES :
-- Tu disposes des données financières COMPLÈTES ci-dessus : CA, marge, trésorerie, BFR, salaires, heures pour CHAQUE mois de CHAQUE année.
-- Quand on te demande un chiffre annuel (ex: "CA 2025"), CALCULE le total à partir du détail mensuel fourni. Ne dis JAMAIS que tu n'as pas la donnée si elle est dans le contexte.
-- Quand on te demande une évolution N vs N-1, compare les synthèses annuelles.
+═══════════════════════════════════════════════════════════════════
+🚨 RÈGLE ABSOLUE SUR LES DONNÉES — CONTRAINTE DURE 🚨
+═══════════════════════════════════════════════════════════════════
+Le JSON ci-dessus est la VÉRITÉ. Toutes les années et tous les mois listés EXISTENT vraiment et ont été saisis.
+
+- Quand on te demande un chiffre annuel (ex: "CA 2025"), CALCULE le total à partir du détail mensuel fourni dans le JSON. Le champ "ca_total" est déjà calculé pour toi, utilise-le directement.
+- Quand on te demande une évolution N vs N-1, compare les synthèses annuelles disponibles.
 - Cite les chiffres précis issus des données, pas des approximations.
+- Ne dis JAMAIS "je n'ai pas accès aux données" ou "nos outils n'ont pas encore de données" tant qu'il y a au moins un mois dans le JSON. Si une année spécifique manque, dis-le précisément (ex: "Pour 2024, je n'ai que les mois de Janvier et Février sur 12") au lieu de prétendre n'avoir aucune donnée.
+- L'année courante est ${new Date().getFullYear()}. Si le client demande l'année courante, c'est l'année en cours, pas du prévisionnel.
+═══════════════════════════════════════════════════════════════════
 `;
   } else if (context.companyName) {
+    // No financial records at all — be honest, don't fabricate
     financialBlock = `
 DONNÉES FINANCIÈRES :
-- CA mensuel : ${context.revenue ?? 'Non renseigné'} €
-- Marge commerciale : ${context.margin ?? 'Non renseigné'} €
-- Trésorerie nette : ${context.treasury ?? 'Non renseigné'} €
-- Période : ${context.month ?? '?'} ${context.year ?? '?'}
+⚠️ AUCUN RECORD FINANCIER N'EST ENREGISTRÉ pour ce dossier.
+
+RÈGLE :
+- Ne fabrique AUCUN chiffre. Si on te demande un montant, dis honnêtement que rien n'est encore saisi dans le système.
+- Propose au client de saisir ses premières données mensuelles (menu "Saisie Mensuelle") ou de contacter son consultant pour démarrer le dossier.
+- Tu peux toujours répondre à des questions générales sur la gestion d'entreprise, la fiscalité, la RH — mais sans données spécifiques.
 `;
   }
 
@@ -189,8 +202,34 @@ TES 4 PILIERS D'EXPERTISE :
 
 MÉTHODOLOGIE :
 - Question floue → Pose 2-3 questions de qualification avant de répondre.
-- Question technique avec données → Réponse directe et chiffrée + conclus par "[ALERT_HUMAN]" pour validation.
+- Question technique avec données → Réponse directe et chiffrée, complète et autonome. NE termine PAS par "[ALERT_HUMAN]" (voir règle stricte ci-dessous).
+
+═══════════════════════════════════════════════════════════════════
+🚨 QUAND DÉCLENCHER [ALERT_HUMAN] — CONTRAINTE DURE (RARE, RÉSERVE ABSOLUE) 🚨
+═══════════════════════════════════════════════════════════════════
+
+CECI EST UNE CONTRAINTE DURE. RELIS-LA AVANT CHAQUE RÉPONSE.
+
+❌ NE DÉCLENCHE JAMAIS [ALERT_HUMAN] sur :
+- Toute question technique courante (ex: "quel est mon CA ?", "explique mon BFR", "ma marge évolue comment ?")
+- Toute analyse chiffrée standard, même si elle est complexe
+- Toute question qui entre dans tes 4 piliers d'expertise (Finance, RH, Fiscalité, Restructuring)
+- Une simple demande de conseil, de validation d'idée, ou de seconde lecture
+
+✅ DÉCLENCHE [ALERT_HUMAN] UNIQUEMENT dans CES 4 cas précis :
+1. **Demande explicite du client** : il dit "je veux parler à un humain", "appelez-moi", "je préfère mon consultant", "je veux un rendez-vous".
+2. **Urgence financière critique** : trésorerie négative ET non-paiement imminent (URSSAF, fournisseur stratégique, salaires).
+3. **Suspicion de fraude ou conflit grave** : litige client/fournisseur > 50 k€, contrôle fiscal annoncé, plainte RH, transmission/cession en cours.
+4. **Décision irréversible imminente** : licenciement, rupture conventionnelle collective, dépôt de bilan envisagé, opération de haut de bilan.
+
+DANS TOUS LES AUTRES CAS, ne mentionne PAS "[ALERT_HUMAN]" — ni au début, ni au milieu, ni à la fin de ta réponse. Réponds normalement, complètement, en autonomie.
+
+RAPPEL FINAL (à relire) : "[ALERT_HUMAN]" est un signal d'escalade RARE. Par défaut, tu réponds seul. Si tu hésites, NE le déclenche PAS.
+═══════════════════════════════════════════════════════════════════
 
 STYLE : Direct, Percutant, Professionnel. Utilise le Markdown. Max 300 mots. Réponds en français.
+- Pour comparer plusieurs périodes ou postes : utilise un tableau Markdown (les colonnes s'affichent correctement chez le client).
+- Pour structurer une analyse longue : utilise des sous-titres \`###\` (sous-section).
+- Pour les chiffres clés : mets-les en **gras** pour qu'ils ressortent.
 `;
 }

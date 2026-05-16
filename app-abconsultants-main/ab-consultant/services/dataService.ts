@@ -10,10 +10,11 @@ import {
   addDoc,
   deleteDoc, 
   updateDoc, 
-  query, 
-  where, 
+  query,
+  where,
   writeBatch,
   orderBy,
+  limit,
   onSnapshot,
   serverTimestamp,
   Timestamp,
@@ -597,3 +598,64 @@ export const subscribeToClientActivities = (
         console.error("Erreur subscription activités:", error);
     });
 };
+
+// =============================================
+// CONSULTANT ALERTS
+// =============================================
+export interface ConsultantAlert {
+  id: string;
+  clientId: string;
+  clientName: string;
+  type: 'chat_handoff' | 'urgent_treasury' | 'compliance' | 'manual';
+  message: string;
+  metadata?: Record<string, any>;
+  createdAt: any;
+  resolved: boolean;
+  resolvedAt?: any;
+  resolvedBy?: string;
+}
+
+const COLL_ALERTS = 'consultantAlerts';
+
+export async function createConsultantAlert(
+  client: Client,
+  type: ConsultantAlert['type'],
+  message: string,
+  metadata?: Record<string, any>
+): Promise<void> {
+  await addDoc(collection(db, COLL_ALERTS), {
+    clientId: client.id,
+    clientName: client.companyName || '',
+    type,
+    message: message.slice(0, 1000),  // cap at 1k chars
+    metadata: metadata || {},
+    createdAt: serverTimestamp(),
+    resolved: false,
+  });
+}
+
+export function subscribeToConsultantAlerts(
+  callback: (alerts: ConsultantAlert[]) => void
+): () => void {
+  const q = query(
+    collection(db, COLL_ALERTS),
+    where('resolved', '==', false),
+    orderBy('createdAt', 'desc'),
+    limit(50)
+  );
+  return onSnapshot(q, (snap) => {
+    const alerts: ConsultantAlert[] = snap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+    } as ConsultantAlert));
+    callback(alerts);
+  });
+}
+
+export async function markAlertResolved(alertId: string, consultantEmail: string): Promise<void> {
+  await updateDoc(doc(db, COLL_ALERTS, alertId), {
+    resolved: true,
+    resolvedAt: serverTimestamp(),
+    resolvedBy: consultantEmail,
+  });
+}

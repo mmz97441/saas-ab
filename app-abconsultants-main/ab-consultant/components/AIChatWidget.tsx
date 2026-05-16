@@ -63,8 +63,26 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
   const [dbMessages, setDbMessages] = useState<ChatMessage[]>([]);
   const [sessionCutoff, setSessionCutoff] = useState<number | null>(null);
 
-  // NOUVEAU : On stocke l'ID du dernier message lu localement pour éteindre le badge
-  const [lastReadMessageId, setLastReadMessageId] = useState<string | null>(null);
+  // BADGE TRACKING : on persiste l'ID du dernier message lu dans localStorage
+  // per-client pour éviter un faux positif "1 Message Expert" à chaque reload
+  // (le state in-memory partait à null → tous les messages étaient considérés non-lus).
+  const lastReadStorageKey = `ab.lastReadChatMessage.${client.id}`;
+  const [lastReadMessageId, setLastReadMessageIdState] = useState<string | null>(() => {
+      try { return localStorage.getItem(lastReadStorageKey); } catch { return null; }
+  });
+  // Re-sync when switching between clients (consultant Aperçu Mode Client).
+  // useState initializer only runs once on mount; without this effect, switching
+  // clients would keep the previous client's lastReadMessageId in memory.
+  useEffect(() => {
+      try { setLastReadMessageIdState(localStorage.getItem(lastReadStorageKey)); } catch { /* ignore */ }
+  }, [client.id, lastReadStorageKey]);
+  const setLastReadMessageId = (id: string | null) => {
+      setLastReadMessageIdState(id);
+      try {
+          if (id === null) localStorage.removeItem(lastReadStorageKey);
+          else localStorage.setItem(lastReadStorageKey, id);
+      } catch { /* localStorage blocked — fail open */ }
+  };
 
   // F-04 : streaming state (local, not persisted until complete)
   const [streamingText, setStreamingText] = useState<string | null>(null);

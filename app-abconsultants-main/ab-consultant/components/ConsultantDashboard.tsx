@@ -16,6 +16,7 @@ interface ConsultantDashboardProps {
     clients: Client[];
     onSelectClient: (client: Client) => void;
     onNavigateToMessages: () => void;
+    onNavigateToPortfolio?: () => void;
 }
 
 interface ClientSummary {
@@ -411,7 +412,7 @@ const getRdvStatusBadge = (summary: ClientSummary, selectedMonthIdx: number, sel
 };
 
 // ─── Composant Principal ───────────────────────────────────────────
-const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSelectClient, onNavigateToMessages }) => {
+const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSelectClient, onNavigateToMessages, onNavigateToPortfolio }) => {
     const [summaries, setSummaries] = useState<ClientSummary[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [filter, setFilter] = useState<'ALL' | 'ALERT' | 'PENDING' | 'STALE'>('ALL');
@@ -1081,164 +1082,21 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                 )}
             </div>
 
-            {/* ═══ TABLEAU CLIENTS ENRICHI ═══ */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                    <h3 className="font-bold text-slate-700 flex items-center gap-2">
-                        <Briefcase className="w-4 h-4" /> État du Portefeuille
-                        <span className="text-xs font-normal text-slate-400">({filteredSummaries.length} dossier{filteredSummaries.length > 1 ? 's' : ''})</span>
-                    </h3>
-                    <div className="flex gap-2">
-                        {filter !== 'ALL' && (
-                            <button onClick={() => { setFilter('ALL'); setActivePanel(null); }} className="text-xs font-bold text-slate-500 bg-white border border-slate-300 px-2 py-1 rounded hover:bg-slate-100 flex items-center gap-1">
-                                <Filter className="w-3 h-3" /> Effacer filtres
-                            </button>
-                        )}
+            {/* CTA to full portfolio (table moved to dedicated page) */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-brand-50 border border-brand-100 flex items-center justify-center">
+                        <Briefcase className="w-5 h-5 text-brand-600" />
+                    </div>
+                    <div>
+                        <p className="font-semibold text-slate-700 text-sm">Tableau détaillé des {summaries.length} dossiers</p>
+                        <p className="text-xs text-slate-500">Tri, filtres avancés, actions en masse, statut connexion</p>
                     </div>
                 </div>
-
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="text-xs font-bold text-slate-400 uppercase bg-slate-50/50 border-b border-slate-100">
-                                <th className="p-3 pl-4">Dossier Client</th>
-                                <th className="p-3 text-right">CA YTD <InfoTip text="Chiffre d'affaires HT cumulé depuis le 1er janvier de l'exercice en cours." position="top" /></th>
-                                <th className="p-3 text-center">% Objectif <InfoTip text="Ratio CA réalisé / Objectif CA sur la même période. Vert ≥ 100%, Orange ≥ 85%, Rouge &lt; 85%." position="top" /></th>
-                                <th className="p-3 text-right">Marge <InfoTip text="Taux de marge commerciale brute : (CA - Achats consommés) / CA, calculé sur l'exercice en cours." position="top" /></th>
-                                <th className="p-3 text-right">Trésorerie <InfoTip text="Dernier solde bancaire connu (actifs - passifs). Rouge si négatif." position="top" /></th>
-                                <th className="p-3 text-center">Données <InfoTip text={"• À jour (vert) : données reçues pour M-1 ou le mois en cours.\n• Retard (orange) : aucune donnée pour M-1 ni le mois en cours.\n• Aucune (gris) : aucune donnée importée."} position="top" /></th>
-                                <th className="p-3 text-center">Statut <InfoTip text={"• À Valider (orange) : rapport soumis, en attente de validation par le cabinet.\n• OK (vert) : dernier rapport validé par le cabinet.\n• En attente (gris) : rapport non encore soumis."} position="top" /></th>
-                                <th className="p-3 text-right pr-4">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody className="text-sm divide-y divide-slate-100">
-                            {filteredSummaries.map((item) => {
-                                const perf = item.objPerformance;
-                                const perfCol = item.ytdObjective > 0 ? getPerfColor(perf) : null;
-                                return (
-                                <tr key={item.client.id} className="hover:bg-brand-50/30 transition-colors group">
-                                    {/* CLIENT */}
-                                    <td className="p-3 pl-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="relative">
-                                                <div className="w-9 h-9 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold border border-slate-200 text-xs">
-                                                    {item.client.companyName.substring(0, 2).toUpperCase()}
-                                                </div>
-                                                {item.client.hasUnreadMessages && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>}
-                                            </div>
-                                            <div className="min-w-0">
-                                                <div className="font-bold text-slate-800 text-xs truncate max-w-[150px]">{item.client.companyName}</div>
-                                                <div className="text-xs text-slate-400 truncate max-w-[150px]">
-                                                    {item.client.sector ? <span className="bg-slate-100 px-1 py-0.5 rounded text-xs mr-1">{item.client.sector}</span> : null}
-                                                    {item.client.managerName}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </td>
-
-                                    {/* CA YTD */}
-                                    <td className="p-3 text-right">
-                                        {item.ytdRevenue > 0 ? (
-                                            <span className="font-mono font-bold text-slate-700 text-xs">{fmtEur(item.ytdRevenue)}</span>
-                                        ) : (
-                                            <span className="text-slate-300 text-xs">-</span>
-                                        )}
-                                    </td>
-
-                                    {/* % OBJECTIF */}
-                                    <td className="p-3 text-center">
-                                        {perfCol ? (
-                                            <div className="inline-flex flex-col items-center gap-0.5">
-                                                <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${perfCol.bg} ${perfCol.text}`}>
-                                                    {perf.toFixed(0)}%
-                                                </span>
-                                                <div className="h-1 w-10 bg-slate-100 rounded-full overflow-hidden">
-                                                    <div className="h-full rounded-full" style={{ width: `${Math.min(perf, 100)}%`, backgroundColor: perfCol.bar }} />
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <span className="text-slate-300 text-xs">N/A</span>
-                                        )}
-                                    </td>
-
-                                    {/* MARGE */}
-                                    <td className="p-3 text-right">
-                                        {item.ytdMarginRate > 0 ? (
-                                            <span className="font-mono font-bold text-xs text-purple-600">{item.ytdMarginRate.toFixed(1)}%</span>
-                                        ) : (
-                                            <span className="text-slate-300 text-xs">-</span>
-                                        )}
-                                    </td>
-
-                                    {/* TRESORERIE */}
-                                    <td className="p-3 text-right">
-                                        {item.lastRecord ? (
-                                            <div className="flex items-center justify-end gap-1">
-                                                {item.treasuryAlert && <TrendingDown className="w-3 h-3 text-red-500" />}
-                                                <span className={`font-mono font-bold text-xs ${item.treasuryAlert ? 'text-red-600' : 'text-emerald-600'}`}>
-                                                    {fmtEur(item.lastRecord.cashFlow.treasury)}
-                                                </span>
-                                            </div>
-                                        ) : (
-                                            <span className="text-slate-300 text-xs">-</span>
-                                        )}
-                                    </td>
-
-                                    {/* FRAICHEUR DONNEES */}
-                                    <td className="p-3 text-center">
-                                        {item.lastRecord ? (
-                                            item.dataFresh ? (
-                                                <span className="inline-flex items-center gap-0.5 text-xs font-bold text-emerald-600">
-                                                    <CheckCircle className="w-3 h-3" /> À jour
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex items-center gap-0.5 text-xs font-bold text-amber-600">
-                                                    <CalendarClock className="w-3 h-3" /> Retard
-                                                </span>
-                                            )
-                                        ) : (
-                                            <span className="text-slate-300 text-xs">Aucune</span>
-                                        )}
-                                    </td>
-
-                                    {/* STATUT */}
-                                    <td className="p-3 text-center">
-                                        {item.pendingValidation ? (
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700">
-                                                <Clock className="w-3 h-3" /> À Valider
-                                            </span>
-                                        ) : (
-                                            item.lastRecord?.isValidated ? (
-                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 opacity-70">
-                                                    <CheckCircle className="w-3 h-3" /> OK
-                                                </span>
-                                            ) : (
-                                                <span className="text-slate-400 text-xs">En attente</span>
-                                            )
-                                        )}
-                                    </td>
-
-                                    {/* ACTION */}
-                                    <td className="p-3 text-right pr-4">
-                                        <button
-                                            onClick={() => onSelectClient(item.client)}
-                                            className="px-3 py-1.5 bg-white border border-brand-200 text-brand-600 rounded-lg hover:bg-brand-600 hover:text-white transition shadow-sm font-bold text-xs inline-flex items-center gap-1"
-                                        >
-                                            Ouvrir <ArrowRight className="w-3 h-3" />
-                                        </button>
-                                    </td>
-                                </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-                {filteredSummaries.length === 0 && (
-                    <div className="p-12 text-center text-slate-400">
-                        <CheckCircle className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                        <p>Tout est calme. Aucun dossier ne correspond à vos filtres.</p>
-                    </div>
-                )}
+                <a href="#" onClick={(e) => { e.preventDefault(); onNavigateToPortfolio?.(); }}
+                   className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-brand-700 bg-brand-50 border border-brand-200 rounded-lg hover:bg-brand-100 transition">
+                    Ouvrir le portefeuille <ArrowRight className="w-4 h-4" />
+                </a>
             </div>
         </div>
     );

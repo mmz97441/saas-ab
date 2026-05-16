@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
-import { Database, Plus, Download, CheckCircle, Clock, Edit2, ShieldCheck, Unlock, Eye, EyeOff, Trash2, CheckSquare, Square, FileSpreadsheet } from 'lucide-react';
+import { Database, Download, CheckCircle, Clock, Edit2, ShieldCheck, Unlock, Eye, EyeOff, Trash2, CheckSquare, Square, FileSpreadsheet } from 'lucide-react';
 import { FinancialRecord, Month } from '../types';
 import { toShortMonth, MONTH_ORDER } from '../services/dataService';
 import { useConfirmDialog } from '../contexts/ConfirmContext';
@@ -141,19 +141,19 @@ const HistoryView: React.FC<HistoryViewProps> = ({
                     <p className="text-slate-500 text-sm mt-1">Consultez, modifiez ou exportez les données passées.</p>
                 </div>
                 <div className="flex gap-2 w-full md:w-auto">
-                    {userRole === 'ab_consultant' && (
-                        <>
-                            <button onClick={onNewRecord} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition shadow-sm font-medium">
-                                <Plus className="w-4 h-4" /> Saisie Manuelle
-                            </button>
-                            {onImportExcel && (
-                                <button onClick={onImportExcel} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition shadow-sm font-medium">
-                                    <FileSpreadsheet className="w-4 h-4" /> Import Excel
-                                </button>
-                            )}
-                        </>
+                    {userRole === 'ab_consultant' && onImportExcel && (
+                        <button
+                            onClick={onImportExcel}
+                            title="Importer un fichier Excel multi-feuilles"
+                            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 hover:border-slate-400 transition shadow-sm font-medium"
+                        >
+                            <FileSpreadsheet className="w-4 h-4 text-emerald-600" /> Import Excel
+                        </button>
                     )}
-                    <button onClick={onExportCSV} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition shadow-sm font-medium">
+                    <button
+                        onClick={onExportCSV}
+                        className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition shadow-sm font-medium"
+                    >
                         <Download className="w-4 h-4" /> Export CSV
                     </button>
                 </div>

@@ -696,6 +696,7 @@ const App: React.FC = () => {
                     clients={clients}
                     onSelectClient={(client) => setSelectedClient(client)}
                     onNavigateToMessages={() => setCurrentView(View.Messages)}
+                    onNavigateToPortfolio={() => setCurrentView(View.Clients)}
                 />
                 </div>
             )}

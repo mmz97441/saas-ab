@@ -221,7 +221,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                         {selectedClient ? selectedClient.companyName : 'Espace Client'}
                                     </h1>
                                     <p className="text-xs text-brand-300 uppercase tracking-widest font-semibold flex items-center gap-1">
-                                        Portail Consultant
+                                        Espace Client
                                     </p>
                                 </div>
                             )}

@@ -133,6 +133,8 @@ Backlog des chantiers post-design-review (waves 1-3.5 shippées). Trié par cat�
 | 4.1 | `b53a69b` | Fondations éditoriales : Fraunces + DM Sans + IBM Plex Mono + papier chaud + grain + CSS vars + shadow-paper |
 | 4.3 | `7d07d33` | Typo éditoriale 11 surfaces (66× font-display, 63× eyebrows) |
 | 4.4 | `ac9e532` | Motion : AnimatedNumber out-quint + hover-lift KPI + reveal/pulse utilities |
+| 5 | `a246616` | Audit IA + fix critique (summary undefined, ALERT_HUMAN narrowed, data prop unfiltered, contextual welcome, persistent chips, react-markdown, RGPD clear, consultantAlerts Firestore channel) |
+| 5.5 | `a948f1f` | IA streaming SSE (askFinancialAdvisorStream HTTP fn) + vision (PDF/image upload) + feedback thumbs (aiFeedback collection) |
 
 ---
 

@@ -35,17 +35,24 @@ const AnimatedNumber = ({ value, format = true }: { value: number, format?: bool
 
     useEffect(() => {
         let startTime: number | null = null;
-        const duration = 1000;
         const startValue = displayValue;
         const endValue = value;
 
         if (startValue === endValue) return;
 
+        // Dynamic duration: bigger jumps deserve a longer count-up
+        // (premium feel — values "arrive" with weight)
+        const magnitude = Math.abs(endValue - startValue);
+        const baseDuration = 900;
+        const duration = magnitude > 100000 ? 1400 : magnitude > 1000 ? 1100 : baseDuration;
+
         const step = (timestamp: number) => {
             if (startTime === null) startTime = timestamp;
             const progress = Math.min((timestamp - startTime) / duration, 1);
 
-            const ease = 1 - Math.pow(1 - progress, 4);
+            // ease-out-quint — more refined deceleration than out-quart
+            // (matches editorial cubic-bezier (0.22, 1, 0.36, 1) shape)
+            const ease = 1 - Math.pow(1 - progress, 5);
 
             const current = startValue + (endValue - startValue) * ease;
             setDisplayValue(current);
@@ -57,7 +64,6 @@ const AnimatedNumber = ({ value, format = true }: { value: number, format?: bool
 
         rafRef.current = window.requestAnimationFrame(step);
 
-        // Cleanup: cancel animation on unmount or value change
         return () => {
             if (rafRef.current !== null) {
                 window.cancelAnimationFrame(rafRef.current);
@@ -925,7 +931,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
            const barColor = getCaBarColor(caPerf);
            const textColor = getCaTextColor(caPerf);
            return (
-         <div className="p-4 rounded-xl border bg-white border-brand-100 shadow-sm relative overflow-hidden">
+         <div className="p-4 rounded-xl border bg-white border-brand-100 shadow-paper-sm hover-lift relative overflow-hidden">
             <div className="flex justify-between items-start mb-1">
                 <div className="p-1.5 rounded-lg bg-brand-50 text-brand-600">
                     <DollarSign className="w-4 h-4" />
@@ -972,7 +978,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
          })()}
 
          {/* MARGIN CARD */}
-         <div className="bg-white p-4 rounded-xl border border-brand-100 shadow-sm relative overflow-hidden">
+         <div className="bg-white p-4 rounded-xl border border-brand-100 shadow-paper-sm hover-lift relative overflow-hidden">
             <div className="flex justify-between items-start mb-1">
                 <div className="p-1.5 rounded-lg bg-purple-50 text-purple-600">
                     <Percent className="w-4 h-4" />
@@ -1006,7 +1012,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
          </div>
 
          {/* TREASURY CARD */}
-         <div className={`p-4 rounded-xl border shadow-sm ${kpis.treasury < 0 ? 'bg-red-50 border-red-200' : 'bg-white border-brand-100'}`}>
+         <div className={`p-4 rounded-xl border shadow-paper-sm hover-lift ${kpis.treasury < 0 ? 'bg-red-50 border-red-200' : 'bg-white border-brand-100'}`}>
              <div className="flex justify-between items-start mb-1">
                 <div className={`p-1.5 rounded-lg ${kpis.treasury >= 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
                     <Landmark className="w-4 h-4" />
@@ -1026,7 +1032,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
          </div>
 
          {/* BFR CARD */}
-         <div className="p-4 rounded-xl border bg-white border-brand-100 shadow-sm">
+         <div className="p-4 rounded-xl border bg-white border-brand-100 shadow-paper-sm hover-lift">
              <div className="flex justify-between items-start mb-1">
                 <div className="p-1.5 rounded-lg bg-cyan-100 text-cyan-600">
                     <Briefcase className="w-4 h-4" />

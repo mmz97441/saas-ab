@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { FinancialRecord, Month, ProfitCenter } from '../types';
-import { Save, Lock, Calendar, HelpCircle, ArrowUpCircle, ArrowDownCircle, Wallet, TrendingUp, TrendingDown, Landmark, ShoppingBag, Target, PieChart, Droplets, Users, Clock, Calculator, Scale, Briefcase, ArrowRight, Truck, Percent, Sigma, CheckCircle, History, AlertTriangle, ShieldAlert, Upload, FileText, RotateCcw, Send, FileSpreadsheet } from 'lucide-react';
+import { Save, Lock, Calendar, HelpCircle, ArrowUpCircle, ArrowDownCircle, Wallet, TrendingUp, TrendingDown, Landmark, ShoppingBag, Target, PieChart, Droplets, Users, Clock, Calculator, Scale, Briefcase, ArrowRight, Truck, Percent, Sigma, CheckCircle, History, AlertTriangle, ShieldAlert, Upload, FileText, RotateCcw, Send, FileSpreadsheet, Loader2, Check } from 'lucide-react';
 import { MONTH_ORDER } from '../services/dataService';
 import { useConfirmDialog } from '../contexts/ConfirmContext';
 
@@ -454,6 +454,38 @@ const EntryForm: React.FC<EntryFormProps> = ({
         return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
     }, [formData, draftKey, isLocked, isFormEmpty]);
 
+    // --- AUTO-SAVE TO FIRESTORE (client only) ---
+    // State/refs are declared here; the effects that reference `wrappedOnSave`
+    // are defined further down (after `wrappedOnSave`) to avoid TDZ issues.
+    const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const autoSaveMountedRef = useRef(false);
+    const lastSavedSnapshotRef = useRef<string | null>(null);
+    const [isAutoSaving, setIsAutoSaving] = useState(false);
+    const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+    const [nowTick, setNowTick] = useState<number>(() => Date.now());
+
+    const canAutoSave = userRole === 'client' && !isLocked && !isAdminOverride && !isClientInactive;
+
+    const formatLastSaved = (savedAt: number, now: number): string => {
+        const seconds = Math.max(0, Math.floor((now - savedAt) / 1000));
+        if (seconds < 60) return `il y a ${seconds}s`;
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `il y a ${minutes} min`;
+        const hours = Math.floor(minutes / 60);
+        return `il y a ${hours} h`;
+    };
+
+    // Cancel any pending auto-save. Used when the user clicks "Soumettre" while
+    // a debounced save is still queued — the click handler will save+submit
+    // in one go using the current formData, making the queued save redundant.
+    const flushAutoSave = useCallback(() => {
+        if (autoSaveTimerRef.current) {
+            clearTimeout(autoSaveTimerRef.current);
+            autoSaveTimerRef.current = null;
+        }
+        setIsAutoSaving(false);
+    }, []);
+
     // --- ABERRANT VALUE DETECTION ---
     const detectAberrantValues = (record: FinancialRecord): string[] => {
         const warnings: string[] = [];
@@ -589,6 +621,82 @@ const EntryForm: React.FC<EntryFormProps> = ({
             console.error('Erreur sauvegarde:', err);
         }
     }, [draftKey, originalOnSave, confirm]);
+
+    // --- AUTO-SAVE EFFECTS ---
+    // Debounces formData changes by 1.5s, then persists via wrappedOnSave with
+    // isSubmitted: false. Defined after wrappedOnSave to avoid TDZ.
+    const autoSaveInFlightRef = useRef(false);
+
+    useEffect(() => {
+        if (!canAutoSave) return;
+        // Skip the very first run so the initial render doesn't trigger a save.
+        if (!autoSaveMountedRef.current) {
+            autoSaveMountedRef.current = true;
+            try {
+                const { id, clientId, year, month, isValidated, isPublished, isSubmitted, ...saveable } = formData;
+                lastSavedSnapshotRef.current = JSON.stringify(saveable);
+            } catch {
+                lastSavedSnapshotRef.current = null;
+            }
+            return;
+        }
+        if (isFormEmpty) return;
+
+        // Skip if a save is already in flight (e.g. confirm modal pending).
+        if (autoSaveInFlightRef.current) return;
+
+        // Compare against last-saved snapshot — skip if nothing changed.
+        let snapshot: string;
+        try {
+            const { id, clientId, year, month, isValidated, isPublished, isSubmitted, ...saveable } = formData;
+            snapshot = JSON.stringify(saveable);
+        } catch {
+            return;
+        }
+        if (snapshot === lastSavedSnapshotRef.current) return;
+
+        setIsAutoSaving(true);
+        if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = setTimeout(async () => {
+            autoSaveTimerRef.current = null;
+            autoSaveInFlightRef.current = true;
+            try {
+                await wrappedOnSave({ ...formData, isSubmitted: false });
+                lastSavedSnapshotRef.current = snapshot;
+                setLastSavedAt(Date.now());
+            } finally {
+                autoSaveInFlightRef.current = false;
+                setIsAutoSaving(false);
+            }
+        }, 1500);
+
+        return () => {
+            if (autoSaveTimerRef.current) {
+                clearTimeout(autoSaveTimerRef.current);
+                autoSaveTimerRef.current = null;
+            }
+        };
+    }, [formData, canAutoSave, isFormEmpty, wrappedOnSave]);
+
+    // Reset auto-save bookkeeping when the record being edited changes
+    // (e.g. switching months) so the new record's initial state isn't treated as "dirty".
+    useEffect(() => {
+        autoSaveMountedRef.current = false;
+        lastSavedSnapshotRef.current = null;
+        setLastSavedAt(null);
+        setIsAutoSaving(false);
+        if (autoSaveTimerRef.current) {
+            clearTimeout(autoSaveTimerRef.current);
+            autoSaveTimerRef.current = null;
+        }
+    }, [initialData?.id, formData.year, formData.month]);
+
+    // Tick every 10s to keep the "il y a Ns" label fresh.
+    useEffect(() => {
+        if (lastSavedAt === null) return;
+        const handle = setInterval(() => setNowTick(Date.now()), 10000);
+        return () => clearInterval(handle);
+    }, [lastSavedAt]);
 
     const handleReprendreM1 = async () => {
         if (!previousMonthRecord) return;
@@ -831,15 +939,15 @@ const EntryForm: React.FC<EntryFormProps> = ({
                     </button>
                     {!isLocked && userRole === 'client' && !isAdminOverride && (
                         <>
-                            <button
-                                onClick={async () => {
-                                    const draft = { ...formData, isSubmitted: false };
-                                    wrappedOnSave(draft);
-                                }}
-                                className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition flex items-center gap-2 font-medium shadow-sm"
-                            >
-                                <Save className="w-4 h-4" /> Sauvegarder
-                            </button>
+                            {isAutoSaving ? (
+                                <span className="text-xs text-slate-400 flex items-center gap-1" aria-live="polite">
+                                    <Loader2 className="w-3 h-3 animate-spin" /> Sauvegarde…
+                                </span>
+                            ) : lastSavedAt !== null ? (
+                                <span className="text-xs text-emerald-600 flex items-center gap-1" aria-live="polite">
+                                    <Check className="w-3 h-3" /> Sauvegardé {formatLastSaved(lastSavedAt, nowTick)}
+                                </span>
+                            ) : null}
                             <button
                                 onClick={async () => {
                                     const validationErrors = validateRequiredFields(formData);
@@ -848,7 +956,12 @@ const EntryForm: React.FC<EntryFormProps> = ({
                                         return;
                                     }
                                     const ok = await confirm({ title: 'Soumettre au cabinet ?', message: `Vos données de ${formData.month} ${formData.year} seront transmises au consultant.\n\nUne fois soumises, vous ne pourrez plus les modifier sans l'accord du cabinet.`, variant: 'info', confirmLabel: 'Soumettre' });
-                                    if (ok) wrappedOnSave(formData);
+                                    if (ok) {
+                                        // Cancel any pending debounced auto-save: the submit below will persist
+                                        // the current formData in one go, making the queued save redundant.
+                                        flushAutoSave();
+                                        wrappedOnSave(formData);
+                                    }
                                 }}
                                 className="px-4 py-2 bg-brand-600 text-white rounded-lg shadow-md hover:bg-brand-700 hover:shadow-lg transition flex items-center gap-2 font-medium"
                             >
@@ -1290,7 +1403,11 @@ const EntryForm: React.FC<EntryFormProps> = ({
                                             return;
                                         }
                                         const ok = await confirm({ title: 'Soumettre au cabinet ?', message: `Vos données de ${formData.month} ${formData.year} seront transmises au consultant.\n\nUne fois soumises, vous ne pourrez plus les modifier sans l'accord du cabinet.`, variant: 'info', confirmLabel: 'Soumettre' });
-                                        if (ok) wrappedOnSave(formData);
+                                        if (ok) {
+                                            // Cancel any pending debounced auto-save before submitting.
+                                            flushAutoSave();
+                                            wrappedOnSave(formData);
+                                        }
                                     }}
                                     className="px-5 py-2.5 bg-brand-600 text-white rounded-lg shadow-md hover:bg-brand-700 hover:shadow-lg transition font-medium flex items-center gap-2"
                                 >

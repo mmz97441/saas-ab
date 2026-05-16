@@ -5,9 +5,9 @@ import { getRecordsByClient } from '../services/dataService';
 import {
     Users, Plus, Edit2, Search, Briefcase, Archive, X, Loader2,
     ArrowUpDown, ArrowUp, ArrowDown, TrendingDown, CheckCircle,
-    Clock, CalendarClock, MoreVertical, Send, Copy, Power,
-    PanelRightOpen, Activity, Settings, Mail, LogIn, CheckCheck,
-    Rows3
+    Clock, MoreVertical, Copy, Power,
+    Activity, Settings, Mail,
+    Rows3, AlertTriangle, MinusCircle
 } from 'lucide-react';
 import ActivityTimeline from './ActivityTimeline';
 import QuickConfigPanel from './QuickConfigPanel';
@@ -86,6 +86,112 @@ const formatRelativeDate = (isoDate?: string): string => {
     if (diffD < 30) return `Il y a ${diffD}j`;
     if (diffD < 365) return `Il y a ${Math.floor(diffD / 30)} mois`;
     return `Il y a ${Math.floor(diffD / 365)} an(s)`;
+};
+
+// --- DOSSIER HEALTH (composite indicator) ---
+type HealthLevel = 'critical' | 'attention' | 'ok' | 'idle';
+
+interface DossierHealthKpi {
+    treasuryAlert: boolean;
+    dataFresh: boolean;
+    pendingValidation: boolean;
+    lastRecordValidated: boolean;
+    lastActivity: string;
+}
+
+interface DossierHealth {
+    level: HealthLevel;
+    label: string;
+    icon: React.ReactNode;
+    reasons: string[];
+    primaryAction?: 'validate' | 'invite' | 'remind';
+    // styling helpers
+    pillClass: string;
+    dotClass: string;
+}
+
+const HEALTH_STYLES: Record<HealthLevel, { pillClass: string; dotClass: string; tipTitle: string }> = {
+    critical:  { pillClass: 'bg-red-50 text-red-700 border-red-200',         dotClass: 'bg-red-500',     tipTitle: 'Action urgente requise' },
+    attention: { pillClass: 'bg-amber-50 text-amber-700 border-amber-200',   dotClass: 'bg-amber-500',   tipTitle: 'À surveiller' },
+    ok:        { pillClass: 'bg-emerald-50 text-emerald-700 border-emerald-200', dotClass: 'bg-emerald-500', tipTitle: 'Dossier sain' },
+    idle:      { pillClass: 'bg-slate-50 text-slate-600 border-slate-200',   dotClass: 'bg-slate-400',   tipTitle: 'En attente' },
+};
+
+const getDossierHealth = (
+    client: Client,
+    kpi: DossierHealthKpi,
+    connectionStatus: ConnectionStatus
+): DossierHealth => {
+    const reasons: string[] = [];
+    const invitedAt = client.invitationStatus?.lastSentAt;
+    const daysSinceInvite = invitedAt
+        ? Math.floor((Date.now() - new Date(invitedAt).getTime()) / 86400000)
+        : null;
+
+    // Approximate "data > 7d old": dataFresh is false AND there is some data history
+    const dataStale = !kpi.dataFresh && kpi.lastActivity !== 'Aucune';
+
+    // ---- CRITICAL ----
+    if (kpi.treasuryAlert || (kpi.pendingValidation && dataStale)) {
+        if (kpi.treasuryAlert) reasons.push('Trésorerie négative');
+        if (kpi.pendingValidation && dataStale) reasons.push('Validation requise sur données anciennes');
+        if (!kpi.dataFresh && kpi.lastActivity !== 'Aucune') reasons.push('Données en retard');
+        return {
+            level: 'critical',
+            label: 'À traiter',
+            icon: <AlertTriangle className="w-3 h-3" />,
+            reasons,
+            primaryAction: kpi.pendingValidation ? 'validate' : 'remind',
+            pillClass: HEALTH_STYLES.critical.pillClass,
+            dotClass: HEALTH_STYLES.critical.dotClass,
+        };
+    }
+
+    // ---- ATTENTION ----
+    const inactiveSinceInvite = connectionStatus === 'never' && daysSinceInvite !== null && daysSinceInvite > 7;
+    if (kpi.pendingValidation || (!kpi.dataFresh && kpi.lastActivity !== 'Aucune') || inactiveSinceInvite) {
+        if (kpi.pendingValidation) reasons.push('Validation en attente');
+        if (!kpi.dataFresh && kpi.lastActivity !== 'Aucune') reasons.push('Données en retard');
+        if (inactiveSinceInvite) reasons.push(`Invité il y a ${daysSinceInvite}j, jamais connecté`);
+        return {
+            level: 'attention',
+            label: 'En attente',
+            icon: <Clock className="w-3 h-3" />,
+            reasons,
+            primaryAction: kpi.pendingValidation ? 'validate' : (inactiveSinceInvite ? 'remind' : 'remind'),
+            pillClass: HEALTH_STYLES.attention.pillClass,
+            dotClass: HEALTH_STYLES.attention.dotClass,
+        };
+    }
+
+    // ---- IDLE ----
+    // Not yet invited, or brand-new dossier with no data at all
+    if (connectionStatus === 'not_invited' || (kpi.lastActivity === 'Aucune' && !kpi.dataFresh)) {
+        if (connectionStatus === 'not_invited') reasons.push('Invitation non envoyée');
+        if (kpi.lastActivity === 'Aucune') reasons.push('Aucune donnée importée');
+        return {
+            level: 'idle',
+            label: connectionStatus === 'not_invited' ? 'Non invité' : 'Nouveau',
+            icon: <MinusCircle className="w-3 h-3" />,
+            reasons,
+            primaryAction: connectionStatus === 'not_invited' ? 'invite' : undefined,
+            pillClass: HEALTH_STYLES.idle.pillClass,
+            dotClass: HEALTH_STYLES.idle.dotClass,
+        };
+    }
+
+    // ---- OK ----
+    reasons.push('Données à jour');
+    if (kpi.lastRecordValidated) reasons.push('Dernier rapport validé');
+    if (connectionStatus === 'active') reasons.push('Client actif (< 7j)');
+    return {
+        level: 'ok',
+        label: 'À jour',
+        icon: <CheckCircle className="w-3 h-3" />,
+        reasons,
+        pillClass: HEALTH_STYLES.ok.pillClass,
+        dotClass: HEALTH_STYLES.ok.dotClass,
+    };
 };
 
 const ClientPortfolio: React.FC<ClientPortfolioProps> = ({
@@ -384,6 +490,9 @@ Expertise & Stratégie Financière`;
         [sorted, selectedIds]
     );
 
+    // A dossier "needs invite" when health is idle (not yet invited) or when the
+    // user was invited but never logged in (re-invite reminder). Both map to the
+    // composite health states 'idle' / 'attention' surfaced in the row pill.
     const invitableSelected = useMemo(() => {
         return selectedClients.filter(c => {
             if (!c.owner?.email) return false;
@@ -605,15 +714,41 @@ Expertise & Stratégie Financière`;
                                                 <div className="text-xs text-slate-400 truncate">{client.managerName}{client.city ? ` — ${client.city}` : ''}</div>
                                             </div>
                                         </div>
-                                        {pendingValidation ? (
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700 shrink-0">
-                                                <Clock className="w-3 h-3" /> A Valider
-                                            </span>
-                                        ) : lastRecordValidated ? (
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 shrink-0">
-                                                <CheckCircle className="w-3 h-3" /> OK
-                                            </span>
-                                        ) : null}
+                                        {(() => {
+                                            const connStatus = getConnectionStatus(client);
+                                            const connConfig = CONNECTION_STATUS_CONFIG[connStatus];
+                                            if (client.status === 'inactive') {
+                                                return (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+                                                        <Archive className="w-3 h-3" /> Archivé
+                                                    </span>
+                                                );
+                                            }
+                                            const health = getDossierHealth(
+                                                client,
+                                                { treasuryAlert, dataFresh, pendingValidation, lastRecordValidated, lastActivity },
+                                                connStatus
+                                            );
+                                            const dataLabel = lastActivity === 'Aucune' ? 'Aucune' : (dataFresh ? 'À jour' : 'Retard');
+                                            const statutLabel = pendingValidation ? 'À Valider' : (lastRecordValidated ? 'OK' : 'En attente');
+                                            const connDetail = client.owner?.lastLoginAt ? ` (${formatRelativeDate(client.owner.lastLoginAt)})` : '';
+                                            const tooltip = [
+                                                ...health.reasons,
+                                                '———',
+                                                `Données : ${dataLabel}`,
+                                                `Statut : ${statutLabel}`,
+                                                `Connexion : ${connConfig.label}${connDetail}`,
+                                            ].join('\n');
+                                            return (
+                                                <span
+                                                    title={tooltip}
+                                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border shrink-0 ${health.pillClass}`}
+                                                >
+                                                    {health.icon}
+                                                    {health.label}
+                                                </span>
+                                            );
+                                        })()}
                                     </div>
                                     <div className="grid grid-cols-3 gap-3 text-center">
                                         <div>
@@ -703,9 +838,7 @@ Expertise & Stratégie Financière`;
                                             </button>
                                             <InfoTip text="Dernier solde bancaire connu. Rouge si négatif." />
                                         </th>
-                                        <th className={`${denseView ? 'p-1.5' : 'p-3'} text-center`}>Données <InfoTip text={"• À jour (vert) : données reçues pour M-1 ou le mois en cours.\n• Retard (orange) : aucune donnée pour M-1 ni le mois en cours.\n• Aucune (gris) : aucune donnée importée."} /></th>
-                                        <th className={`${denseView ? 'p-1.5' : 'p-3'} text-center`}>Statut <InfoTip text={"• À Valider (orange) : rapport soumis, en attente de validation par le cabinet.\n• OK (vert) : dernier rapport validé par le cabinet.\n• En attente (gris) : rapport non encore soumis.\n• Archivé : dossier en veille."} /></th>
-                                        <th className={`${denseView ? 'p-1.5' : 'p-3'} text-center`}>Connexion <InfoTip text={"• Actif (vert) : connecté dans les 7 derniers jours.\n• Inactif (orange) : dernière connexion > 7 jours.\n• Jamais connecté (rouge) : invité mais jamais connecté.\n• Non invité (gris) : invitation non envoyée."} /></th>
+                                        <th className={`${denseView ? 'p-1.5' : 'p-3'} text-center`}>Santé <InfoTip text={"Santé globale du dossier (composite).\n• À jour (vert) : données fraîches, dernier rapport validé, client connecté récemment.\n• En attente (orange) : validation en attente, données en retard ou inactivité.\n• À traiter (rouge) : trésorerie négative ou validation requise sur données anciennes.\n• Non invité / Nouveau (gris) : dossier non activé ou sans données."} /></th>
                                         <th className={`${denseView ? 'p-1.5' : 'p-3'} text-right pr-4`}>Actions</th>
                                     </tr>
                                 </thead>
@@ -794,53 +927,41 @@ Expertise & Stratégie Financière`;
                                                     )}
                                                 </td>
 
-                                                {/* FRAICHEUR */}
-                                                <td className={`${rowPad} text-center`}>
-                                                    {lastActivity === 'Aucune' ? (
-                                                        <span className="text-slate-300 text-xs">Aucune</span>
-                                                    ) : dataFresh ? (
-                                                        <span className="inline-flex items-center gap-0.5 text-xs font-bold text-emerald-600">
-                                                            <CheckCircle className="w-3 h-3" /> À jour
-                                                        </span>
-                                                    ) : (
-                                                        <span className="inline-flex items-center gap-0.5 text-xs font-bold text-amber-600">
-                                                            <CalendarClock className="w-3 h-3" /> Retard
-                                                        </span>
-                                                    )}
-                                                </td>
-
-                                                {/* STATUT */}
-                                                <td className={`${rowPad} text-center`}>
-                                                    {client.status === 'inactive' ? (
-                                                        <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-bold rounded-full">Archivé</span>
-                                                    ) : pendingValidation ? (
-                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700">
-                                                            <Clock className="w-3 h-3" /> À Valider
-                                                        </span>
-                                                    ) : lastRecordValidated ? (
-                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">
-                                                            <CheckCircle className="w-3 h-3" /> OK
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-slate-500 text-xs">En attente</span>
-                                                    )}
-                                                </td>
-
-                                                {/* CONNEXION */}
+                                                {/* SANTÉ (composite indicator) */}
                                                 <td className={`${rowPad} text-center`}>
                                                     {(() => {
                                                         const connStatus = getConnectionStatus(client);
                                                         const connConfig = CONNECTION_STATUS_CONFIG[connStatus];
-                                                        return (
-                                                            <div className="flex flex-col items-center gap-0.5">
-                                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${connConfig.bgColor} ${connConfig.color}`}>
-                                                                    <span className={`w-1.5 h-1.5 rounded-full ${connConfig.dotColor}`} />
-                                                                    {connConfig.label}
+                                                        if (client.status === 'inactive') {
+                                                            return (
+                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                    <Archive className="w-3 h-3" /> Archivé
                                                                 </span>
-                                                                {!denseView && client.owner?.lastLoginAt && (
-                                                                    <span className="text-xs text-slate-400">{formatRelativeDate(client.owner.lastLoginAt)}</span>
-                                                                )}
-                                                            </div>
+                                                            );
+                                                        }
+                                                        const health = getDossierHealth(
+                                                            client,
+                                                            { treasuryAlert, dataFresh, pendingValidation, lastRecordValidated, lastActivity },
+                                                            connStatus
+                                                        );
+                                                        const dataLabel = lastActivity === 'Aucune' ? 'Aucune' : (dataFresh ? 'À jour' : 'Retard');
+                                                        const statutLabel = pendingValidation ? 'À Valider' : (lastRecordValidated ? 'OK' : 'En attente');
+                                                        const connDetail = client.owner?.lastLoginAt ? ` (${formatRelativeDate(client.owner.lastLoginAt)})` : '';
+                                                        const tooltip = [
+                                                            ...health.reasons,
+                                                            '———',
+                                                            `Données : ${dataLabel}`,
+                                                            `Statut : ${statutLabel}`,
+                                                            `Connexion : ${connConfig.label}${connDetail}`,
+                                                        ].join('\n');
+                                                        return (
+                                                            <span
+                                                                title={tooltip}
+                                                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${health.pillClass} cursor-help`}
+                                                            >
+                                                                {health.icon}
+                                                                {health.label}
+                                                            </span>
                                                         );
                                                     })()}
                                                 </td>

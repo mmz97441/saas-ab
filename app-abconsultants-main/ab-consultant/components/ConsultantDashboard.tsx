@@ -7,7 +7,7 @@ import {
     ArrowRight, Briefcase, Loader2, Filter, Shield, Search, X, ChevronDown,
     ChevronLeft, ChevronRight as ChevronRightIcon,
     DollarSign, Percent, Landmark, Target, Activity, CalendarClock,
-    Calendar, MapPin, FileCheck, FileX, ChevronUp
+    Calendar, MapPin, FileCheck, FileX, ChevronUp, Zap, ShieldCheck
 } from 'lucide-react';
 import { DashboardSkeleton } from './ui/Skeleton';
 import InfoTip, { getPerfColor } from './ui/InfoTip';
@@ -712,6 +712,130 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
                 )}
             </div>
 
+            {/* ═══ À FAIRE AUJOURD'HUI — actionable queue ═══ */}
+            {(() => {
+                const todayLabel = now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+                const toValidateCount = summaries.filter(s => s.pendingValidation).length;
+                const treasuryAlertCount = summaries.filter(s => s.treasuryAlert).length;
+                const unreadCount = clients.filter(c => c.hasUnreadMessages).length;
+                const thisWeekCount = rdvGroups.THIS_WEEK.length;
+
+                const handlePendingClick = () => {
+                    setFilter('PENDING');
+                    setActivePanel('PENDING');
+                };
+                const handleAlertClick = () => {
+                    setFilter('ALERT');
+                    setActivePanel('ALERT');
+                };
+                const handleRdvClick = () => {
+                    document.getElementById('rdv-section')?.scrollIntoView({ behavior: 'smooth' });
+                };
+
+                return (
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                        <div className="flex items-center gap-2 mb-3">
+                            <Zap className="w-5 h-5 text-accent-500" />
+                            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider">À faire aujourd'hui</h3>
+                            <span className="text-xs text-slate-400">— {todayLabel}</span>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            {/* À valider */}
+                            <button
+                                onClick={handlePendingClick}
+                                className="text-left p-3 rounded-lg border border-slate-200 hover:border-amber-300 hover:bg-amber-50/50 hover:shadow-sm transition-all group"
+                            >
+                                <div className="flex items-center gap-2 mb-2">
+                                    <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center">
+                                        <ShieldCheck className="w-4 h-4" />
+                                    </div>
+                                    {toValidateCount > 0 ? (
+                                        <span className="text-2xl font-extrabold text-amber-700">{toValidateCount}</span>
+                                    ) : (
+                                        <CheckCircle className="w-5 h-5 text-emerald-500 ml-auto" />
+                                    )}
+                                </div>
+                                <p className="text-xs font-bold text-slate-700">À valider</p>
+                                <p className="text-xs text-slate-500">
+                                    {toValidateCount > 0
+                                        ? `${toValidateCount > 1 ? 'Rapports en attente' : 'Rapport en attente'} de validation`
+                                        : 'Aucune validation en attente'}
+                                </p>
+                            </button>
+
+                            {/* Alertes trésorerie */}
+                            <button
+                                onClick={handleAlertClick}
+                                className="text-left p-3 rounded-lg border border-slate-200 hover:border-red-300 hover:bg-red-50/50 hover:shadow-sm transition-all group"
+                            >
+                                <div className="flex items-center gap-2 mb-2">
+                                    <div className="w-8 h-8 rounded-lg bg-red-100 text-red-600 flex items-center justify-center">
+                                        <TrendingDown className="w-4 h-4" />
+                                    </div>
+                                    {treasuryAlertCount > 0 ? (
+                                        <span className="text-2xl font-extrabold text-red-700">{treasuryAlertCount}</span>
+                                    ) : (
+                                        <CheckCircle className="w-5 h-5 text-emerald-500 ml-auto" />
+                                    )}
+                                </div>
+                                <p className="text-xs font-bold text-slate-700">Alertes trésorerie</p>
+                                <p className="text-xs text-slate-500">
+                                    {treasuryAlertCount > 0
+                                        ? `${treasuryAlertCount > 1 ? 'Dossiers' : 'Dossier'} en trésorerie négative`
+                                        : 'Aucune alerte trésorerie'}
+                                </p>
+                            </button>
+
+                            {/* Messages non lus */}
+                            <button
+                                onClick={onNavigateToMessages}
+                                className="text-left p-3 rounded-lg border border-slate-200 hover:border-brand-300 hover:bg-brand-50/50 hover:shadow-sm transition-all group"
+                            >
+                                <div className="flex items-center gap-2 mb-2">
+                                    <div className="w-8 h-8 rounded-lg bg-brand-100 text-brand-600 flex items-center justify-center">
+                                        <MessageSquare className="w-4 h-4" />
+                                    </div>
+                                    {unreadCount > 0 ? (
+                                        <span className="text-2xl font-extrabold text-brand-700">{unreadCount}</span>
+                                    ) : (
+                                        <CheckCircle className="w-5 h-5 text-emerald-500 ml-auto" />
+                                    )}
+                                </div>
+                                <p className="text-xs font-bold text-slate-700">Messages non lus</p>
+                                <p className="text-xs text-slate-500">
+                                    {unreadCount > 0
+                                        ? `${unreadCount > 1 ? 'Conversations' : 'Conversation'} à traiter`
+                                        : 'Boîte à zéro'}
+                                </p>
+                            </button>
+
+                            {/* RDV cette semaine */}
+                            <button
+                                onClick={handleRdvClick}
+                                className="text-left p-3 rounded-lg border border-slate-200 hover:border-brand-300 hover:bg-brand-50/50 hover:shadow-sm transition-all group"
+                            >
+                                <div className="flex items-center gap-2 mb-2">
+                                    <div className="w-8 h-8 rounded-lg bg-brand-100 text-brand-600 flex items-center justify-center">
+                                        <CalendarClock className="w-4 h-4" />
+                                    </div>
+                                    {thisWeekCount > 0 ? (
+                                        <span className="text-2xl font-extrabold text-brand-700">{thisWeekCount}</span>
+                                    ) : (
+                                        <CheckCircle className="w-5 h-5 text-emerald-500 ml-auto" />
+                                    )}
+                                </div>
+                                <p className="text-xs font-bold text-slate-700">RDV cette semaine</p>
+                                <p className="text-xs text-slate-500">
+                                    {thisWeekCount > 0
+                                        ? `${thisWeekCount > 1 ? 'Consultations programmées' : 'Consultation programmée'}`
+                                        : 'Aucun RDV cette semaine'}
+                                </p>
+                            </button>
+                        </div>
+                    </div>
+                );
+            })()}
+
             {/* ═══ KPI FINANCIERS DU PORTEFEUILLE ═══ */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 {/* CA TOTAL */}
@@ -868,7 +992,7 @@ const ConsultantDashboard: React.FC<ConsultantDashboardProps> = ({ clients, onSe
             )}
 
             {/* ═══ FILE D'ATTENTE RDV ═══ */}
-            <div className="space-y-3">
+            <div id="rdv-section" className="space-y-3 scroll-mt-6">
                 {/* Bandeau KPI RDV */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                     <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">

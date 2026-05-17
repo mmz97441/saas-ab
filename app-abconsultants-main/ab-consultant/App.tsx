@@ -3,7 +3,12 @@ import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import { Menu, X, UserCircle, CheckCircle, Eye, EyeOff, Users, Plus, Edit2, Trash2, Search, Briefcase, Phone, Mail, MapPin, Archive, Send, Power, Loader2, UserPlus, Crown, ShieldCheck, ChevronRight, Home, Bell } from 'lucide-react';
 import LoginScreen from './components/LoginScreen';
 import Sidebar from './components/Sidebar';
+import IdleWarningModal from './components/IdleWarningModal';
 import { useConfirmDialog } from './contexts/ConfirmContext';
+import { useIdleLogout } from './hooks/useIdleLogout';
+
+const IDLE_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour — applies to clients and cabinet team
+const IDLE_WARNING_MS = 2 * 60 * 1000;  // warning modal appears 2 min before logout
 
 const Dashboard = lazy(() => import('./components/Dashboard'));
 const EntryForm = lazy(() => import('./components/EntryForm'));
@@ -157,6 +162,16 @@ const App: React.FC = () => {
 
   const handleLoginSuccess = () => refreshClients();
   const handleLogout = () => auth.signOut();
+
+  // Idle logout (1h) — applies once authenticated, to both clients and cabinet team.
+  // Warning modal shown 2 min before; ambient activity stops resetting the timer
+  // once the modal is open (user must explicitly click "Rester connecté").
+  const idle = useIdleLogout({
+    enabled: isAuthenticated,
+    timeoutMs: IDLE_TIMEOUT_MS,
+    warningMs: IDLE_WARNING_MS,
+    onLogout: handleLogout,
+  });
   
   const handleNewRecord = () => {
       if (userRole === 'client' && selectedClient?.status === 'inactive') {
@@ -859,6 +874,13 @@ const App: React.FC = () => {
                 </div>
           </div>
       )}
+
+      <IdleWarningModal
+        isOpen={idle.isWarning}
+        remainingMs={idle.remainingMs}
+        onStayConnected={idle.extend}
+        onLogoutNow={handleLogout}
+      />
     </div>
   );
 };

@@ -176,19 +176,20 @@ Expertise & Stratégie Financière`;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-            <div role="dialog" aria-modal="true" aria-label={initialData ? 'Modifier le dossier' : 'Nouveau dossier'} onKeyDown={handleKeyDown} className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-brand-100 flex flex-col max-h-[90vh]">
-                
+            <div role="dialog" aria-modal="true" aria-label={initialData ? 'Modifier le dossier' : 'Nouveau dossier'} onKeyDown={handleKeyDown} className="bg-white rounded-2xl shadow-paper-xl w-full max-w-2xl overflow-hidden border border-paper-200 flex flex-col max-h-[90vh] animate-in zoom-in-95 fade-in duration-300">
+
                 {/* Header */}
-                <div className="bg-brand-50 p-6 border-b border-brand-100 flex justify-between items-center shrink-0">
+                <div className="bg-paper-50 p-6 border-b border-paper-200 flex justify-between items-center shrink-0">
                     <div>
-                        <h2 className="text-xl font-bold text-brand-900">
+                        <p className="eyebrow text-paper-500 mb-1">{initialData ? 'Édition dossier' : 'Création dossier'}</p>
+                        <h2 className="font-display text-xl font-semibold text-brand-900">
                             {showInviteStep ? 'Dossier Créé avec Succès !' : (initialData ? 'Modifier le Dossier' : 'Nouveau Dossier Client')}
                         </h2>
-                        <p className="text-sm text-brand-500">
+                        <p className="text-sm text-paper-500 mt-0.5">
                             {showInviteStep ? 'Prochaine étape : Inviter le client à activer son accès.' : 'Informations administratives et configuration d\'accès.'}
                         </p>
                     </div>
-                    <button onClick={onClose} aria-label="Fermer" title="Fermer" className="p-2 bg-white rounded-full text-brand-400 hover:text-brand-700 hover:bg-brand-100 transition">
+                    <button onClick={onClose} aria-label="Fermer la modale" title="Fermer" className="p-2 bg-white rounded-full text-paper-500 hover:text-brand-900 hover:bg-paper-100 transition">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -201,8 +202,8 @@ Expertise & Stratégie Financière`;
                         </div>
                         
                         <div className="space-y-2">
-                            <h3 className="text-xl font-bold text-slate-800">Tout est prêt pour {formData.companyName}</h3>
-                            <p className="text-slate-500 max-w-md mx-auto">
+                            <h3 className="font-display text-xl font-semibold text-brand-900">Tout est prêt pour {formData.companyName}</h3>
+                            <p className="text-paper-600 max-w-md mx-auto">
                                 L'email <strong>{formData.owner?.email}</strong> est maintenant autorisé sur la Whitelist. Le client doit définir son mot de passe pour accéder à son tableau de bord.
                             </p>
                         </div>
@@ -251,13 +252,13 @@ Expertise & Stratégie Financière`;
                             </button>
                         </div>
 
-                        <div className="pt-6 border-t border-slate-100 w-full flex items-center justify-center gap-6">
+                        <div className="pt-6 border-t border-paper-200 w-full flex items-center justify-center gap-6">
                             {initialData && (
-                                <button onClick={() => setShowInviteStep(false)} className="text-brand-500 hover:text-brand-700 text-sm font-medium underline">
+                                <button onClick={() => setShowInviteStep(false)} className="text-brand-600 hover:text-brand-800 text-sm font-medium underline">
                                     Retour au dossier
                                 </button>
                             )}
-                            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-sm font-medium underline">
+                            <button onClick={onClose} className="text-paper-500 hover:text-paper-700 text-sm font-medium underline">
                                 Fermer et revenir à la liste
                             </button>
                         </div>
@@ -267,58 +268,58 @@ Expertise & Stratégie Financière`;
                     <form onSubmit={handleSubmit} className="p-6 overflow-y-auto custom-scrollbar space-y-6">
                         
                         {error && (
-                            <div className="p-3 bg-red-50 text-red-700 text-sm rounded-lg flex items-center gap-2 border border-red-100">
-                                <AlertCircle className="w-4 h-4" /> {error}
+                            <div role="alert" className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2 border border-red-100">
+                                <AlertCircle className="w-4 h-4 shrink-0" /> {error}
                             </div>
                         )}
 
                         <div className="flex gap-4 items-start">
                             {/* SECTION 1: IDENTITÉ ENTREPRISE */}
                             <div className="space-y-4 flex-1">
-                                <h3 className="text-xs font-bold text-brand-600 uppercase tracking-wider border-b border-brand-100 pb-2 mb-3 flex items-center gap-2">
+                                <h3 className="eyebrow text-brand-600 border-b border-paper-200 pb-2 mb-3 flex items-center gap-2">
                                     <Building className="w-3 h-3" /> Identité Juridique
                                 </h3>
                                 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="md:col-span-2">
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Raison Sociale</label>
+                                        <label className="eyebrow text-paper-600 mb-1 block">Raison Sociale</label>
                                         <div className="relative">
-                                            <Building className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                                            <Building className="absolute left-3 top-3 w-4 h-4 text-paper-400" />
                                             <input 
                                                 type="text"
                                                 value={formData.companyName}
                                                 onChange={(e) => setFormData({...formData, companyName: e.target.value})}
                                                 placeholder="EXEMPLE TRANSPORT SAS"
-                                                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-brand-500 outline-none font-bold text-slate-700"
+                                                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-paper-300 bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all font-semibold text-paper-900"
                                                 autoFocus
                                             />
                                         </div>
                                     </div>
 
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">SIRET</label>
+                                        <label className="eyebrow text-paper-600 mb-1 block">SIRET</label>
                                         <div className="relative">
-                                            <Hash className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                                            <Hash className="absolute left-3 top-3 w-4 h-4 text-paper-400" />
                                             <input 
                                                 type="text"
                                                 value={formData.siret}
                                                 onChange={(e) => setFormData({...formData, siret: e.target.value})}
                                                 placeholder="14 chiffres"
-                                                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-brand-500 outline-none"
+                                                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-paper-300 bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all text-paper-800"
                                             />
                                         </div>
                                     </div>
                                     
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Téléphone Société</label>
+                                        <label className="eyebrow text-paper-600 mb-1 block">Téléphone Société</label>
                                         <div className="relative">
-                                            <Phone className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                                            <Phone className="absolute left-3 top-3 w-4 h-4 text-paper-400" />
                                             <input 
                                                 type="text"
                                                 value={formData.companyPhone}
                                                 onChange={(e) => setFormData({...formData, companyPhone: e.target.value})}
                                                 placeholder="01 23 45 67 89"
-                                                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-brand-500 outline-none"
+                                                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-paper-300 bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all text-paper-800"
                                             />
                                         </div>
                                     </div>
@@ -328,40 +329,40 @@ Expertise & Stratégie Financière`;
 
                         {/* SECTION 2: ADRESSE */}
                         <div className="space-y-4">
-                            <h3 className="text-xs font-bold text-brand-600 uppercase tracking-wider border-b border-brand-100 pb-2 mb-3 flex items-center gap-2">
+                            <h3 className="eyebrow text-brand-600 border-b border-paper-200 pb-2 mb-3 flex items-center gap-2">
                                 <MapPin className="w-3 h-3" /> Localisation
                             </h3>
                             
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Adresse (Rue, ZI...)</label>
+                                <label className="eyebrow text-paper-600 mb-1 block">Adresse (Rue, ZI...)</label>
                                 <input 
                                     type="text"
                                     value={formData.address}
                                     onChange={(e) => setFormData({...formData, address: e.target.value})}
                                     placeholder="12 Avenue des Transports"
-                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-brand-500 outline-none"
+                                    className="w-full px-4 py-2.5 rounded-lg border border-paper-300 bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all text-paper-800"
                                 />
                             </div>
 
                             <div className="grid grid-cols-3 gap-4">
                                 <div className="col-span-1">
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Code Postal</label>
+                                    <label className="eyebrow text-paper-600 mb-1 block">Code Postal</label>
                                     <input 
                                         type="text"
                                         value={formData.zipCode}
                                         onChange={(e) => setFormData({...formData, zipCode: e.target.value})}
                                         placeholder="75000"
-                                        className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-brand-500 outline-none"
+                                        className="w-full px-4 py-2.5 rounded-lg border border-paper-300 bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all text-paper-800"
                                     />
                                 </div>
                                 <div className="col-span-2">
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Ville</label>
+                                    <label className="eyebrow text-paper-600 mb-1 block">Ville</label>
                                     <input 
                                         type="text"
                                         value={formData.city}
                                         onChange={(e) => setFormData({...formData, city: e.target.value})}
                                         placeholder="PARIS"
-                                        className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-brand-500 outline-none font-bold"
+                                        className="w-full px-4 py-2.5 rounded-lg border border-paper-300 bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all font-semibold text-paper-900"
                                     />
                                 </div>
                             </div>
@@ -369,41 +370,41 @@ Expertise & Stratégie Financière`;
 
                         {/* SECTION 3: DIRIGEANT & ACCÈS */}
                         <div className="space-y-4">
-                            <h3 className="text-xs font-bold text-brand-600 uppercase tracking-wider border-b border-brand-100 pb-2 mb-3 flex items-center gap-2">
+                            <h3 className="eyebrow text-brand-600 border-b border-paper-200 pb-2 mb-3 flex items-center gap-2">
                                 <User className="w-3 h-3" /> Dirigeant & Accès
                             </h3>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nom Dirigeant</label>
+                                    <label className="eyebrow text-paper-600 mb-1 block">Nom Dirigeant</label>
                                     <div className="relative">
-                                        <User className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                                        <User className="absolute left-3 top-3 w-4 h-4 text-paper-400" />
                                         <input 
                                             type="text"
                                             value={formData.managerName}
                                             onChange={(e) => setFormData({...formData, managerName: e.target.value})}
                                             placeholder="Nom Prénom"
-                                            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-brand-500 outline-none font-medium"
+                                            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-paper-300 bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all font-medium text-paper-800"
                                         />
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Mobile Dirigeant</label>
+                                    <label className="eyebrow text-paper-600 mb-1 block">Mobile Dirigeant</label>
                                     <div className="relative">
-                                        <Phone className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                                        <Phone className="absolute left-3 top-3 w-4 h-4 text-paper-400" />
                                         <input 
                                             type="text"
                                             value={formData.managerPhone}
                                             onChange={(e) => setFormData({...formData, managerPhone: e.target.value})}
                                             placeholder="06 00 00 00 00"
-                                            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-brand-500 outline-none"
+                                            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-paper-300 bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all text-paper-800"
                                         />
                                     </div>
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email de Connexion (Login Client)</label>
+                                <label className="eyebrow text-paper-600 mb-1 block">Email de Connexion (Login Client)</label>
                                 <div className="relative">
                                     <Mail className="absolute left-3 top-3 w-4 h-4 text-brand-500" />
                                     <input 
@@ -414,26 +415,27 @@ Expertise & Stratégie Financière`;
                                         className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-brand-200 bg-brand-50/50 focus:ring-2 focus:ring-brand-500 outline-none font-bold text-brand-900"
                                     />
                                 </div>
-                                <p className="text-xs text-slate-400 mt-1 ml-1">C'est l'identifiant unique que le client utilisera pour activer son accès.</p>
+                                <p className="text-xs text-paper-500 mt-1 ml-1">C'est l'identifiant unique que le client utilisera pour activer son accès.</p>
                             </div>
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {/* SECTION CONSULTANT REFERENT */}
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Consultant Référent (AB)</label>
+                                    <label className="eyebrow text-paper-600 mb-1 block">Consultant Référent (AB)</label>
                                     <div className="relative">
                                         <ShieldCheck className="absolute left-3 top-3 w-4 h-4 text-brand-600" />
-                                        <select 
+                                        <select
                                             value={formData.assignedConsultantEmail || ''}
                                             onChange={(e) => setFormData({...formData, assignedConsultantEmail: e.target.value})}
-                                            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-brand-500 outline-none appearance-none bg-white font-medium text-slate-700 cursor-pointer"
+                                            aria-label="Consultant référent"
+                                            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-paper-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all appearance-none bg-white font-medium text-paper-800 cursor-pointer"
                                         >
                                             <option value="">-- Aucun (Visible par tous les admins) --</option>
                                             {consultants.map(c => (
                                                 <option key={c.id} value={c.email}>{c.name} ({c.email})</option>
                                             ))}
                                         </select>
-                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-paper-500">
                                             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                                         </div>
                                     </div>
@@ -441,16 +443,17 @@ Expertise & Stratégie Financière`;
                                 
                                 {/* SECTION STATUT */}
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Statut Dossier</label>
+                                    <label className="eyebrow text-paper-600 mb-1 block">Statut Dossier</label>
                                     <div className="relative">
                                         {formData.status === 'active' ? (
                                             <Power className="absolute left-3 top-3 w-4 h-4 text-emerald-500" />
                                         ) : (
                                             <Archive className="absolute left-3 top-3 w-4 h-4 text-amber-500" />
                                         )}
-                                        <select 
+                                        <select
                                             value={formData.status || 'active'}
                                             onChange={(e) => setFormData({...formData, status: e.target.value as 'active' | 'inactive'})}
+                                            aria-label="Statut du dossier"
                                             className={`w-full pl-10 pr-4 py-2.5 rounded-lg border outline-none appearance-none font-bold cursor-pointer focus:ring-2 ${
                                                 formData.status === 'active'
                                                 ? 'border-emerald-200 bg-emerald-50 text-emerald-800 focus:ring-emerald-500'
@@ -460,7 +463,7 @@ Expertise & Stratégie Financière`;
                                             <option value="active">ACTIF (En production)</option>
                                             <option value="inactive">ARCHIVÉ (En veille)</option>
                                         </select>
-                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-paper-500">
                                             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                                         </div>
                                     </div>
@@ -471,14 +474,14 @@ Expertise & Stratégie Financière`;
                         {/* SECTION 4: SUIVI CONNEXION (mode édition uniquement) */}
                         {initialData && (
                             <div className="space-y-3">
-                                <h3 className="text-xs font-bold text-brand-600 uppercase tracking-wider border-b border-brand-100 pb-2 mb-3 flex items-center gap-2">
+                                <h3 className="eyebrow text-brand-600 border-b border-paper-200 pb-2 mb-3 flex items-center gap-2">
                                     <LogIn className="w-3 h-3" /> Suivi Connexion
                                 </h3>
 
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                     {/* Statut */}
-                                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
-                                        <p className="text-xs text-slate-400 uppercase font-bold mb-1">Statut</p>
+                                    <div className="bg-paper-50 rounded-lg p-3 border border-paper-200">
+                                        <p className="eyebrow text-paper-500 mb-1">Statut</p>
                                         {initialData.owner?.lastLoginAt ? (
                                             <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700">
                                                 <span className="w-2 h-2 rounded-full bg-emerald-500" /> Connecté
@@ -495,9 +498,9 @@ Expertise & Stratégie Financière`;
                                     </div>
 
                                     {/* Date inscription */}
-                                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
-                                        <p className="text-xs text-slate-400 uppercase font-bold mb-1">Inscription</p>
-                                        <p className="text-xs font-semibold text-slate-700">
+                                    <div className="bg-paper-50 rounded-lg p-3 border border-paper-200">
+                                        <p className="eyebrow text-paper-500 mb-1">Inscription</p>
+                                        <p className="text-xs font-semibold text-paper-800 font-mono">
                                             {initialData.owner?.registeredAt
                                                 ? new Date(initialData.owner.registeredAt).toLocaleDateString('fr-FR')
                                                 : '—'}
@@ -505,9 +508,9 @@ Expertise & Stratégie Financière`;
                                     </div>
 
                                     {/* Dernière connexion */}
-                                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
-                                        <p className="text-xs text-slate-400 uppercase font-bold mb-1">Dernière Connexion</p>
-                                        <p className="text-xs font-semibold text-slate-700">
+                                    <div className="bg-paper-50 rounded-lg p-3 border border-paper-200">
+                                        <p className="eyebrow text-paper-500 mb-1">Dernière Connexion</p>
+                                        <p className="text-xs font-semibold text-paper-800 font-mono">
                                             {initialData.owner?.lastLoginAt
                                                 ? new Date(initialData.owner.lastLoginAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
                                                 : '—'}
@@ -515,9 +518,9 @@ Expertise & Stratégie Financière`;
                                     </div>
 
                                     {/* Nombre de connexions */}
-                                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
-                                        <p className="text-xs text-slate-400 uppercase font-bold mb-1">Nb Connexions</p>
-                                        <p className="text-xs font-semibold text-slate-700">
+                                    <div className="bg-paper-50 rounded-lg p-3 border border-paper-200">
+                                        <p className="eyebrow text-paper-500 mb-1">Nb Connexions</p>
+                                        <p className="text-xs font-semibold text-paper-800 font-mono">
                                             {initialData.owner?.loginCount ?? 0}
                                         </p>
                                     </div>
@@ -525,7 +528,7 @@ Expertise & Stratégie Financière`;
 
                                 {/* Invitation status */}
                                 {initialData.invitationStatus?.lastSentAt && (
-                                    <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
+                                    <div className="flex items-center gap-2 text-xs text-paper-600 bg-paper-50 rounded-lg px-3 py-2 border border-paper-200">
                                         <Mail className="w-3 h-3" />
                                         <span>
                                             Dernière invitation envoyée le {new Date(initialData.invitationStatus.lastSentAt).toLocaleDateString('fr-FR')}
@@ -540,13 +543,13 @@ Expertise & Stratégie Financière`;
                                 {/* Login history (if available) */}
                                 {initialData.owner?.loginHistory && initialData.owner.loginHistory.length > 0 && (
                                     <details className="text-xs">
-                                        <summary className="text-slate-400 cursor-pointer hover:text-slate-600 font-medium">
+                                        <summary className="text-paper-500 cursor-pointer hover:text-paper-700 font-medium">
                                             Historique des connexions ({initialData.owner.loginHistory.length})
                                         </summary>
                                         <div className="mt-2 space-y-1 ml-2">
                                             {initialData.owner.loginHistory.map((entry, i) => (
-                                                <div key={i} className="flex items-center gap-2 text-slate-500">
-                                                    <Clock className="w-3 h-3 text-slate-300" />
+                                                <div key={i} className="flex items-center gap-2 text-paper-600 font-mono">
+                                                    <Clock className="w-3 h-3 text-paper-400" />
                                                     <span>{new Date(entry.timestamp).toLocaleString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                                                 </div>
                                             ))}
@@ -564,13 +567,13 @@ Expertise & Stratégie Financière`;
                             onChange={(collabs) => setFormData({ ...formData, collaborators: collabs })}
                         />
 
-                        <div className="pt-4 border-t border-slate-100 flex items-center gap-3 shrink-0">
+                        <div className="pt-4 border-t border-paper-200 flex items-center gap-3 shrink-0">
                             {/* Bouton renvoyer invitation (uniquement en mode édition) */}
                             {initialData && formData.owner?.email && (
                                 <button
                                     type="button"
                                     onClick={() => setShowInviteStep(true)}
-                                    className="px-4 py-2 rounded-lg text-brand-600 hover:bg-brand-50 font-bold transition flex items-center gap-2 text-sm border border-brand-200"
+                                    className="px-4 py-2 rounded-lg text-brand-700 hover:bg-paper-100 font-bold transition flex items-center gap-2 text-sm border border-paper-300"
                                 >
                                     <Send className="w-3.5 h-3.5" />
                                     Renvoyer l'invitation
@@ -580,14 +583,14 @@ Expertise & Stratégie Financière`;
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100 font-bold transition"
+                                className="px-4 py-2 rounded-lg text-paper-700 hover:bg-paper-100 font-bold transition"
                             >
                                 Annuler
                             </button>
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className="px-6 py-2 rounded-lg bg-brand-600 text-white hover:bg-brand-700 font-bold shadow-md hover:shadow-lg transition flex items-center gap-2 disabled:opacity-50"
+                                className="px-6 py-2 rounded-lg bg-brand-900 text-white hover:bg-brand-800 font-bold shadow-paper-md hover:shadow-paper-lg transition flex items-center gap-2 disabled:opacity-50"
                             >
                                 {isLoading ? 'Enregistrement...' : <><Save className="w-4 h-4" /> Enregistrer le dossier</>}
                             </button>

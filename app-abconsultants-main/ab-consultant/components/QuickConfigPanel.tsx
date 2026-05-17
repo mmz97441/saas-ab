@@ -64,27 +64,30 @@ const QuickConfigPanel: React.FC<QuickConfigPanelProps> = ({
     }> = ({ id, icon, title, subtitle, iconBg }) => (
         <button
             onClick={() => toggleSection(id)}
-            className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 rounded-lg transition group"
+            className="w-full flex items-center gap-3 p-3 hover:bg-paper-50 rounded-lg transition-colors duration-200 ease-editorial group"
         >
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${iconBg}`}>
                 {icon}
             </div>
             <div className="flex-1 text-left">
-                <h4 className="text-xs font-bold text-slate-700">{title}</h4>
-                {subtitle && <p className="text-xs text-slate-400">{subtitle}</p>}
+                <h4 className="text-xs font-bold text-paper-800">{title}</h4>
+                {subtitle && <p className="text-xs text-paper-500">{subtitle}</p>}
             </div>
             {expandedSection === id
-                ? <ChevronUp className="w-4 h-4 text-slate-400" />
-                : <ChevronDown className="w-4 h-4 text-slate-400" />
+                ? <ChevronUp className="w-4 h-4 text-paper-400" />
+                : <ChevronDown className="w-4 h-4 text-paper-400" />
             }
         </button>
     );
 
     return (
         <div className="space-y-2">
-            <div className="flex items-center gap-2 mb-4">
-                <Settings className="w-4 h-4 text-brand-500" />
-                <h3 className="text-sm font-bold text-slate-700">Configuration Rapide</h3>
+            <div className="mb-4">
+                <p className="eyebrow text-paper-500 mb-1">Paramétrage Dossier</p>
+                <div className="flex items-center gap-2">
+                    <Settings className="w-4 h-4 text-brand-500" />
+                    <h3 className="font-display text-lg font-semibold text-paper-900 tracking-tight">Configuration Rapide</h3>
+                </div>
             </div>
 
             {/* Feedback */}
@@ -95,7 +98,7 @@ const QuickConfigPanel: React.FC<QuickConfigPanelProps> = ({
             )}
 
             {/* === IDENTITÉ === */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+            <div className="border border-paper-200 rounded-xl overflow-hidden bg-white shadow-paper-sm">
                 <SectionHeader
                     id="identity"
                     icon={<Building className="w-4 h-4 text-brand-600" />}
@@ -153,7 +156,7 @@ const QuickConfigPanel: React.FC<QuickConfigPanelProps> = ({
                                 <input
                                     value={editableClient.owner?.email || ''}
                                     disabled
-                                    className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg text-slate-400 bg-slate-50 cursor-not-allowed"
+                                    className="w-full px-2 py-1.5 text-xs border border-paper-200 rounded-lg text-paper-400 bg-paper-50 cursor-not-allowed"
                                 />
                             </div>
                         </div>
@@ -169,7 +172,7 @@ const QuickConfigPanel: React.FC<QuickConfigPanelProps> = ({
             </div>
 
             {/* === MODULES === */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+            <div className="border border-paper-200 rounded-xl overflow-hidden bg-white shadow-paper-sm">
                 <SectionHeader
                     id="modules"
                     icon={<PieChart className="w-4 h-4 text-purple-600" />}
@@ -187,7 +190,7 @@ const QuickConfigPanel: React.FC<QuickConfigPanelProps> = ({
                             </div>
                             <button
                                 onClick={onToggleCommercialMargin}
-                                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${client.settings?.showCommercialMargin ? 'bg-purple-600' : 'bg-slate-200'}`}
+                                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${client.settings?.showCommercialMargin ? 'bg-purple-600' : 'bg-paper-300'}`}
                             >
                                 <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition ${client.settings?.showCommercialMargin ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
                             </button>
@@ -201,7 +204,7 @@ const QuickConfigPanel: React.FC<QuickConfigPanelProps> = ({
                             </div>
                             <button
                                 onClick={onToggleFuelModule}
-                                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${client.settings?.showFuelTracking ? 'bg-blue-600' : 'bg-slate-200'}`}
+                                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${client.settings?.showFuelTracking ? 'bg-blue-600' : 'bg-paper-300'}`}
                             >
                                 <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition ${client.settings?.showFuelTracking ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
                             </button>
@@ -218,7 +221,7 @@ const QuickConfigPanel: React.FC<QuickConfigPanelProps> = ({
                                 <button
                                     onClick={onToggleAiAssistant}
                                     aria-label={client.settings?.enableAiAssistant ? "Désactiver l'Assistant IA" : "Activer l'Assistant IA"}
-                                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${client.settings?.enableAiAssistant ? 'bg-brand-700' : 'bg-slate-200'}`}
+                                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${client.settings?.enableAiAssistant ? 'bg-brand-700' : 'bg-paper-300'}`}
                                 >
                                     <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition ${client.settings?.enableAiAssistant ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
                                 </button>
@@ -229,7 +232,7 @@ const QuickConfigPanel: React.FC<QuickConfigPanelProps> = ({
             </div>
 
             {/* === CENTRES DE PROFIT === */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+            <div className="border border-paper-200 rounded-xl overflow-hidden bg-white shadow-paper-sm">
                 <SectionHeader
                     id="profitCenters"
                     icon={<ShoppingBag className="w-4 h-4 text-indigo-600" />}
@@ -240,7 +243,7 @@ const QuickConfigPanel: React.FC<QuickConfigPanelProps> = ({
                 {expandedSection === 'profitCenters' && (
                     <div className="px-3 pb-3 space-y-2 animate-in slide-in-from-top-2 duration-200">
                         {profitCenters.map(pc => (
-                            <div key={pc.id} className="flex items-center gap-2 bg-slate-50 p-2 rounded-lg">
+                            <div key={pc.id} className="flex items-center gap-2 bg-paper-50 p-2 rounded-lg">
                                 <input
                                     value={pc.name}
                                     onChange={e => setProfitCenters(prev => prev.map(p => p.id === pc.id ? { ...p, name: e.target.value } : p))}
@@ -281,7 +284,7 @@ const QuickConfigPanel: React.FC<QuickConfigPanelProps> = ({
             </div>
 
             {/* === STATUT === */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+            <div className="border border-paper-200 rounded-xl overflow-hidden bg-white shadow-paper-sm">
                 <SectionHeader
                     id="status"
                     icon={<Power className="w-4 h-4 text-amber-600" />}

@@ -584,11 +584,12 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ client, data }) => {
 
                     {/* F-09 : rendu markdown riche via react-markdown */}
                     {msg.sender === 'ai' ? (
-                      <div className="prose prose-sm max-w-none [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_h1]:font-display [&_h1]:text-base [&_h1]:font-semibold [&_h1]:mt-3 [&_h1]:mb-1 [&_h2]:font-display [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-1 [&_h3]:font-display [&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-3 [&_h3]:mb-1 [&_strong]:font-semibold [&_strong]:text-paper-900 [&_em]:italic [&_a]:text-brand-700 [&_a]:underline [&_code]:font-mono [&_code]:text-xs [&_code]:bg-paper-100 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_pre]:bg-paper-100 [&_pre]:p-2 [&_pre]:rounded [&_pre]:overflow-x-auto [&_table]:text-xs [&_th]:font-semibold [&_th]:text-left [&_th]:p-1 [&_td]:p-1 [&_td]:border-t [&_td]:border-paper-200">
+                      <div className="prose prose-sm max-w-none [&_p]:my-1 [&_ul]:my-1.5 [&_ol]:my-1.5 [&_ul_ul]:list-[circle] [&_ul_ul]:mt-1 [&_ul_ul]:mb-0 [&_ul_ul_ul]:list-[square] [&_ol_ol]:list-[lower-alpha] [&_ol_ol]:mt-1 [&_ol_ul]:list-[circle] [&_ul_ol]:list-[lower-alpha] [&_li]:my-1 [&_li>p]:my-0 [&_h1]:font-display [&_h1]:text-base [&_h1]:font-semibold [&_h1]:mt-3 [&_h1]:mb-1 [&_h2]:font-display [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-1 [&_h3]:font-display [&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-3 [&_h3]:mb-1 [&_strong]:font-semibold [&_strong]:text-paper-900 [&_em]:italic [&_a]:text-brand-700 [&_a]:underline [&_code]:font-mono [&_code]:text-xs [&_code]:bg-paper-100 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_pre]:bg-paper-100 [&_pre]:p-2 [&_pre]:rounded [&_pre]:overflow-x-auto [&_table]:text-xs [&_th]:font-semibold [&_th]:text-left [&_th]:p-1 [&_td]:p-1 [&_td]:border-t [&_td]:border-paper-200">
                         <ReactMarkdown
                           components={{
-                            ul: ({children}) => <ul className="list-disc ml-4 space-y-0.5">{children}</ul>,
-                            ol: ({children}) => <ol className="list-decimal ml-4 space-y-0.5">{children}</ol>,
+                            ul: ({children}) => <ul className="list-disc pl-5 marker:text-brand-400">{children}</ul>,
+                            ol: ({children}) => <ol className="list-decimal pl-5 marker:text-brand-400 marker:font-semibold">{children}</ol>,
+                            li: ({children}) => <li className="pl-1 leading-relaxed">{children}</li>,
                             table: ({children}) => <table className="w-full my-2 border-collapse">{children}</table>,
                           }}
                         >

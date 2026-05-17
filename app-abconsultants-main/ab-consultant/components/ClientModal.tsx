@@ -265,8 +265,9 @@ Expertise & Stratégie Financière`;
                     </div>
                 ) : (
                     /* --- FORMULAIRE CLASSIQUE --- */
-                    <form onSubmit={handleSubmit} className="p-6 overflow-y-auto custom-scrollbar space-y-6">
-                        
+                    <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+                        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
+
                         {error && (
                             <div role="alert" className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2 border border-red-100">
                                 <AlertCircle className="w-4 h-4 shrink-0" /> {error}
@@ -567,7 +568,10 @@ Expertise & Stratégie Financière`;
                             onChange={(collabs) => setFormData({ ...formData, collaborators: collabs })}
                         />
 
-                        <div className="pt-4 border-t border-paper-200 flex items-center gap-3 shrink-0">
+                        </div>
+
+                        {/* Footer sticky — dock visuel des CTA */}
+                        <div className="shrink-0 px-6 py-4 border-t border-paper-200 bg-paper-50/80 backdrop-blur-sm flex items-center gap-3">
                             {/* Bouton renvoyer invitation (uniquement en mode édition) */}
                             {initialData && formData.owner?.email && (
                                 <button

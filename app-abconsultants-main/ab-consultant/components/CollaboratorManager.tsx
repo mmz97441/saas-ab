@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { UserPlus, Mail, Shield, Eye, Crown, X, Clock, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
 import { ClientCollaborator, CollaboratorRole, CollaboratorStatus } from '../types';
+import { useConfirmDialog } from '../contexts/ConfirmContext';
 
 interface CollaboratorManagerProps {
   collaborators: ClientCollaborator[];
@@ -23,6 +24,7 @@ const STATUS_CONFIG: Record<CollaboratorStatus, { label: string; icon: React.Rea
 };
 
 const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators, ownerEmail, consultantEmail, onChange }) => {
+  const confirm = useConfirmDialog();
   const [newEmail, setNewEmail] = useState('');
   const [newName, setNewName] = useState('');
   const [newRole, setNewRole] = useState<CollaboratorRole>('manager');
@@ -90,9 +92,29 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
     setNewRole('manager');
   };
 
-  const handleRevoke = (email: string) => {
+  const handleRevoke = async (collab: ClientCollaborator) => {
+    const who = collab.name ? `${collab.name} (${collab.email})` : collab.email;
+    const isPending = collab.status === 'pending';
+    const ok = await confirm(
+      isPending
+        ? {
+            title: "Annuler l'invitation ?",
+            message: `Voulez-vous annuler l'invitation envoyée à ${who} ? Il/elle ne pourra plus accepter l'accès à ce dossier.`,
+            confirmLabel: "Annuler l'invitation",
+            cancelLabel: 'Retour',
+            variant: 'danger',
+          }
+        : {
+            title: "Révoquer l'accès ?",
+            message: `Voulez-vous révoquer l'accès de ${who} ? Il/elle ne pourra plus consulter ce dossier.`,
+            confirmLabel: "Révoquer l'accès",
+            cancelLabel: 'Annuler',
+            variant: 'danger',
+          }
+    );
+    if (!ok) return;
     onChange(collaborators.map(c =>
-      c.email === email ? { ...c, status: 'revoked' as CollaboratorStatus } : c
+      c.email === collab.email ? { ...c, status: 'revoked' as CollaboratorStatus } : c
     ));
   };
 
@@ -108,8 +130,17 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
     ));
   };
 
-  const handleRemove = (email: string) => {
-    onChange(collaborators.filter(c => c.email !== email));
+  const handleRemove = async (collab: ClientCollaborator) => {
+    const who = collab.name ? `${collab.name} (${collab.email})` : collab.email;
+    const ok = await confirm({
+      title: 'Supprimer définitivement ?',
+      message: `Voulez-vous supprimer définitivement ${who} de la liste des collaborateurs ? Cette action est irréversible et toute trace de cet accès sera retirée du dossier.`,
+      confirmLabel: 'Supprimer définitivement',
+      cancelLabel: 'Annuler',
+      variant: 'danger',
+    });
+    if (!ok) return;
+    onChange(collaborators.filter(c => c.email !== collab.email));
   };
 
   return (
@@ -214,7 +245,7 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
 
                 <button
                   type="button"
-                  onClick={() => handleRevoke(collab.email)}
+                  onClick={() => handleRevoke(collab)}
                   className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md transition"
                   title="Révoquer l'accès"
                   aria-label={`Révoquer l'accès de ${collab.name}`}
@@ -270,7 +301,7 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
 
                 <button
                   type="button"
-                  onClick={() => handleRevoke(collab.email)}
+                  onClick={() => handleRevoke(collab)}
                   className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md transition"
                   title="Annuler l'invitation"
                   aria-label={`Annuler l'invitation de ${collab.name}`}
@@ -304,7 +335,7 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
               </button>
               <button
                 type="button"
-                onClick={() => handleRemove(collab.email)}
+                onClick={() => handleRemove(collab)}
                 className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md transition"
                 title="Supprimer définitivement"
                 aria-label={`Supprimer définitivement ${collab.name}`}

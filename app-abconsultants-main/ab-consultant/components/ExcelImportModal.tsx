@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { X, Upload, FileSpreadsheet, CheckCircle, AlertTriangle, ChevronRight, ChevronDown, Eye, Layers, Fuel, ShoppingBag, XCircle, Plus, ArrowRight, Loader2, ClipboardList } from 'lucide-react';
+import { X, Upload, FileSpreadsheet, CheckCircle, AlertTriangle, AlertCircle, ChevronRight, ChevronDown, Eye, Layers, Fuel, ShoppingBag, XCircle, Plus, ArrowRight, Loader2, ClipboardList } from 'lucide-react';
 import { ProfitCenter, FinancialRecord, Month } from '../types';
 import {
   ParsedSheet,
@@ -41,7 +41,13 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
   const [yearConfirmed, setYearConfirmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>('');
+  const [fileSize, setFileSize] = useState<number | null>(null);
   const [expandedSheet, setExpandedSheet] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+  const formatFileSize = (bytes: number) =>
+    (bytes / (1024 * 1024)).toFixed(1).replace('.', ',') + ' Mo';
 
   // Reset on open
   useEffect(() => {
@@ -53,16 +59,35 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
       setYearConfirmed(false);
       setError(null);
       setFileName('');
+      setFileSize(null);
       setExpandedSheet(null);
+      setIsDragging(false);
     }
   }, [isOpen, defaultYear]);
 
-  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processFile = useCallback(async (file: File) => {
     setError(null);
+
+    // Validate type (.xlsx / .xls)
+    const validMimes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+    ];
+    const lowerName = file.name.toLowerCase();
+    const hasValidExt = lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls');
+    if (!hasValidExt && !validMimes.includes(file.type)) {
+      setError('Format de fichier invalide. Seuls les fichiers .xlsx ou .xls sont acceptés.');
+      return;
+    }
+
+    // Validate size (10 MB)
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setError(`Fichier trop volumineux (${formatFileSize(file.size)}). Taille maximale : 10 Mo.`);
+      return;
+    }
+
     setFileName(file.name);
+    setFileSize(file.size);
 
     try {
       const parsed = await readExcelFile(file);
@@ -97,10 +122,36 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
     } catch (err: any) {
       setError(err.message || 'Erreur lors de la lecture du fichier.');
     }
+  }, [defaultYear]);
 
-    // Reset input
+  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processFile(file);
+    // Reset input so the same file can be re-selected
     e.target.value = '';
+  }, [processFile]);
+
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDragging) setIsDragging(true);
+  }, [isDragging]);
+
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
   }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    await processFile(file);
+  }, [processFile]);
 
   const updateMapping = useCallback((sheetName: string, type: SheetMapping['type']) => {
     setMappings(prev => prev.map(m => m.sheetName === sheetName ? { ...m, type } : m));
@@ -200,8 +251,8 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
 
         {/* Error banner */}
         {error && (
-          <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-sm text-red-700">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
+          <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-sm text-red-600">
+            <AlertCircle className="w-4 h-4 shrink-0" />
             {error}
           </div>
         )}
@@ -218,12 +269,29 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                   onChange={handleFileSelect}
                   className="hidden"
                 />
-                <div className="border-2 border-dashed border-paper-300 group-hover:border-brand-400 rounded-2xl p-12 flex flex-col items-center transition-colors group-hover:bg-brand-50/30">
-                  <div className="p-4 bg-brand-100 rounded-full mb-4 group-hover:bg-brand-200 transition-colors">
+                <div
+                  onDragOver={handleDragOver}
+                  onDragEnter={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`border-2 border-dashed rounded-2xl p-12 flex flex-col items-center transition-colors ${
+                    isDragging
+                      ? 'border-brand-400 bg-brand-50/30'
+                      : 'border-paper-300 group-hover:border-brand-400 group-hover:bg-brand-50/30'
+                  }`}
+                >
+                  <div className={`p-4 rounded-full mb-4 transition-colors ${isDragging ? 'bg-brand-200' : 'bg-brand-100 group-hover:bg-brand-200'}`}>
                     <Upload className="w-8 h-8 text-brand-600" />
                   </div>
                   <p className="font-display text-xl font-semibold text-paper-900 mb-1">Glissez ou cliquez pour charger</p>
                   <p className="text-sm text-paper-500">Fichiers .xlsx acceptés</p>
+                  <p className="text-xs text-paper-500 mt-2">Format : .xlsx ou .xls — Taille max : 10 Mo</p>
+                  {fileName && fileSize != null && (
+                    <p className="text-xs text-paper-500 mt-3">
+                      <span className="font-mono">{fileName}</span>{' '}
+                      <span className="text-xs text-paper-500">({formatFileSize(fileSize)})</span>
+                    </p>
+                  )}
                 </div>
               </label>
               <p className="text-xs text-paper-500 mt-6 text-center max-w-md leading-relaxed">
@@ -265,6 +333,9 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                 </div>
                 <p className="text-xs mt-2 ml-7 text-paper-500">
                   Fichier : <span className="font-mono">{fileName}</span>
+                  {fileSize != null && (
+                    <span className="text-xs text-paper-500"> ({formatFileSize(fileSize)})</span>
+                  )}
                 </p>
               </div>
 

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Settings, Building, Lock, ShoppingBag, Plus, Trash2, Save, Droplets, AlertTriangle, Power, MapPin, Phone, Percent, PieChart, ChevronDown, Calendar, Target, Sparkles } from 'lucide-react';
 import { Client, ProfitCenter } from '../types';
 import { useConfirmDialog } from '../contexts/ConfirmContext';
+import { ToggleSwitch } from './ui/ToggleSwitch';
 
 const LEGAL_FORMS = [
     '', 'SAS', 'SASU', 'SARL', 'EURL', 'SA', 'SNC', 'SCI', 'SCOP',
@@ -281,16 +282,15 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                     <h3 className="font-display text-lg font-semibold text-purple-900 tracking-tight flex items-center gap-2">
                         <PieChart className="w-4 h-4" /> Suivi Marge Commerciale
                     </h3>
-                    <button
-                        onClick={async () => {
+                    <ToggleSwitch
+                        enabled={!!client.settings?.showCommercialMargin}
+                        onChange={async () => {
                             const ok = await confirm({ title: client.settings?.showCommercialMargin ? 'Désactiver la marge ?' : 'Activer la marge ?', message: client.settings?.showCommercialMargin ? 'Le suivi de la marge commerciale sera désactivé.' : 'La marge commerciale sera calculée et analysée dans les rapports.', variant: 'info', confirmLabel: client.settings?.showCommercialMargin ? 'Désactiver' : 'Activer' });
                             if (ok) onToggleCommercialMargin();
                         }}
-                        aria-label={client.settings?.showCommercialMargin ? 'Désactiver la marge commerciale' : 'Activer la marge commerciale'}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${client.settings?.showCommercialMargin ? 'bg-purple-600' : 'bg-paper-300'}`}
-                    >
-                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${client.settings?.showCommercialMargin ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
+                        ariaLabel={client.settings?.showCommercialMargin ? 'Désactiver la marge commerciale' : 'Activer la marge commerciale'}
+                        onColorClass="bg-purple-600"
+                    />
                 </div>
                 {client.settings?.showCommercialMargin && (
                     <div className="p-6 text-sm text-paper-600">
@@ -314,13 +314,13 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                         <div>
                             <h3 className="font-display text-lg font-semibold text-paper-900 tracking-tight flex items-center gap-2">
                                 Assistant IA
-                                <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-accent-500/10 text-accent-700">Premium</span>
                             </h3>
                             <p className="text-xs text-paper-500 mt-0.5">Conseiller virtuel propulsé par Gemini AI</p>
                         </div>
                     </div>
-                    <button
-                        onClick={async () => {
+                    <ToggleSwitch
+                        enabled={!!client.settings?.enableAiAssistant}
+                        onChange={async () => {
                             const isCurrentlyOn = !!client.settings?.enableAiAssistant;
                             const ok = await confirm({
                                 title: isCurrentlyOn ? 'Désactiver l\'Assistant IA ?' : 'Activer l\'Assistant IA ?',
@@ -332,11 +332,10 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                             });
                             if (ok) onToggleAiAssistant();
                         }}
-                        aria-label={client.settings?.enableAiAssistant ? "Désactiver l'Assistant IA" : "Activer l'Assistant IA"}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${client.settings?.enableAiAssistant ? 'bg-brand-700' : 'bg-paper-300'}`}
-                    >
-                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${client.settings?.enableAiAssistant ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
+                        ariaLabel={client.settings?.enableAiAssistant ? "Désactiver l'Assistant IA" : "Activer l'Assistant IA"}
+                        onColorClass="bg-brand-700"
+                        premium
+                    />
                 </div>
                 {client.settings?.enableAiAssistant ? (
                     <div className="p-6 text-sm text-paper-600 space-y-2">
@@ -491,16 +490,15 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                         <Droplets className="w-4 h-4" /> Suivi Carburant
                         {isFuelObjectivesDirty && <span className="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full animate-pulse">Non sauvegardé</span>}
                     </h3>
-                    <button
-                        onClick={async () => {
+                    <ToggleSwitch
+                        enabled={!!client.settings?.showFuelTracking}
+                        onChange={async () => {
                             const ok = await confirm({ title: client.settings?.showFuelTracking ? 'Désactiver le carburant ?' : 'Activer le carburant ?', message: client.settings?.showFuelTracking ? 'Le module de suivi carburant sera désactivé.' : 'Le suivi de consommation carburant sera activé pour ce dossier.', variant: 'info', confirmLabel: client.settings?.showFuelTracking ? 'Désactiver' : 'Activer' });
                             if (ok) onToggleFuelModule();
                         }}
-                        aria-label={client.settings?.showFuelTracking ? 'Désactiver le suivi carburant' : 'Activer le suivi carburant'}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${client.settings?.showFuelTracking ? 'bg-blue-600' : 'bg-paper-300'}`}
-                    >
-                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${client.settings?.showFuelTracking ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
+                        ariaLabel={client.settings?.showFuelTracking ? 'Désactiver le suivi carburant' : 'Activer le suivi carburant'}
+                        onColorClass="bg-blue-600"
+                    />
                 </div>
                 {client.settings?.showFuelTracking && (
                     <div className="p-6">

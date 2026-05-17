@@ -66,7 +66,10 @@ export const sendClientInvitation = functions.region('europe-west1').https.onCal
 
   // If email method, send the actual email
   if (method === 'email') {
-    const portalUrl = appUrl || 'https://app.ab-consultants.fr';
+    const portalBaseUrl = appUrl || 'https://app.ab-consultants.fr';
+    // Deep-link with ?tab=client&signup=1 so the invitee lands directly in
+    // the client signup form — no tab choice, no mode toggle to find.
+    const portalUrl = `${portalBaseUrl}/?tab=client&signup=1`;
     const managerGreeting = managerName ? ` ${managerName}` : '';
 
     const html = `
@@ -101,16 +104,23 @@ export const sendClientInvitation = functions.region('europe-west1').https.onCal
         </ul>
       </div>
 
-      <div style="background:#243b53;border-radius:8px;padding:24px;margin:24px 0;color:#ffffff;">
-        <p style="font-weight:700;margin:0 0 16px;font-size:14px;">PROCÉDURE D'ACTIVATION :</p>
-        <ol style="font-size:13px;line-height:2.2;margin:0;padding-left:16px;color:#d9e2ec;">
-          <li>Accédez au portail : <a href="${portalUrl}" style="color:#f0b429;text-decoration:none;font-weight:600;">${portalUrl}</a></li>
-          <li>Sélectionnez <strong style="color:#ffffff;">"Espace Client"</strong></li>
-          <li>Cliquez sur <strong style="color:#ffffff;">"Première connexion ? Créer mon accès"</strong></li>
-          <li>Saisissez votre identifiant : <strong style="color:#f0b429;">${ownerEmail}</strong></li>
-          <li>Définissez votre mot de passe personnel</li>
-        </ol>
+      <div style="background:#243b53;border-radius:8px;padding:28px;margin:24px 0;color:#ffffff;text-align:center;">
+        <p style="font-weight:700;margin:0 0 8px;font-size:14px;letter-spacing:1px;">ACTIVATION DE VOTRE ACCÈS</p>
+        <p style="color:#d9e2ec;font-size:13px;margin:0 0 20px;">
+          Cliquez ci-dessous pour créer votre mot de passe personnel.
+        </p>
+        <a href="${portalUrl}" style="display:inline-block;background:#f0b429;color:#243b53;text-decoration:none;font-weight:700;padding:14px 32px;border-radius:6px;font-size:14px;letter-spacing:0.5px;">
+          Activer mon accès →
+        </a>
+        <p style="color:#9fb3c8;font-size:12px;margin:20px 0 0;">
+          Identifiant : <strong style="color:#f0b429;">${ownerEmail}</strong>
+        </p>
       </div>
+
+      <p style="color:#829ab1;font-size:11px;line-height:1.6;margin-top:16px;text-align:center;">
+        Le lien ne fonctionne pas ? Copiez-collez l'URL dans votre navigateur :<br/>
+        <span style="color:#486581;word-break:break-all;">${portalUrl}</span>
+      </p>
 
       <p style="color:#829ab1;font-size:12px;line-height:1.6;margin-top:24px;">
         <strong>Note de sécurité :</strong> Cet identifiant est strictement personnel. Votre consultant référent reste à votre entière disposition pour vous accompagner.

@@ -10,14 +10,43 @@ interface LoginScreenProps {
   onLogin: (role: 'ab_consultant' | 'client', email?: string) => void;
 }
 
+const LAST_TAB_STORAGE_KEY = 'ab.login.lastTab';
+
+const resolveInitialTab = (): 'client' | 'expert' => {
+  if (typeof window === 'undefined') return 'client';
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const urlTab = params.get('tab');
+    if (urlTab === 'expert' || urlTab === 'consultant' || urlTab === 'admin') return 'expert';
+    if (urlTab === 'client') return 'client';
+    const stored = localStorage.getItem(LAST_TAB_STORAGE_KEY);
+    if (stored === 'expert' || stored === 'client') return stored;
+  } catch {/* localStorage may be blocked */}
+  return 'client';
+};
+
+const resolveInitialSignUp = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('signup') === '1' || params.get('mode') === 'signup';
+  } catch { return false; }
+};
+
 const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
-  const [activeTab, setActiveTab] = useState<'client' | 'expert'>('client');
-  const [isSignUp, setIsSignUp] = useState(false); // Mode Inscription vs Connexion
+  const [activeTab, setActiveTab] = useState<'client' | 'expert'>(() => resolveInitialTab());
+  const [isSignUp, setIsSignUp] = useState(() => resolveInitialSignUp()); // Mode Inscription vs Connexion
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
+
+  // Persist last-used tab so returning users land on it without thinking.
+  // URL param ?tab=... always wins on first render via resolveInitialTab.
+  React.useEffect(() => {
+    try { localStorage.setItem(LAST_TAB_STORAGE_KEY, activeTab); } catch {/* blocked */}
+  }, [activeTab]);
 
   // Email de l'expert (Super Admin) - doit correspondre à AuthContext.tsx
   const EXPERT_EMAIL = "nice.guillaume@gmail.com";

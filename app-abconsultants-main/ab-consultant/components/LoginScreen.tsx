@@ -178,12 +178,24 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                     ? "Pilotage global du portefeuille, validation des comptes et analyses stratégiques pour vos clients transport & logistique."
                     : "Accédez à vos tableaux de bord, saisissez vos données d'exploitation et consultez les analyses de votre consultant."}
              </p>
+
+             <ul className="space-y-2.5 pt-2">
+                {(activeTab === 'expert'
+                    ? ["Pilotage temps réel du portefeuille", "Validation experte des saisies clients", "Analyses stratégiques mensuelles"]
+                    : ["Saisie guidée mois par mois", "Tableaux de bord temps réel", "Échanges directs avec votre consultant"]
+                ).map((item) => (
+                    <li key={item} className="flex items-center gap-3 text-sm text-brand-100/85 font-light">
+                        <span className="w-1 h-1 rounded-full bg-accent-400 shrink-0" aria-hidden="true" />
+                        {item}
+                    </li>
+                ))}
+             </ul>
           </div>
 
           <div className="text-xs text-brand-200 pt-6 border-t border-white/10 flex justify-between items-center">
              <span>© {new Date().getFullYear()} AB Consultants</span>
-             <span className="text-accent-400 font-bold flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5" /> CONNEXION SÉCURISÉE
+             <span className="text-accent-400 font-semibold tracking-[0.12em] uppercase text-[10px]">
+                Connexion sécurisée
              </span>
              {import.meta.env.DEV && (
                 <span className="font-mono text-brand-300 absolute bottom-2 right-2 opacity-50" aria-hidden="true">v{APP_VERSION}</span>
@@ -236,7 +248,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder={activeTab === 'client' ? "email@societe.com" : "consultant@ab-consultants.fr"}
-                            className="w-full pl-10 pr-4 py-3 rounded-lg border border-brand-200 bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all placeholder-brand-300 text-brand-900"
+                            className="w-full pl-10 pr-4 py-3 rounded-lg border border-brand-200 bg-white focus:border-brand-400 focus:bg-paper-50/40 transition-colors placeholder-brand-300 text-brand-900"
                         />
                     </div>
                 </div>
@@ -257,7 +269,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="••••••••"
-                            className="w-full pl-10 pr-4 py-3 rounded-lg border border-brand-200 bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all placeholder-brand-300 text-brand-900"
+                            className="w-full pl-10 pr-4 py-3 rounded-lg border border-brand-200 bg-white focus:border-brand-400 focus:bg-paper-50/40 transition-colors placeholder-brand-300 text-brand-900"
                         />
                     </div>
                 </div>
@@ -287,16 +299,23 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             </form>
             
             {/* TOGGLE MODE LINK */}
-            <div className="mt-6 text-center border-t border-brand-100 pt-4">
-                <button
-                    onClick={toggleMode}
-                    className="text-sm text-brand-600 hover:text-brand-900 font-semibold transition-colors py-2 px-3 rounded-md hover:bg-brand-50"
-                >
-                    {isSignUp
-                        ? "J'ai déjà un mot de passe. Me connecter."
-                        : (activeTab === 'expert' ? "Invité par l'admin ? Activer mon accès." : "Première connexion ? Créer mon accès.")
-                    }
-                </button>
+            <div className="mt-7" aria-hidden={false}>
+                <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.18em] text-brand-300 font-semibold">
+                    <span className="flex-1 h-px bg-brand-100" />
+                    <span>ou</span>
+                    <span className="flex-1 h-px bg-brand-100" />
+                </div>
+                <div className="mt-3 text-center">
+                    <button
+                        onClick={toggleMode}
+                        className="text-sm text-brand-700 hover:text-brand-900 font-semibold transition-colors py-1.5 px-3 rounded-md hover:bg-brand-50 underline-offset-4 decoration-accent-400 decoration-2 hover:underline"
+                    >
+                        {isSignUp
+                            ? "J'ai déjà un mot de passe. Me connecter."
+                            : (activeTab === 'expert' ? "Invité par l'admin ? Activer mon accès." : "Première connexion ? Créer mon accès.")
+                        }
+                    </button>
+                </div>
             </div>
         </div>
       </div>

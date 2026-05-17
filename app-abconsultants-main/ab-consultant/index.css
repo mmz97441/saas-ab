@@ -122,11 +122,20 @@ table,
 
 /* =================================================
    FOCUS RING — premium signature, always visible
+   1.5px amber-400 (softer than 2px-500) with rgba for restraint.
    ================================================= */
 :focus-visible {
-  outline: 2px solid #f59e0b;  /* accent-500 */
+  outline: 1.5px solid rgba(251, 191, 36, 0.85);  /* accent-400 @ 85% */
   outline-offset: 2px;
   border-radius: 2px;
+}
+
+/* Inputs/textareas: tighter offset since they already have a visible border */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline-width: 1px;
+  outline-offset: 1px;
 }
 
 /* =================================================

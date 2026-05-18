@@ -1,5 +1,5 @@
 import * as nodemailer from 'nodemailer';
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 
 let transporter: nodemailer.Transporter | null = null;
 

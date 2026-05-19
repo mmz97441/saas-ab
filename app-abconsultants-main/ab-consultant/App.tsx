@@ -189,20 +189,28 @@ const App: React.FC = () => {
 
   const handleSaveRecord = async (record: FinancialRecord) => {
     if (!selectedClient) return;
+    // Auto-save passes isSubmitted:false explicitly to persist without locking
+    // the form. Honor that; otherwise default to true for client saves (an
+    // explicit "Soumettre" click).
+    const isAutoSave = record.isSubmitted === false;
     const recordWithClient = {
         ...record,
         clientId: selectedClient.id,
-        isSubmitted: userRole === 'client' ? true : record.isSubmitted,
+        isSubmitted: isAutoSave ? false : (userRole === 'client' ? true : record.isSubmitted),
         submittedBy: record.submittedBy || currentUserEmail || undefined
     };
     try {
         await saveRecord(recordWithClient);
-        await logActivity(selectedClient.id, 'data_submitted', `Données ${record.month} ${record.year} enregistrées`, { month: record.month, year: record.year });
+        if (!isAutoSave) {
+            await logActivity(selectedClient.id, 'data_submitted', `Données ${record.month} ${record.year} enregistrées`, { month: record.month, year: record.year });
+        }
         await refreshRecords();
 
         if (userRole === 'client') {
-            showNotification("Saisie enregistrée.", 'success');
-            setEditingRecord(recordWithClient);
+            if (!isAutoSave) {
+                showNotification("Saisie enregistrée.", 'success');
+                setEditingRecord(recordWithClient);
+            }
         } else {
             showNotification("Données enregistrées.", 'success');
             setEditingRecord(null);
@@ -210,7 +218,9 @@ const App: React.FC = () => {
         }
     } catch (err) {
         console.error('Erreur sauvegarde:', err);
-        showNotification("Erreur lors de la sauvegarde. Vos données n'ont pas été perdues, réessayez.", 'error');
+        if (!isAutoSave) {
+            showNotification("Erreur lors de la sauvegarde. Vos données n'ont pas été perdues, réessayez.", 'error');
+        }
     }
   };
 

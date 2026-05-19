@@ -276,7 +276,16 @@ const EntryForm: React.FC<EntryFormProps> = ({
     });
 
     // --- AUTO-LOAD DATA LOGIC ---
+    // existingRecords is a live onSnapshot — it updates on every Firestore
+    // write, including this user's own auto-saves. Without a guard, the
+    // round-trip would clobber the user's in-progress typing. We track the
+    // last-loaded year/month key and skip re-loading once the user has engaged
+    // the editor (autoSaveMountedRef true on first formData edit).
+    const lastLoadedKeyRef = useRef<string | null>(null);
     useEffect(() => {
+        const key = `${formData.year}-${formData.month}`;
+        if (lastLoadedKeyRef.current === key && autoSaveMountedRef.current) return;
+
         const match = existingRecords.find(r => r.year === formData.year && r.month === formData.month);
 
         if (match) {
@@ -285,6 +294,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                 loaded.revenue.objective = defaultRevenueObjective;
             }
             setFormData(loaded);
+            lastLoadedKeyRef.current = key;
         } else {
             const fuelObjs = defaultFuelObjectives || { gasoil: 0, sansPlomb: 0, gnr: 0 };
             const totalFuelObj = (fuelObjs.gasoil || 0) + (fuelObjs.sansPlomb || 0) + (fuelObjs.gnr || 0);
@@ -317,6 +327,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                 },
                 cashFlow: { active: 0, passive: 0, treasury: 0 }
             }));
+            lastLoadedKeyRef.current = key;
         }
     }, [formData.year, formData.month, existingRecords, clientId, defaultFuelObjectives, defaultRevenueObjective]);
 
@@ -599,8 +610,24 @@ const EntryForm: React.FC<EntryFormProps> = ({
 
     // Clean draft after successful save
     const originalOnSave = onSave;
+
+    // Silent save — persists without the aberrant-value confirm modal.
+    // Used by auto-save: warnings on partial input ("5" en route vers "500000")
+    // would interrupt typing and feel like a forced submission.
+    const silentSave = useCallback(async (record: FinancialRecord) => {
+        try {
+            const recordWithAuthor = currentUserEmail
+                ? { ...record, submittedBy: record.submittedBy || currentUserEmail }
+                : record;
+            await originalOnSave(recordWithAuthor);
+            localStorage.removeItem(draftKey);
+        } catch (err) {
+            console.error('Erreur sauvegarde automatique:', err);
+        }
+    }, [draftKey, originalOnSave, currentUserEmail]);
+
     const wrappedOnSave = useCallback(async (record: FinancialRecord) => {
-        // Check for aberrant values before saving
+        // Check for aberrant values before saving (explicit user action only)
         const warnings = detectAberrantValues(record);
         if (warnings.length > 0) {
             const ok = await confirm({
@@ -611,20 +638,13 @@ const EntryForm: React.FC<EntryFormProps> = ({
             });
             if (!ok) return;
         }
-        try {
-            const recordWithAuthor = currentUserEmail
-                ? { ...record, submittedBy: record.submittedBy || currentUserEmail }
-                : record;
-            await originalOnSave(recordWithAuthor);
-            localStorage.removeItem(draftKey);
-        } catch (err) {
-            console.error('Erreur sauvegarde:', err);
-        }
-    }, [draftKey, originalOnSave, confirm]);
+        await silentSave(record);
+    }, [silentSave, confirm]);
 
     // --- AUTO-SAVE EFFECTS ---
-    // Debounces formData changes by 1.5s, then persists via wrappedOnSave with
-    // isSubmitted: false. Defined after wrappedOnSave to avoid TDZ.
+    // Debounces formData changes by 1.5s, then persists via silentSave with
+    // isSubmitted: false. silentSave skips the aberrant-value modal so partial
+    // input doesn't interrupt typing. Defined after silentSave to avoid TDZ.
     const autoSaveInFlightRef = useRef(false);
 
     useEffect(() => {
@@ -661,7 +681,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
             autoSaveTimerRef.current = null;
             autoSaveInFlightRef.current = true;
             try {
-                await wrappedOnSave({ ...formData, isSubmitted: false });
+                await silentSave({ ...formData, isSubmitted: false });
                 lastSavedSnapshotRef.current = snapshot;
                 setLastSavedAt(Date.now());
             } finally {
@@ -676,7 +696,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
                 autoSaveTimerRef.current = null;
             }
         };
-    }, [formData, canAutoSave, isFormEmpty, wrappedOnSave]);
+    }, [formData, canAutoSave, isFormEmpty, silentSave]);
 
     // Reset auto-save bookkeeping when the record being edited changes
     // (e.g. switching months) so the new record's initial state isn't treated as "dirty".

@@ -1,27 +1,28 @@
 
-import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { Menu, X, UserCircle, CheckCircle, Eye, EyeOff, Users, Plus, Edit2, Trash2, Search, Briefcase, Phone, Mail, MapPin, Archive, Send, Power, Loader2, UserPlus, Crown, ShieldCheck, ChevronRight, Home, Bell } from 'lucide-react';
 import LoginScreen from './components/LoginScreen';
 import Sidebar from './components/Sidebar';
 import IdleWarningModal from './components/IdleWarningModal';
 import { useConfirmDialog } from './contexts/ConfirmContext';
 import { useIdleLogout } from './hooks/useIdleLogout';
+import { lazyWithRetry } from './lib/lazyWithRetry';
 
 const IDLE_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour — applies to clients and cabinet team
 const IDLE_WARNING_MS = 2 * 60 * 1000;  // warning modal appears 2 min before logout
 
-const Dashboard = lazy(() => import('./components/Dashboard'));
-const EntryForm = lazy(() => import('./components/EntryForm'));
-const AIChatWidget = lazy(() => import('./components/AIChatWidget'));
-const HistoryView = lazy(() => import('./components/HistoryView'));
-const SettingsView = lazy(() => import('./components/SettingsView'));
-const ConsultantMessaging = lazy(() => import('./components/ConsultantMessaging'));
-const ConsultantDashboard = lazy(() => import('./components/ConsultantDashboard'));
-const ClientPortfolio = lazy(() => import('./components/ClientPortfolio'));
-const ClientModal = lazy(() => import('./components/ClientModal'));
-const TeamManagement = lazy(() => import('./components/TeamManagement'));
-const ExcelImportModal = lazy(() => import('./components/ExcelImportModal'));
-const AppointmentPanel = lazy(() => import('./components/AppointmentPanel'));
+const Dashboard = lazyWithRetry(() => import('./components/Dashboard'));
+const EntryForm = lazyWithRetry(() => import('./components/EntryForm'));
+const AIChatWidget = lazyWithRetry(() => import('./components/AIChatWidget'));
+const HistoryView = lazyWithRetry(() => import('./components/HistoryView'));
+const SettingsView = lazyWithRetry(() => import('./components/SettingsView'));
+const ConsultantMessaging = lazyWithRetry(() => import('./components/ConsultantMessaging'));
+const ConsultantDashboard = lazyWithRetry(() => import('./components/ConsultantDashboard'));
+const ClientPortfolio = lazyWithRetry(() => import('./components/ClientPortfolio'));
+const ClientModal = lazyWithRetry(() => import('./components/ClientModal'));
+const TeamManagement = lazyWithRetry(() => import('./components/TeamManagement'));
+const ExcelImportModal = lazyWithRetry(() => import('./components/ExcelImportModal'));
+const AppointmentPanel = lazyWithRetry(() => import('./components/AppointmentPanel'));
 
 import { FinancialRecord, Client, Month, ProfitCenter, Consultant, View } from './types';
 import { getClients, saveClient, updateClientStatus, getRecordsByClient, resetDatabase, MONTH_ORDER, toShortMonth, getConsultants, addConsultant, deleteConsultant, deleteRecord, saveRecord, logActivity } from './services/dataService';

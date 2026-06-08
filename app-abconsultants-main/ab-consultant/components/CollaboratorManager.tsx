@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { UserPlus, Mail, Shield, Eye, Crown, X, Clock, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
+import { UserPlus, Mail, Shield, Eye, Crown, X, Clock, CheckCircle, XCircle, RotateCcw, Users } from 'lucide-react';
 import { ClientCollaborator, CollaboratorRole, CollaboratorStatus } from '../types';
 import { useConfirmDialog } from '../contexts/ConfirmContext';
 
@@ -9,6 +9,16 @@ interface CollaboratorManagerProps {
   ownerEmail: string;
   consultantEmail: string;
   onChange: (collaborators: ClientCollaborator[]) => void;
+  /** Propriétaire du dossier (login principal) — affiché en tête du roster d'accès. */
+  owner?: {
+    name?: string;
+    email?: string;
+    lastLoginAt?: string;
+    registeredAt?: string;
+    loginCount?: number;
+  };
+  /** Vrai si une invitation a déjà été envoyée au propriétaire (pour l'état "jamais connecté"). */
+  ownerInvited?: boolean;
 }
 
 const ROLE_CONFIG: Record<CollaboratorRole, { label: string; icon: React.ReactNode; color: string; description: string }> = {
@@ -23,7 +33,7 @@ const STATUS_CONFIG: Record<CollaboratorStatus, { label: string; icon: React.Rea
   revoked: { label: 'Révoqué', icon: <XCircle className="w-3 h-3" />, color: 'text-red-700 bg-red-50' },
 };
 
-const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators, ownerEmail, consultantEmail, onChange }) => {
+const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators, ownerEmail, consultantEmail, onChange, owner, ownerInvited }) => {
   const confirm = useConfirmDialog();
   const [newEmail, setNewEmail] = useState('');
   const [newName, setNewName] = useState('');
@@ -33,6 +43,19 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
   const activeCollaborators = collaborators.filter(c => c.status === 'active');
   const pendingCollaborators = collaborators.filter(c => c.status === 'pending');
   const revokedCollaborators = collaborators.filter(c => c.status === 'revoked');
+
+  // Roster d'accès : propriétaire (login principal, toujours autorisé) + collaborateurs actifs.
+  const ownerEmailDisplay = owner?.email || ownerEmail;
+  const ownerHasAccess = !!ownerEmailDisplay;
+  const peopleWithAccess = (ownerHasAccess ? 1 : 0) + activeCollaborators.length;
+  const ownerActivated = !!owner?.lastLoginAt;
+  const ownerStatus = ownerActivated
+    ? { label: 'Actif', color: 'text-emerald-700 bg-emerald-50', dot: 'bg-emerald-500' }
+    : ownerInvited
+      ? { label: 'Invité · jamais connecté', color: 'text-amber-700 bg-amber-50', dot: 'bg-amber-500' }
+      : { label: 'Non invité', color: 'text-slate-600 bg-slate-100', dot: 'bg-slate-400' };
+  const fmtDate = (iso?: string) =>
+    iso ? new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
   const handleAdd = () => {
     setError('');
@@ -146,11 +169,57 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
   return (
     <div className="space-y-4">
       <div className="border-b border-paper-200 pb-2">
-        <p className="eyebrow text-paper-500">Accès partagé</p>
+        <p className="eyebrow text-paper-500">Accès au dossier</p>
         <h3 className="font-display text-lg text-paper-900 flex items-center gap-2">
-          <UserPlus className="w-4 h-4 text-brand-600" /> Collaborateurs
+          <Users className="w-4 h-4 text-brand-600" /> Utilisateurs & accès
         </h3>
       </div>
+
+      {/* Résumé : combien de personnes ont accès */}
+      <div className="flex items-center gap-3 bg-brand-50/60 border border-brand-100 rounded-lg px-4 py-3">
+        <div className="w-9 h-9 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
+          {peopleWithAccess}
+        </div>
+        <div className="text-sm text-paper-700 leading-tight">
+          <span className="font-semibold text-brand-900">
+            {peopleWithAccess} personne{peopleWithAccess > 1 ? 's ont' : ' a'} accès
+          </span>{' '}
+          à ce dossier
+          {pendingCollaborators.length > 0 && (
+            <span className="text-amber-700">
+              {' '}· {pendingCollaborators.length} invitation{pendingCollaborators.length > 1 ? 's' : ''} en attente
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Carte Propriétaire (login principal) */}
+      {ownerHasAccess && (
+        <div className="space-y-2">
+          <p className="eyebrow text-paper-500">Propriétaire du compte</p>
+          <div className="flex items-center gap-3 bg-white rounded-lg p-3 border border-amber-200 shadow-paper-sm">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-semibold text-sm text-paper-800 truncate">
+                  {owner?.name || 'Propriétaire'}
+                </span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border text-amber-700 bg-amber-50 border-amber-200">
+                  <Crown className="w-3.5 h-3.5" /> Propriétaire
+                </span>
+                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium ${ownerStatus.color}`}>
+                  <span className={`w-2 h-2 rounded-full ${ownerStatus.dot}`} /> {ownerStatus.label}
+                </span>
+              </div>
+              <p className="text-xs text-paper-500 truncate font-mono">{ownerEmailDisplay}</p>
+              <p className="text-xs text-paper-500">
+                {ownerActivated
+                  ? `Dernière connexion : ${fmtDate(owner?.lastLoginAt)}${owner?.loginCount ? ` · ${owner.loginCount} connexion${owner.loginCount > 1 ? 's' : ''}` : ''}`
+                  : 'Le propriétaire doit créer son mot de passe pour accéder au dossier.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <p className="text-xs text-paper-600">
         Ajoutez des personnes (directeurs, comptables...) qui pourront accéder à ce dossier en plus du propriétaire.

@@ -97,8 +97,11 @@ export const setUserRole = functions.region('europe-west1').https.onCall(async (
   for (const clientDoc of allClientsSnap.docs) {
     const data = clientDoc.data();
     const collaborators: any[] = data.collaborators || [];
+    // Accept any non-revoked collaborator (pending OR active) and activate on this
+    // refresh — mirrors onUserCreated so a refreshUserRole() call right after signup
+    // also unblocks invited collaborators.
     const match = collaborators.find(
-      (c: any) => c.email?.toLowerCase() === email && c.status === 'active'
+      (c: any) => c.email?.toLowerCase() === email && c.status !== 'revoked'
     );
     if (match) {
       await auth.setCustomUserClaims(targetUid, {
@@ -107,10 +110,11 @@ export const setUserRole = functions.region('europe-west1').https.onCall(async (
         collaboratorRole: match.role || 'viewer',
       });
 
-      // Update lastLoginAt
+      // Activate the collaborator and stamp acceptedAt/lastLoginAt.
+      const nowIso = new Date().toISOString();
       const updatedCollaborators = collaborators.map((c: any) =>
         c.email?.toLowerCase() === email
-          ? { ...c, acceptedAt: c.acceptedAt || new Date().toISOString(), lastLoginAt: new Date().toISOString() }
+          ? { ...c, status: 'active', acceptedAt: c.acceptedAt || nowIso, lastLoginAt: nowIso }
           : c
       );
       // Maintain denormalized collaboratorEmails for Firestore rules (required by audit fix).

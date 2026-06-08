@@ -107,8 +107,12 @@ export const onUserCreated = functions.region('europe-west1').auth.user().onCrea
     for (const clientDoc of allClientsSnap.docs) {
       const data = clientDoc.data();
       const collaborators: any[] = data.collaborators || [];
+      // Accept any non-revoked collaborator (pending OR active). A freshly-invited
+      // collaborator is 'pending' until their first login — this signup IS that
+      // first login, so we activate them here. (Previously this required 'active',
+      // which nothing ever set, so invited collaborators could never log in.)
       const match = collaborators.find(
-        (c: any) => c.email?.toLowerCase() === email && c.status === 'active'
+        (c: any) => c.email?.toLowerCase() === email && c.status !== 'revoked'
       );
 
       if (match) {
@@ -118,10 +122,11 @@ export const onUserCreated = functions.region('europe-west1').auth.user().onCrea
           collaboratorRole: match.role || 'viewer',
         });
 
-        // Update collaborator's acceptedAt timestamp
+        // Activate the collaborator and stamp acceptedAt/lastLoginAt.
+        const nowIso = new Date().toISOString();
         const updatedCollaborators = collaborators.map((c: any) =>
           c.email?.toLowerCase() === email
-            ? { ...c, acceptedAt: c.acceptedAt || new Date().toISOString(), lastLoginAt: new Date().toISOString() }
+            ? { ...c, status: 'active', acceptedAt: c.acceptedAt || nowIso, lastLoginAt: nowIso }
             : c
         );
         // Maintain denormalized collaboratorEmails for Firestore rules (required by audit fix).

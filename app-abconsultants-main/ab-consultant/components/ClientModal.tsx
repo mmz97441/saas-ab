@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Building, User, Mail, MapPin, Hash, Save, AlertCircle, ShieldCheck, Phone, Briefcase, Check, Send, Copy, ExternalLink, Power, Archive, LogIn, Clock, Loader2 } from 'lucide-react';
+import { X, Building, User, Mail, MapPin, Hash, Save, AlertCircle, ShieldCheck, Phone, Briefcase, Check, Send, Copy, ExternalLink, Power, Archive, LogIn, Clock } from 'lucide-react';
 import { Client, Consultant, ClientCollaborator } from '../types';
 import { getConsultants } from '../services/dataService';
 import { useConfirmDialog } from '../contexts/ConfirmContext';
@@ -34,7 +34,6 @@ const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSave, init
     
     // NOUVEAU : État pour afficher l'écran d'invitation après succès
     const [showInviteStep, setShowInviteStep] = useState(false);
-    const [sendingEmail, setSendingEmail] = useState(false);
     const [emailSent, setEmailSent] = useState(false);
     const confirm = useConfirmDialog();
 
@@ -128,7 +127,9 @@ const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSave, init
 
     // --- GÉNÉRATION DU MESSAGE D'INVITATION (PREMIUM STYLE) ---
     const getInviteMessage = () => {
-        const url = window.location.origin;
+        // Deep-link : le client atterrit directement sur le formulaire "Créer mon accès"
+        // (onglet Espace Client + mode inscription), sans avoir à chercher l'onglet ni le lien.
+        const url = `${window.location.origin}/?tab=client&signup=1`;
         const manager = formData.managerName ? ` ${formData.managerName}` : '';
         
         return `Cher Partenaire${manager},
@@ -142,11 +143,9 @@ Ce portail exclusif vous permet désormais de :
 
 PROCÉDURE D'ACTIVATION SÉCURISÉE :
 
-1. Accédez au portail : ${url}
-2. Sélectionnez le portail "Espace Client".
-3. Cliquez sur le lien "Première connexion ? Créer mon accès".
-4. Saisissez votre identifiant unique : ${formData.owner?.email}
-5. Définissez votre mot de passe personnel.
+1. Cliquez sur votre lien d'activation : ${url}
+2. Saisissez votre identifiant unique : ${formData.owner?.email}
+3. Définissez votre mot de passe personnel.
 
 Note de sécurité : Cet identifiant est strictement personnel. 
 
@@ -162,7 +161,16 @@ Expertise & Stratégie Financière`;
     const handleSendEmail = () => {
         const subject = `CONFIDENTIEL | Activation de votre Portail Stratégique - ${formData.companyName}`;
         const body = getInviteMessage();
+        // Ouvre la messagerie par défaut du consultant (Outlook, Mail…) avec le template
+        // pré-rempli. Tant que Resend/SMTP n'est pas configuré, c'est le canal d'envoi.
         window.location.href = `mailto:${formData.owner?.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        setEmailSent(true);
+        // Marque le dossier comme "invité" côté portefeuille — method 'manual' n'envoie
+        // aucun email serveur, il ne fait qu'enregistrer invitationStatus.
+        const id = initialData?.id || formData.id;
+        if (id) {
+            callSendClientInvitation({ clientId: id, method: 'manual', appUrl: window.location.origin }).catch(() => {});
+        }
     };
 
     const handleCopyLink = async () => {
@@ -210,31 +218,16 @@ Expertise & Stratégie Financière`;
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-md">
                             <button
-                                onClick={async () => {
-                                    if (!initialData?.id && !formData.id) return;
-                                    setSendingEmail(true);
-                                    try {
-                                        await callSendClientInvitation({ clientId: (initialData?.id || formData.id)!, method: 'email', appUrl: window.location.origin });
-                                        setEmailSent(true);
-                                        await confirm({ title: 'Invitation envoyée !', message: `L'email d'invitation a été envoyé à ${formData.owner?.email}.`, variant: 'success', showCancel: false, confirmLabel: 'OK' });
-                                    } catch {
-                                        await confirm({ title: 'Erreur', message: 'Impossible d\'envoyer l\'email. Vérifiez la configuration SMTP.', variant: 'danger', showCancel: false, confirmLabel: 'OK' });
-                                    } finally {
-                                        setSendingEmail(false);
-                                    }
-                                }}
-                                disabled={sendingEmail}
-                                className="flex flex-col items-center justify-center p-4 bg-brand-600 text-white rounded-xl hover:bg-brand-700 transition shadow-md group disabled:opacity-50"
+                                onClick={handleSendEmail}
+                                className="flex flex-col items-center justify-center p-4 bg-brand-600 text-white rounded-xl hover:bg-brand-700 transition shadow-md group"
                             >
-                                {sendingEmail ? (
-                                    <Loader2 className="w-6 h-6 mb-2 animate-spin" />
-                                ) : emailSent ? (
+                                {emailSent ? (
                                     <Check className="w-6 h-6 mb-2 text-emerald-300" />
                                 ) : (
                                     <Mail className="w-6 h-6 mb-2 group-hover:-translate-y-1 transition-transform" />
                                 )}
-                                <span className="font-bold">{emailSent ? 'Email envoyé !' : 'Envoyer par email'}</span>
-                                <span className="text-xs opacity-80 mt-1">Envoi automatique sécurisé</span>
+                                <span className="font-bold">{emailSent ? 'Messagerie ouverte' : 'Envoyer par email'}</span>
+                                <span className="text-xs opacity-80 mt-1">Ouvre votre messagerie</span>
                             </button>
 
                             <button
@@ -566,6 +559,8 @@ Expertise & Stratégie Financière`;
                             ownerEmail={formData.owner?.email || ''}
                             consultantEmail={consultants[0]?.email || 'admin@ab-consultants.fr'}
                             onChange={(collabs) => setFormData({ ...formData, collaborators: collabs })}
+                            owner={initialData?.owner || formData.owner}
+                            ownerInvited={!!initialData?.invitationStatus?.lastSentAt}
                         />
 
                         </div>

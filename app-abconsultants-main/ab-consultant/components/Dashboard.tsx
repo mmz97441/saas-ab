@@ -8,6 +8,7 @@ import { TrendingUp, TrendingDown, DollarSign, Users, MousePointerClick, Calenda
 // @ts-ignore
 import confetti from 'canvas-confetti';
 import { toShortMonth } from '../services/dataService';
+import KpiDetailModal, { KpiType } from './KpiDetailModal';
 
 interface DashboardProps {
   data: FinancialRecord[];
@@ -96,6 +97,18 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
   // Multi-Month Selection State (Empty array means "All Year")
   const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
   const [celebrated, setCelebrated] = useState(false);
+
+  // KPI drill-down : carte cliquée → modale de détail + analyses croisées
+  const [kpiDetail, setKpiDetail] = useState<KpiType | null>(null);
+  const cardClickProps = (type: KpiType) => ({
+    onClick: () => setKpiDetail(type),
+    role: 'button' as const,
+    tabIndex: 0,
+    'aria-label': `Voir le détail et les analyses de ${type}`,
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setKpiDetail(type); }
+    },
+  });
 
   // Rolling period mode (12M = 12 mois glissants, 6M = 6 mois glissants)
   const [rollingMode, setRollingMode] = useState<'12M' | '6M' | null>(null);
@@ -761,6 +774,16 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
 
+      {/* KPI drill-down modal */}
+      {kpiDetail && (
+        <KpiDetailModal
+          kpiType={kpiDetail}
+          kpis={kpis}
+          snapshotRecord={snapshotRecord}
+          onClose={() => setKpiDetail(null)}
+        />
+      )}
+
       {/* EDITORIAL PAGE TITLE */}
       <div className="px-1">
          <p className="eyebrow mb-2">{client.companyName || 'Mon Dossier'}</p>
@@ -931,7 +954,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
            const barColor = getCaBarColor(caPerf);
            const textColor = getCaTextColor(caPerf);
            return (
-         <div className="p-4 rounded-xl border bg-white border-brand-100 shadow-paper-sm hover-lift relative overflow-hidden">
+         <div {...cardClickProps('revenue')} className="p-4 rounded-xl border bg-white border-brand-100 shadow-paper-sm hover-lift relative overflow-hidden cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500">
             <div className="flex justify-between items-start mb-1">
                 <div className="p-1.5 rounded-lg bg-brand-50 text-brand-600">
                     <DollarSign className="w-4 h-4" />
@@ -978,7 +1001,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
          })()}
 
          {/* MARGIN CARD */}
-         <div className="bg-white p-4 rounded-xl border border-brand-100 shadow-paper-sm hover-lift relative overflow-hidden">
+         <div {...cardClickProps('margin')} className="bg-white p-4 rounded-xl border border-brand-100 shadow-paper-sm hover-lift relative overflow-hidden cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500">
             <div className="flex justify-between items-start mb-1">
                 <div className="p-1.5 rounded-lg bg-purple-50 text-purple-600">
                     <Percent className="w-4 h-4" />
@@ -990,6 +1013,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
                 <h3 className="font-display text-2xl text-slate-400 font-medium italic">Non renseigné</h3>
                 <button
                   type="button"
+                  onClick={(e) => e.stopPropagation()}
                   className="mt-1 text-xs font-semibold text-brand-600 hover:underline"
                 >
                   Saisir →
@@ -1012,7 +1036,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
          </div>
 
          {/* TREASURY CARD */}
-         <div className={`p-4 rounded-xl border shadow-paper-sm hover-lift ${kpis.treasury < 0 ? 'bg-red-50 border-red-200' : 'bg-white border-brand-100'}`}>
+         <div {...cardClickProps('treasury')} className={`p-4 rounded-xl border shadow-paper-sm hover-lift cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 ${kpis.treasury < 0 ? 'bg-red-50 border-red-200' : 'bg-white border-brand-100'}`}>
              <div className="flex justify-between items-start mb-1">
                 <div className={`p-1.5 rounded-lg ${kpis.treasury >= 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
                     <Landmark className="w-4 h-4" />
@@ -1032,7 +1056,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
          </div>
 
          {/* BFR CARD */}
-         <div className="p-4 rounded-xl border bg-white border-brand-100 shadow-paper-sm hover-lift">
+         <div {...cardClickProps('bfr')} className="p-4 rounded-xl border bg-white border-brand-100 shadow-paper-sm hover-lift cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500">
              <div className="flex justify-between items-start mb-1">
                 <div className="p-1.5 rounded-lg bg-cyan-100 text-cyan-600">
                     <Briefcase className="w-4 h-4" />

@@ -772,17 +772,20 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
   }, [chartData, data, selectedYear, kpis.topActivities]);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-
-      {/* KPI drill-down modal */}
+    <>
+      {/* KPI drill-down modal — hors du conteneur zoomé pour rester à l'échelle écran */}
       {kpiDetail && (
         <KpiDetailModal
           kpiType={kpiDetail}
           kpis={kpis}
           snapshotRecord={snapshotRecord}
           onClose={() => setKpiDetail(null)}
+          isPresentationMode={isPresentationMode}
         />
       )}
+
+      {/* Mode présentation TV : plein écran + agrandissement fort (max-w-7xl centré → marge dispo) */}
+      <div className="space-y-6 animate-in fade-in duration-500" style={isPresentationMode ? { zoom: 1.5 } : undefined}>
 
       {/* EDITORIAL PAGE TITLE */}
       <div className="px-1">
@@ -1592,7 +1595,8 @@ const Dashboard: React.FC<DashboardProps> = ({ data, client, userRole, onSaveCom
           </div>
       </div>
 
-    </div>
+      </div>
+    </>
   );
 };
 

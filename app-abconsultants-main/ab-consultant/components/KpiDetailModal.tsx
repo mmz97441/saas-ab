@@ -17,6 +17,8 @@ interface KpiDetailModalProps {
   kpis: KpiData;
   snapshotRecord: FinancialRecord | null;
   onClose: () => void;
+  /** Mode présentation TV : polices et espacements agrandis pour lecture à distance. */
+  isPresentationMode?: boolean;
 }
 
 const SEVERITY: Record<InsightSeverity, { wrap: string; title: string; icon: React.ReactNode }> = {
@@ -33,17 +35,29 @@ const CONFIG: Record<KpiType, { label: string; icon: React.ReactNode; accent: st
   bfr: { label: 'Besoin en Fonds de Roulement', icon: <Briefcase className="w-5 h-5" />, accent: 'text-cyan-600 bg-cyan-50' },
 };
 
-const Row: React.FC<{ label: string; value: string; strong?: boolean; danger?: boolean }> = ({ label, value, strong, danger }) => (
-  <div className="flex items-center justify-between py-1.5 border-b border-paper-100 last:border-0">
-    <span className="text-sm text-paper-600">{label}</span>
-    <span className={`text-sm font-mono tabular-nums ${danger ? 'text-red-700 font-bold' : strong ? 'text-paper-900 font-bold' : 'text-paper-800'}`}>{value}</span>
-  </div>
-);
-
-const KpiDetailModal: React.FC<KpiDetailModalProps> = ({ kpiType, kpis, snapshotRecord, onClose }) => {
+const KpiDetailModal: React.FC<KpiDetailModalProps> = ({ kpiType, kpis, snapshotRecord, onClose, isPresentationMode }) => {
   const cfg = CONFIG[kpiType];
+  const pm = !!isPresentationMode;
 
-  // --- Valeur d'en-tête + insights + breakdown selon le type ---
+  // Jeu de tailles adaptatif : "bureau" vs "présentation TV" (lecture à distance).
+  const sz = {
+    body: pm ? 'text-xl' : 'text-sm',
+    rowLabel: pm ? 'text-xl' : 'text-sm',
+    rowValue: pm ? 'text-xl' : 'text-sm',
+    headline: pm ? 'text-5xl' : 'text-2xl',
+    title: pm ? 'text-3xl' : 'text-xl',
+    eyebrow: pm ? 'text-sm tracking-widest' : 'eyebrow',
+    pad: pm ? 'p-7' : 'p-5',
+    maxW: pm ? 'max-w-3xl' : 'max-w-lg',
+  };
+
+  const Row: React.FC<{ label: string; value: string; strong?: boolean; danger?: boolean }> = ({ label, value, strong, danger }) => (
+    <div className="flex items-center justify-between py-1.5 border-b border-paper-100 last:border-0">
+      <span className={`${sz.rowLabel} text-paper-600`}>{label}</span>
+      <span className={`${sz.rowValue} font-mono tabular-nums ${danger ? 'text-red-700 font-bold' : strong ? 'text-paper-900 font-bold' : 'text-paper-800'}`}>{value}</span>
+    </div>
+  );
+
   let headline = '';
   let insights: KpiInsight[] = [];
   let breakdown: React.ReactNode = null;
@@ -53,19 +67,19 @@ const KpiDetailModal: React.FC<KpiDetailModalProps> = ({ kpiType, kpis, snapshot
     insights = revenueInsights(kpis);
     breakdown = kpis.topActivities.length > 0 ? (
       <div>
-        <p className="eyebrow text-paper-500 mb-2">Répartition par activité</p>
+        <p className={`${sz.eyebrow} text-paper-500 mb-2`}>Répartition par activité</p>
         <div className="space-y-0.5">
           {kpis.topActivities.map((a) => (
             <div key={a.id} className="py-1.5 border-b border-paper-100 last:border-0">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-paper-800 truncate pr-2">{a.name}</span>
-                <span className="text-sm font-mono tabular-nums text-paper-800">{eur(a.val)}</span>
+                <span className={`${sz.rowLabel} font-medium text-paper-800 truncate pr-2`}>{a.name}</span>
+                <span className={`${sz.rowValue} font-mono tabular-nums text-paper-800`}>{eur(a.val)}</span>
               </div>
               <div className="flex items-center gap-2 mt-1">
-                <div className="h-1.5 flex-1 bg-paper-100 rounded-full overflow-hidden">
+                <div className={`${pm ? 'h-2.5' : 'h-1.5'} flex-1 bg-paper-100 rounded-full overflow-hidden`}>
                   <div className="h-full bg-brand-500 rounded-full" style={{ width: `${Math.min(a.percent, 100)}%` }} />
                 </div>
-                <span className="text-xs text-paper-500 w-24 text-right">
+                <span className={`${pm ? 'text-base w-40' : 'text-xs w-24'} text-paper-500 text-right`}>
                   {pct(a.percent)}{a.marginRate > 0 ? ` · marge ${pct(a.marginRate)}` : ''}
                 </span>
               </div>
@@ -74,14 +88,14 @@ const KpiDetailModal: React.FC<KpiDetailModalProps> = ({ kpiType, kpis, snapshot
         </div>
       </div>
     ) : (
-      <p className="text-sm text-paper-500">Aucune ventilation d'activité saisie sur la période.</p>
+      <p className={`${sz.body} text-paper-500`}>Aucune ventilation d'activité saisie sur la période.</p>
     );
   } else if (kpiType === 'margin') {
     headline = kpis.marginUnset ? 'Non renseigné' : pct(kpis.globalMarginRate);
     insights = marginInsights(kpis);
     breakdown = kpis.marginUnset ? null : (
       <div>
-        <p className="eyebrow text-paper-500 mb-2">Décomposition</p>
+        <p className={`${sz.eyebrow} text-paper-500 mb-2`}>Décomposition</p>
         <Row label="Taux de marge global" value={pct(kpis.globalMarginRate)} strong />
         {kpis.marginVariation !== null && (
           <Row label="Variation vs N-1" value={`${kpis.marginVariation >= 0 ? '+' : ''}${kpis.marginVariation.toFixed(1)} pts`} danger={kpis.marginVariation < 0} />
@@ -98,7 +112,7 @@ const KpiDetailModal: React.FC<KpiDetailModalProps> = ({ kpiType, kpis, snapshot
     const recv = snapshotRecord?.bfr.receivables;
     breakdown = (
       <div>
-        <p className="eyebrow text-paper-500 mb-2">Composition (dernier mois)</p>
+        <p className={`${sz.eyebrow} text-paper-500 mb-2`}>Composition (dernier mois)</p>
         {cf ? (
           <>
             <Row label="Disponibilités (actif)" value={eur(cf.active)} />
@@ -106,7 +120,7 @@ const KpiDetailModal: React.FC<KpiDetailModalProps> = ({ kpiType, kpis, snapshot
             <Row label="Trésorerie nette" value={eur(cf.treasury)} strong danger={cf.treasury < 0} />
           </>
         ) : (
-          <p className="text-sm text-paper-500">Pas de détail de trésorerie sur la période.</p>
+          <p className={`${sz.body} text-paper-500`}>Pas de détail de trésorerie sur la période.</p>
         )}
         {recv && <Row label="dont créances clients à encaisser" value={eur(recv.clients)} />}
         <Row label="Délai moyen de paiement clients (DSO)" value={jours(kpis.dso)} />
@@ -118,7 +132,7 @@ const KpiDetailModal: React.FC<KpiDetailModalProps> = ({ kpiType, kpis, snapshot
     const b = snapshotRecord?.bfr;
     breakdown = (
       <div>
-        <p className="eyebrow text-paper-500 mb-2">Composantes (dernier mois)</p>
+        <p className={`${sz.eyebrow} text-paper-500 mb-2`}>Composantes (dernier mois)</p>
         {b ? (
           <>
             <Row label="Créances (clients, état, social…)" value={eur(b.receivables.total)} />
@@ -127,7 +141,7 @@ const KpiDetailModal: React.FC<KpiDetailModalProps> = ({ kpiType, kpis, snapshot
             <Row label="BFR" value={eur(b.total)} strong />
           </>
         ) : (
-          <p className="text-sm text-paper-500">Pas de détail BFR sur la période.</p>
+          <p className={`${sz.body} text-paper-500`}>Pas de détail BFR sur la période.</p>
         )}
         <div className="grid grid-cols-4 gap-2 mt-3">
           {[
@@ -137,9 +151,9 @@ const KpiDetailModal: React.FC<KpiDetailModalProps> = ({ kpiType, kpis, snapshot
             { l: 'BFR', v: jours(kpis.bfrDays), s: 'jours CA' },
           ].map((x) => (
             <div key={x.l} className="flex flex-col items-center p-2 rounded-lg bg-paper-50 border border-paper-200">
-              <span className="text-xs font-bold uppercase tracking-wider text-paper-400">{x.l}</span>
-              <span className="font-display text-lg font-semibold tabular-nums text-paper-800">{x.v}</span>
-              <span className="text-xs text-paper-400">{x.s}</span>
+              <span className={`${pm ? 'text-sm' : 'text-xs'} font-bold uppercase tracking-wider text-paper-400`}>{x.l}</span>
+              <span className={`font-display ${pm ? 'text-3xl' : 'text-lg'} font-semibold tabular-nums text-paper-800`}>{x.v}</span>
+              <span className={`${pm ? 'text-sm' : 'text-xs'} text-paper-400`}>{x.s}</span>
             </div>
           ))}
         </div>
@@ -156,42 +170,42 @@ const KpiDetailModal: React.FC<KpiDetailModalProps> = ({ kpiType, kpis, snapshot
         role="dialog"
         aria-modal="true"
         aria-label={`Détail ${cfg.label}`}
-        className="bg-white rounded-2xl shadow-paper-xl w-full max-w-lg overflow-hidden border border-paper-200 flex flex-col max-h-[90vh] animate-in zoom-in-95 fade-in duration-300"
+        className={`bg-white rounded-2xl shadow-paper-xl w-full ${sz.maxW} overflow-hidden border border-paper-200 flex flex-col max-h-[90vh] animate-in zoom-in-95 fade-in duration-300`}
       >
         {/* Header */}
-        <div className="bg-paper-50 p-5 border-b border-paper-200 flex justify-between items-start shrink-0">
+        <div className={`bg-paper-50 ${sz.pad} border-b border-paper-200 flex justify-between items-start shrink-0`}>
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-lg ${cfg.accent}`}>{cfg.icon}</div>
             <div>
-              <p className="eyebrow text-paper-500">Analyse détaillée</p>
-              <h2 className="font-display text-xl font-semibold text-paper-900">{cfg.label}</h2>
-              <p className="font-display text-2xl font-semibold text-paper-900 tabular-nums mt-0.5">{headline}</p>
+              <p className={`${sz.eyebrow} text-paper-500`}>Analyse détaillée</p>
+              <h2 className={`font-display ${sz.title} font-semibold text-paper-900`}>{cfg.label}</h2>
+              <p className={`font-display ${sz.headline} font-semibold text-paper-900 tabular-nums mt-0.5`}>{headline}</p>
             </div>
           </div>
           <button onClick={onClose} aria-label="Fermer" title="Fermer" className="p-2 bg-white rounded-full text-paper-500 hover:text-brand-900 hover:bg-paper-100 transition">
-            <X className="w-5 h-5" />
+            <X className={pm ? 'w-7 h-7' : 'w-5 h-5'} />
           </button>
         </div>
 
         {/* Body */}
-        <div className="p-5 overflow-y-auto space-y-5">
+        <div className={`${sz.pad} overflow-y-auto space-y-5`}>
           {breakdown}
 
           {/* Analyses croisées */}
           <div>
-            <p className="eyebrow text-paper-500 mb-2">Analyses croisées</p>
+            <p className={`${sz.eyebrow} text-paper-500 mb-2`}>Analyses croisées</p>
             {insights.length === 0 ? (
-              <p className="text-sm text-paper-500">Rien à signaler sur cet indicateur pour la période sélectionnée.</p>
+              <p className={`${sz.body} text-paper-500`}>Rien à signaler sur cet indicateur pour la période sélectionnée.</p>
             ) : (
               <div className="space-y-2">
                 {insights.map((ins, i) => {
                   const s = SEVERITY[ins.severity];
                   return (
-                    <div key={i} className={`flex items-start gap-2.5 p-3 rounded-lg border ${s.wrap}`}>
+                    <div key={i} className={`flex items-start gap-2.5 ${pm ? 'p-4' : 'p-3'} rounded-lg border ${s.wrap}`}>
                       <span className="shrink-0 mt-0.5">{s.icon}</span>
                       <div>
-                        <p className={`text-sm font-bold ${s.title}`}>{ins.title}</p>
-                        <p className="text-sm text-paper-700 leading-snug mt-0.5">{ins.text}</p>
+                        <p className={`${pm ? 'text-xl' : 'text-sm'} font-bold ${s.title}`}>{ins.title}</p>
+                        <p className={`${sz.body} text-paper-700 leading-snug mt-0.5`}>{ins.text}</p>
                       </div>
                     </div>
                   );

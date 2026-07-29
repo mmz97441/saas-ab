@@ -60,6 +60,29 @@ const App: React.FC = () => {
   const [isPresentationMode, setIsPresentationMode] = useState(false);
   const [newDataBanner, setNewDataBanner] = useState(false);
 
+  // Mode présentation TV : vrai plein écran (remplit l'écran, masque le navigateur)
+  // + agrandissement géré dans Dashboard. Rend la bascule flagrante sur une TV.
+  const togglePresentation = () => {
+    setIsPresentationMode(prev => {
+      const next = !prev;
+      try {
+        if (next && !document.fullscreenElement) {
+          (document.documentElement.requestFullscreen?.() as Promise<void> | undefined)?.catch(() => {});
+        } else if (!next && document.fullscreenElement) {
+          document.exitFullscreen?.().catch(() => {});
+        }
+      } catch { /* Fullscreen API indisponible : on reste en mode agrandi simple */ }
+      return next;
+    });
+  };
+
+  // Sortie du plein écran (Échap / bouton navigateur) → on quitte aussi le mode présentation.
+  useEffect(() => {
+    const onFsChange = () => { if (!document.fullscreenElement) setIsPresentationMode(false); };
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
+
   const SUPER_ADMIN_EMAIL = 'nice.guillaume@gmail.com';
   const confirm = useConfirmDialog();
 
@@ -737,7 +760,7 @@ const App: React.FC = () => {
             {/* VUE 1 : DASHBOARD CLIENT INDIVIDUEL */}
             {currentView === View.Dashboard && selectedClient && (
                 <div key={`dash-${selectedClient.id}`} className="animate-in fade-in duration-200">
-                <Dashboard data={dashboardData} client={selectedClient} userRole={userRole} onSaveComment={handleSaveRecord} isPresentationMode={isPresentationMode} onTogglePresentation={() => setIsPresentationMode(p => !p)}/>
+                <Dashboard data={dashboardData} client={selectedClient} userRole={userRole} onSaveComment={handleSaveRecord} isPresentationMode={isPresentationMode} onTogglePresentation={togglePresentation}/>
                 </div>
             )}
 

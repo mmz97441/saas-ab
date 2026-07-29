@@ -24,10 +24,6 @@
   /* Easing — signature curve, used on every meaningful transition */
   --ease-premium:          cubic-bezier(0.32, 0.72, 0, 1);
   --ease-editorial:        cubic-bezier(0.22, 1, 0.36, 1);
-
-  /* Typography — variable font axes for Fraunces */
-  --fraunces-soft-display:  60;   /* large headings: warmer */
-  --fraunces-soft-body:     20;   /* small text: sharper */
 }
 
 /* =================================================
@@ -36,8 +32,7 @@
 body {
   background-color: var(--color-paper-bg);
   color: var(--color-ink-body);
-  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
-  font-feature-settings: 'ss01', 'cv11';  /* DM Sans: alt 'a' + alt '6/9' */
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -64,16 +59,12 @@ table,
    (we don't force serif on every <h1> globally — components opt in) */
 .font-display,
 [class*="font-display"] {
-  font-family: 'Fraunces', Georgia, serif;
-  font-optical-sizing: auto;
-  font-variation-settings: 'SOFT' var(--fraunces-soft-display);
-  letter-spacing: -0.015em;
-  font-feature-settings: 'ss01', 'ss02';  /* Fraunces stylistic alternates */
+  font-family: 'Inter', system-ui, sans-serif;
+  letter-spacing: -0.015em;  /* léger resserrage sur les titres Inter */
 }
 
 .font-serif {
-  font-family: 'Fraunces', Georgia, serif;
-  font-optical-sizing: auto;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
 /* =================================================
@@ -81,7 +72,7 @@ table,
    Use: <p className="eyebrow">Pilotage Cabinet</p>
    ================================================= */
 .eyebrow {
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;

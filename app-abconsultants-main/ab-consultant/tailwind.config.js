@@ -12,14 +12,12 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        // Body: DM Sans variable — premium B2B sans, characterful at small sizes
-        sans: ['"DM Sans"', 'system-ui', 'sans-serif'],
-        // Display: Fraunces variable — editorial serif for H1/H2/H3 and KPI numbers
-        // Used via `font-display` utility class
-        display: ['"Fraunces"', 'Georgia', 'serif'],
-        serif: ['"Fraunces"', 'Georgia', 'serif'],
-        // Mono: IBM Plex Mono — heritage financial vibe for tabular numbers
-        mono: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
+        // Retour à Inter partout (police d'avant le redesign éditorial).
+        // Les tailles restent inchangées (classes text-* dans le markup).
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        display: ['Inter', 'system-ui', 'sans-serif'],
+        serif: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['Inter', 'system-ui', 'sans-serif'],
       },
       colors: {
         // Paper family — warm neutrals (replaces cold slate-* for surfaces)

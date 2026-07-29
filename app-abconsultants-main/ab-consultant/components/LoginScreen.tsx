@@ -197,11 +197,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
           </div>
 
           <div className="space-y-6">
-             <h2 className="font-display text-3xl md:text-4xl font-semibold tracking-tight leading-tight text-white [text-wrap:balance]">
+             <h1 className="font-display text-3xl md:text-4xl font-semibold tracking-tight leading-tight text-white [text-wrap:balance]">
                 {activeTab === 'expert'
                     ? "Expertise et Stratégie."
                     : "Votre performance financière en temps réel."}
-             </h2>
+             </h1>
              <p className="text-brand-100 leading-relaxed font-light">
                 {activeTab === 'expert'
                     ? "Pilotage global du portefeuille, validation des comptes et analyses stratégiques pour vos clients transport & logistique."

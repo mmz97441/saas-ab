@@ -73,9 +73,9 @@ const AnimatedNumber = ({ value, format = true }: { value: number, format?: bool
     }, [value]);
 
     if (format) {
-        return <>{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(displayValue)}</>;
+        return <>{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(displayValue)}</>;
     }
-    return <>{new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(displayValue)}</>;
+    return <>{new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(displayValue)}</>;
 };
 
 // Helper for formatting (Dynamic 0-2 fraction digits)
@@ -83,7 +83,7 @@ const formatCurrency = (value: number, fractionDigits?: number) =>
     new Intl.NumberFormat('fr-FR', { 
         style: 'currency', 
         currency: 'EUR', 
-        maximumFractionDigits: fractionDigits !== undefined ? fractionDigits : 2, // Default max 2
+        maximumFractionDigits: fractionDigits !== undefined ? fractionDigits : 0, // Défaut entier (cohérent avec la saisie entiers)
         minimumFractionDigits: fractionDigits !== undefined ? fractionDigits : 0  // Default min 0
     }).format(value);
 

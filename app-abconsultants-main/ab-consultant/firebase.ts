@@ -16,14 +16,28 @@ const getEnv = (key: string) => {
   return "";
 };
 
-// Configuration via Variables d'Environnement (VITE_...)
+// Config web Firebase publique (apiKey/authDomain/etc. ne sont PAS des secrets :
+// ils identifient le projet, la sécurité vient des règles Firestore + Auth).
+// On la garde en REPLI pour que tout build ait une config valide même si les
+// VITE_FIREBASE_* ne sont pas injectées (ex : build CI GitHub Actions).
+// → évite la page blanche "auth/invalid-api-key" sur app-ab-consultant.web.app.
+const DEFAULT_FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyBhh58vbDKjg9qdSAZPAa6Sc0uOml1rdhM',
+  authDomain: 'app-ab-consultant.firebaseapp.com',
+  projectId: 'app-ab-consultant',
+  storageBucket: 'app-ab-consultant.firebasestorage.app',
+  messagingSenderId: '1024002919552',
+  appId: '1:1024002919552:web:e922145a299ba2fb35aa65',
+};
+
+// Les variables d'environnement (VITE_...) restent prioritaires si présentes.
 const firebaseConfig = {
-  apiKey: getEnv('VITE_FIREBASE_API_KEY'),
-  authDomain: getEnv('VITE_FIREBASE_AUTH_DOMAIN'),
-  projectId: getEnv('VITE_FIREBASE_PROJECT_ID'),
-  storageBucket: getEnv('VITE_FIREBASE_STORAGE_BUCKET'),
-  messagingSenderId: getEnv('VITE_FIREBASE_MESSAGING_SENDER_ID'),
-  appId: getEnv('VITE_FIREBASE_APP_ID')
+  apiKey: getEnv('VITE_FIREBASE_API_KEY') || DEFAULT_FIREBASE_CONFIG.apiKey,
+  authDomain: getEnv('VITE_FIREBASE_AUTH_DOMAIN') || DEFAULT_FIREBASE_CONFIG.authDomain,
+  projectId: getEnv('VITE_FIREBASE_PROJECT_ID') || DEFAULT_FIREBASE_CONFIG.projectId,
+  storageBucket: getEnv('VITE_FIREBASE_STORAGE_BUCKET') || DEFAULT_FIREBASE_CONFIG.storageBucket,
+  messagingSenderId: getEnv('VITE_FIREBASE_MESSAGING_SENDER_ID') || DEFAULT_FIREBASE_CONFIG.messagingSenderId,
+  appId: getEnv('VITE_FIREBASE_APP_ID') || DEFAULT_FIREBASE_CONFIG.appId,
 };
 
 // Vérification de sécurité pour le développement

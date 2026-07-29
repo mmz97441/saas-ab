@@ -18,11 +18,23 @@ const DEFINITIONS = {
 // --- HELPERS ---
 const formatForDisplay = (val: number | undefined | null) => {
     if (val === undefined || val === null) return '0';
-    // Format français : espace pour milliers, max 2 décimales
-    return new Intl.NumberFormat('fr-FR', { 
-        maximumFractionDigits: 2,
-        minimumFractionDigits: 0 
+    // Format français : espace pour milliers, ENTIERS uniquement (pas de décimales).
+    // La saisie n'accepte que des nombres entiers (ex : 143 459, jamais 143 459,43).
+    return new Intl.NumberFormat('fr-FR', {
+        maximumFractionDigits: 0,
+        minimumFractionDigits: 0
     }).format(val);
+};
+
+// Saisie entiers uniquement : on tronque toute partie décimale (après , ou .)
+// et on ignore tout caractère non numérique. Gère un éventuel signe négatif.
+const parseIntegerInput = (raw: string): number => {
+    const s = raw.replace(/\s/g, '');
+    const neg = s.startsWith('-');
+    const digits = s.split(/[.,]/)[0].replace(/[^0-9]/g, '');
+    if (digits === '') return 0;
+    const val = parseInt(digits, 10);
+    return isNaN(val) ? 0 : (neg ? -val : val);
 };
 
 // --- SMART INPUT COMPONENTS ---
@@ -73,14 +85,9 @@ const SmartNumberInput = ({
                 <div className="relative flex-1 group">
                     {prefix && <div className="absolute left-3 top-2.5 pointer-events-none font-bold text-slate-600">{prefix}</div>}
                     <input
-                        type={isFocused ? "number" : "text"}
+                        type="text" inputMode="numeric"
                         value={isFocused ? (value === 0 ? '' : value) : formatForDisplay(value)}
-                        onChange={(e) => {
-                            // Only parse if focused (raw input), otherwise ignore (it's display)
-                            const rawValue = e.target.value.replace(',', '.'); // Allow comma as decimal separator
-                            const val = rawValue === '' ? 0 : parseFloat(rawValue);
-                            if (!isNaN(val)) onChange(val);
-                        }}
+                        onChange={(e) => onChange(parseIntegerInput(e.target.value))}
                         onFocus={() => setIsFocused(true)}
                         onBlur={() => setIsFocused(false)}
                         disabled={disabled}
@@ -115,12 +122,10 @@ const SmartBigInput = ({ value, onChange, disabled, placeholder = "0 €", color
     
     return (
         <input 
-            type={isFocused ? "number" : "text"}
+            type="text" inputMode="numeric"
             value={isFocused ? (value === 0 ? '' : value) : formatForDisplay(value)}
             onChange={(e) => {
-                const rawValue = e.target.value.replace(',', '.');
-                const val = rawValue === '' ? 0 : parseFloat(rawValue);
-                if (!isNaN(val)) onChange(val);
+                onChange(parseIntegerInput(e.target.value));
             }}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
@@ -137,12 +142,10 @@ const SmartTableInput = ({ value, onChange, disabled, placeholder = "0", align =
 
     return (
         <input 
-            type={isFocused ? "number" : "text"}
+            type="text" inputMode="numeric"
             value={isFocused ? (value === 0 ? '' : value) : formatForDisplay(value)}
             onChange={(e) => {
-                const rawValue = e.target.value.replace(',', '.');
-                const val = rawValue === '' ? 0 : parseFloat(rawValue);
-                if (!isNaN(val)) onChange(val);
+                onChange(parseIntegerInput(e.target.value));
             }}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
@@ -782,10 +785,11 @@ const EntryForm: React.FC<EntryFormProps> = ({
                 }
 
                 if (csvYear === formData.year && csvMonth === formData.month) {
-                    const caTotal = parseFloat(cols[2]) || 0;
-                    const salaires = parseFloat(cols[3]) || 0;
-                    const bfrTotal = parseFloat(cols[4]) || 0;
-                    const tresorerie = parseFloat(cols[5]) || 0;
+                    // Entiers uniquement : on arrondit toute valeur collée avec décimales.
+                    const caTotal = Math.round(parseFloat(cols[2]) || 0);
+                    const salaires = Math.round(parseFloat(cols[3]) || 0);
+                    const bfrTotal = Math.round(parseFloat(cols[4]) || 0);
+                    const tresorerie = Math.round(parseFloat(cols[5]) || 0);
 
                     setFormData(prev => ({
                         ...prev,

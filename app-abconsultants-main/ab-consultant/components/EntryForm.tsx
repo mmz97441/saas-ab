@@ -985,7 +985,9 @@ const EntryForm: React.FC<EntryFormProps> = ({
                                         // Cancel any pending debounced auto-save: the submit below will persist
                                         // the current formData in one go, making the queued save redundant.
                                         flushAutoSave();
-                                        wrappedOnSave(formData);
+                                        // isSubmitted:true sinon handleSaveRecord (App.tsx) le prend pour un
+                                        // auto-save (isAutoSave = record.isSubmitted === false) et ne soumet jamais.
+                                        wrappedOnSave({ ...formData, isSubmitted: true });
                                     }
                                 }}
                                 className="px-4 py-2 bg-brand-600 text-white rounded-lg shadow-md hover:bg-brand-700 hover:shadow-lg transition flex items-center gap-2 font-medium"
@@ -1431,7 +1433,8 @@ const EntryForm: React.FC<EntryFormProps> = ({
                                         if (ok) {
                                             // Cancel any pending debounced auto-save before submitting.
                                             flushAutoSave();
-                                            wrappedOnSave(formData);
+                                            // isSubmitted:true : sinon traité comme un auto-save et jamais soumis.
+                                            wrappedOnSave({ ...formData, isSubmitted: true });
                                         }
                                     }}
                                     className="px-5 py-2.5 bg-brand-600 text-white rounded-lg shadow-md hover:bg-brand-700 hover:shadow-lg transition font-medium flex items-center gap-2"

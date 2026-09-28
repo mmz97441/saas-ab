@@ -21,7 +21,7 @@ const InfoTip: React.FC<{ text: string }> = ({ text }) => {
             <HelpCircle className="w-3 h-3 text-slate-400 hover:text-brand-500 transition-colors" />
             {show && createPortal(
                 <span
-                    className="fixed z-[9999] w-56 px-3 py-2 rounded-lg bg-slate-800 text-white text-[11px] leading-relaxed font-normal normal-case tracking-normal shadow-xl pointer-events-none whitespace-pre-line"
+                    className="fixed z-[9999] w-56 px-3 py-2 rounded-lg bg-slate-800 text-white text-xs leading-relaxed font-normal normal-case tracking-normal shadow-xl pointer-events-none whitespace-pre-line"
                     style={{ left: pos.x, top: pos.y - 8, transform: 'translate(-50%, -100%)' }}
                 >
                     {text}
@@ -38,7 +38,7 @@ export default InfoTip;
 export const getPerfColor = (p: number) => {
     if (p >= 110) return { text: 'text-emerald-700', bg: 'bg-emerald-100', bar: '#059669' };
     if (p >= 100) return { text: 'text-lime-700', bg: 'bg-lime-100', bar: '#65a30d' };
-    if (p >= 95) return { text: 'text-amber-600', bg: 'bg-amber-100', bar: '#d97706' };
-    if (p >= 85) return { text: 'text-orange-600', bg: 'bg-orange-100', bar: '#ea580c' };
+    if (p >= 95) return { text: 'text-amber-500', bg: 'bg-amber-50',  bar: '#fbbf24' };
+    if (p >= 85) return { text: 'text-amber-700', bg: 'bg-amber-100', bar: '#d97706' };
     return { text: 'text-red-600', bg: 'bg-red-100', bar: '#dc2626' };
 };

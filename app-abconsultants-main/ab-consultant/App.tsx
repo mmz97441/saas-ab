@@ -1,9 +1,14 @@
 
-import React, { useState, useEffect, useMemo, useRef, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import { Menu, X, UserCircle, CheckCircle, Eye, EyeOff, Users, Plus, Edit2, Trash2, Search, Briefcase, Phone, Mail, MapPin, Archive, Send, Power, Loader2, UserPlus, Crown, ShieldCheck, ChevronRight, Home, Bell } from 'lucide-react';
 import LoginScreen from './components/LoginScreen';
 import Sidebar from './components/Sidebar';
+import IdleWarningModal from './components/IdleWarningModal';
 import { useConfirmDialog } from './contexts/ConfirmContext';
+import { useIdleLogout } from './hooks/useIdleLogout';
+
+const IDLE_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour — applies to clients and cabinet team
+const IDLE_WARNING_MS = 2 * 60 * 1000;  // warning modal appears 2 min before logout
 
 const Dashboard = lazy(() => import('./components/Dashboard'));
 const EntryForm = lazy(() => import('./components/EntryForm'));
@@ -19,7 +24,7 @@ const ExcelImportModal = lazy(() => import('./components/ExcelImportModal'));
 const AppointmentPanel = lazy(() => import('./components/AppointmentPanel'));
 
 import { FinancialRecord, Client, Month, ProfitCenter, Consultant, View } from './types';
-import { getClients, saveClient, updateClientStatus, getRecordsByClient, resetDatabase, MONTH_ORDER, toShortMonth, getConsultants, addConsultant, deleteConsultant, deleteRecord, checkConsultantEmailExists, checkClientEmailExists, saveRecord, logActivity } from './services/dataService';
+import { getClients, saveClient, updateClientStatus, getRecordsByClient, resetDatabase, MONTH_ORDER, toShortMonth, getConsultants, addConsultant, deleteConsultant, deleteRecord, saveRecord, logActivity } from './services/dataService';
 import { auth } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -70,33 +75,31 @@ const App: React.FC = () => {
         if (user) {
             const email = user.email?.toLowerCase() || '';
             setCurrentUserEmail(email);
-            
-            let isAuthorizedConsultant = false;
-            try { isAuthorizedConsultant = await checkConsultantEmailExists(email); } catch (e) { console.error(e); }
 
-            const isAdmin = (email === SUPER_ADMIN_EMAIL) || isAuthorizedConsultant;
+            // Lire le rôle depuis les custom claims du token (set par setUserRole Cloud Function)
+            // Force refresh (true) pour récupérer les claims fraîchement set par setUserRole
+            // côté backend — sinon le token cache local ne reflète pas le rôle réel et les
+            // règles Firestore retournent silencieusement 0 docs (isConsultant() == false).
+            const idTokenResult = await user.getIdTokenResult(true);
+            const tokenRole = idTokenResult.claims.role as string | undefined;
+            const tokenIsAdmin = idTokenResult.claims.isAdmin as boolean | undefined;
 
-            if (isAdmin) {
+            if (tokenRole === 'consultant' || email === SUPER_ADMIN_EMAIL) {
                 setUserRole('ab_consultant');
-                setIsSuperAdmin(email === SUPER_ADMIN_EMAIL);
+                setIsSuperAdmin(tokenIsAdmin || email === SUPER_ADMIN_EMAIL);
                 setIsAuthenticated(true);
-                // Au login consultant, on charge les clients MAIS on ne sélectionne personne par défaut pour afficher le Dashboard Global
                 try { await refreshClients('ab_consultant', email); setSelectedClient(null); } catch (error) { console.error(error); }
 
-            } else {
-                let isValidClient = false;
-                try { isValidClient = await checkClientEmailExists(email); } catch (e) { console.error(e); }
+            } else if (tokenRole === 'client') {
+                setUserRole('client');
+                setIsSuperAdmin(false);
+                setSimulatedUserEmail(email);
+                setIsAuthenticated(true);
+                try { await refreshClients('client', email); } catch (error) { console.error(error); }
 
-                if (isValidClient) {
-                     setUserRole('client');
-                     setIsSuperAdmin(false);
-                     setSimulatedUserEmail(email);
-                     setIsAuthenticated(true);
-                     try { await refreshClients('client', email); } catch (error) { console.error(error); }
-                } else {
-                    await auth.signOut();
-                    setIsAuthenticated(false);
-                }
+            } else {
+                await auth.signOut();
+                setIsAuthenticated(false);
             }
         } else {
             setIsAuthenticated(false);
@@ -159,6 +162,16 @@ const App: React.FC = () => {
 
   const handleLoginSuccess = () => refreshClients();
   const handleLogout = () => auth.signOut();
+
+  // Idle logout (1h) — applies once authenticated, to both clients and cabinet team.
+  // Warning modal shown 2 min before; ambient activity stops resetting the timer
+  // once the modal is open (user must explicitly click "Rester connecté").
+  const idle = useIdleLogout({
+    enabled: isAuthenticated,
+    timeoutMs: IDLE_TIMEOUT_MS,
+    warningMs: IDLE_WARNING_MS,
+    onLogout: handleLogout,
+  });
   
   const handleNewRecord = () => {
       if (userRole === 'client' && selectedClient?.status === 'inactive') {
@@ -176,20 +189,28 @@ const App: React.FC = () => {
 
   const handleSaveRecord = async (record: FinancialRecord) => {
     if (!selectedClient) return;
+    // Auto-save passes isSubmitted:false explicitly to persist without locking
+    // the form. Honor that; otherwise default to true for client saves (an
+    // explicit "Soumettre" click).
+    const isAutoSave = record.isSubmitted === false;
     const recordWithClient = {
         ...record,
         clientId: selectedClient.id,
-        isSubmitted: userRole === 'client' ? true : record.isSubmitted,
+        isSubmitted: isAutoSave ? false : (userRole === 'client' ? true : record.isSubmitted),
         submittedBy: record.submittedBy || currentUserEmail || undefined
     };
     try {
         await saveRecord(recordWithClient);
-        await logActivity(selectedClient.id, 'data_submitted', `Données ${record.month} ${record.year} enregistrées`, { month: record.month, year: record.year });
+        if (!isAutoSave) {
+            await logActivity(selectedClient.id, 'data_submitted', `Données ${record.month} ${record.year} enregistrées`, { month: record.month, year: record.year });
+        }
         await refreshRecords();
 
         if (userRole === 'client') {
-            showNotification("Saisie enregistrée.", 'success');
-            setEditingRecord(recordWithClient);
+            if (!isAutoSave) {
+                showNotification("Saisie enregistrée.", 'success');
+                setEditingRecord(recordWithClient);
+            }
         } else {
             showNotification("Données enregistrées.", 'success');
             setEditingRecord(null);
@@ -197,7 +218,9 @@ const App: React.FC = () => {
         }
     } catch (err) {
         console.error('Erreur sauvegarde:', err);
-        showNotification("Erreur lors de la sauvegarde. Vos données n'ont pas été perdues, réessayez.", 'error');
+        if (!isAutoSave) {
+            showNotification("Erreur lors de la sauvegarde. Vos données n'ont pas été perdues, réessayez.", 'error');
+        }
     }
   };
 
@@ -270,22 +293,41 @@ const App: React.FC = () => {
 
   const toggleValidation = async (record: FinancialRecord) => {
       if (userRole !== 'ab_consultant') return;
-      await saveRecord({ ...record, isValidated: !record.isValidated });
-      if (selectedClient) await logActivity(selectedClient.id, 'data_validated', `${record.month} ${record.year} ${!record.isValidated ? 'validé' : 'dé-validé'}`, { month: record.month, year: record.year });
-      await refreshRecords();
+      try {
+          await saveRecord({ ...record, isValidated: !record.isValidated });
+          if (selectedClient) await logActivity(selectedClient.id, 'data_validated', `${record.month} ${record.year} ${!record.isValidated ? 'validé' : 'dé-validé'}`, { month: record.month, year: record.year });
+          await refreshRecords();
+          showNotification(`${record.month} ${record.year} ${!record.isValidated ? 'validé' : 'dé-validé'}.`, 'success');
+      } catch (err: any) {
+          console.error('Erreur validation:', err);
+          showNotification(err?.message || 'Erreur lors de la validation.', 'error');
+      }
   };
 
   const togglePublication = async (record: FinancialRecord) => {
       if (userRole !== 'ab_consultant') return;
-      await saveRecord({ ...record, isPublished: !record.isPublished });
-      if (selectedClient) await logActivity(selectedClient.id, 'data_published', `${record.month} ${record.year} ${!record.isPublished ? 'publié' : 'dé-publié'}`, { month: record.month, year: record.year });
-      await refreshRecords();
+      try {
+          await saveRecord({ ...record, isPublished: !record.isPublished });
+          if (selectedClient) await logActivity(selectedClient.id, 'data_published', `${record.month} ${record.year} ${!record.isPublished ? 'publié' : 'dé-publié'}`, { month: record.month, year: record.year });
+          await refreshRecords();
+          showNotification(`${record.month} ${record.year} ${!record.isPublished ? 'publié' : 'masqué'}.`, 'success');
+      } catch (err: any) {
+          console.error('Erreur publication:', err);
+          showNotification(err?.message || 'Erreur lors de la publication.', 'error');
+      }
   };
 
-  const toggleClientLock = async (record: FinancialRecord) => {
+  const unlockClientRecord = async (record: FinancialRecord) => {
       if (userRole !== 'ab_consultant') return;
-      await saveRecord({ ...record, isSubmitted: !record.isSubmitted });
-      await refreshRecords();
+      try {
+          await saveRecord({ ...record, isSubmitted: false, isValidated: false });
+          if (selectedClient) await logActivity(selectedClient.id, 'record_unlocked', `${record.month} ${record.year} déverrouillé pour le client`, { month: record.month, year: record.year });
+          await refreshRecords();
+          showNotification(`Rapport de ${record.month} ${record.year} déverrouillé. Le client peut maintenant le modifier.`, 'success');
+      } catch (err: any) {
+          console.error('Erreur déverrouillage:', err);
+          showNotification(err?.message || 'Erreur lors du déverrouillage.', 'error');
+      }
   };
 
   // --- GESTION CLIENTS ---
@@ -367,6 +409,45 @@ const App: React.FC = () => {
       await refreshClients();
   };
 
+  const handleUpdateRevenueObjective = async (value: number) => {
+      if (userRole !== 'ab_consultant' || !selectedClient) return;
+      const updated = { ...selectedClient, settings: { ...selectedClient.settings!, revenueObjective: value }};
+      await saveClient(updated);
+      setSelectedClient(updated);
+
+      // Ask whether to apply to past months too
+      const now = new Date();
+      const currentMonthIdx = now.getMonth() - 1; // M-1
+      const currentYear = now.getFullYear();
+      const applyToPast = await confirm({
+          title: 'Appliquer aux mois précédents ?',
+          message: `Voulez-vous aussi mettre à jour l'objectif des rapports déjà saisis (mois passés) ?\n\nSi non, seuls le mois en cours et les futurs rapports utiliseront le nouvel objectif.`,
+          variant: 'info',
+          confirmLabel: 'Tous les mois',
+          cancelLabel: 'Mois en cours et suivants',
+      });
+
+      const toUpdate = data.filter(r => {
+          if (r.revenue.objective === value) return false;
+          if (applyToPast) return true;
+          // Only current month and forward: same year >= current month index, or future years
+          const monthIdx = MONTH_ORDER.indexOf(r.month);
+          if (r.year > currentYear) return true;
+          if (r.year === currentYear && monthIdx >= currentMonthIdx) return true;
+          return false;
+      });
+
+      for (const record of toUpdate) {
+          await saveRecord({ ...record, revenue: { ...record.revenue, objective: value } });
+      }
+      await refreshRecords();
+      await refreshClients();
+      const msg = toUpdate.length > 0
+          ? `Objectif CA mis à jour (${toUpdate.length} rapport(s) mis à jour).`
+          : 'Objectif CA mensuel enregistré.';
+      showNotification(msg, 'success');
+  };
+
   const handleUpdateClientStatus = async (client: Client, newStatus: 'active' | 'inactive') => {
       if (userRole !== 'ab_consultant') return;
       if (statusModal.isOpen) setStatusModal({ isOpen: false, client: null });
@@ -402,6 +483,16 @@ const App: React.FC = () => {
     showNotification(updated.settings?.showCommercialMargin ? "Module Marge activé." : "Module Marge désactivé.", 'info');
   };
 
+  const handleToggleAiAssistant = async () => {
+    if (userRole !== 'ab_consultant' || !selectedClient) return;
+    const nextValue = !selectedClient.settings?.enableAiAssistant;
+    const updated = { ...selectedClient, settings: { ...selectedClient.settings!, enableAiAssistant: nextValue }};
+    await saveClient(updated);
+    setSelectedClient(updated);
+    await refreshClients();
+    showNotification(nextValue ? "Assistant IA activé pour ce dossier." : "Assistant IA désactivé.", 'info');
+  };
+
   // --- UI UPDATES (LOCAL) ---
   const handleClientRead = (clientId: string) => {
     setClients(prev => prev.map(c => c.id === clientId ? { ...c, hasUnreadMessages: false } : c));
@@ -409,17 +500,30 @@ const App: React.FC = () => {
 
   const dashboardData = useMemo(() => userRole === 'client' ? data.filter(r => r.isPublished) : data, [data, userRole]);
 
-  // Track new published data for client
-  const prevPublishedCountRef = useRef<number | null>(null);
+  // Track new published data for client.
+  // Persist baseline in localStorage per-client so the banner only fires when
+  // the count ACTUALLY increased since the last visit (or live during this session).
+  // Previously, this compared against an in-memory ref starting at null/0, which
+  // false-triggered on every login the moment data loaded (0 → N).
   useEffect(() => {
-    if (userRole !== 'client') return;
+    if (userRole !== 'client' || !selectedClient) return;
     const publishedCount = data.filter(r => r.isPublished).length;
-    if (prevPublishedCountRef.current !== null && publishedCount > prevPublishedCountRef.current) {
+    const storageKey = `ab.lastSeenPublished.${selectedClient.id}`;
+    let stored: number | null = null;
+    try {
+      const raw = localStorage.getItem(storageKey);
+      stored = raw === null ? null : parseInt(raw, 10);
+      if (Number.isNaN(stored as number)) stored = null;
+    } catch { /* localStorage blocked — fail open */ }
+
+    // Fire only when stored baseline exists AND current count is strictly greater.
+    // First visit ever (stored === null) → silent baseline write, no banner.
+    if (stored !== null && publishedCount > stored) {
       setNewDataBanner(true);
       setTimeout(() => setNewDataBanner(false), 10000);
     }
-    prevPublishedCountRef.current = publishedCount;
-  }, [data, userRole]);
+    try { localStorage.setItem(storageKey, String(publishedCount)); } catch { /* ignore */ }
+  }, [data, userRole, selectedClient]);
   const accessibleCompanies = useMemo(() => {
     if (userRole !== 'client' || !simulatedUserEmail) return [];
     const email = simulatedUserEmail.toLowerCase();
@@ -443,7 +547,7 @@ const App: React.FC = () => {
   }, [clients, clientViewMode, clientSearchQuery]);
 
   if (isAuthCheckLoading) return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-brand-50 gap-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-paper-50 gap-4">
       <img src="/logo.svg" alt="AB Consultants" className="h-10 mb-2 opacity-80" />
       <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
       <p className="text-sm text-brand-500 font-medium">Connexion en cours...</p>
@@ -460,7 +564,7 @@ const App: React.FC = () => {
   if (!isAuthenticated) return <LoginScreen onLogin={handleLoginSuccess} />;
 
   return (
-    <div className="min-h-screen flex bg-brand-50 relative">
+    <div className="min-h-screen flex bg-paper-50 relative">
       {notification && (
           <div role="alert" className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-xl border animate-in slide-in-from-right-10 flex items-center gap-3 ${
               notification.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' :
@@ -493,8 +597,11 @@ const App: React.FC = () => {
 
       {/* CHAT WIDGET */}
       <Suspense fallback={null}>
-        {selectedClient && (userRole === 'client' || (userRole === 'ab_consultant' && simulatedUserEmail)) && (
-            <AIChatWidget client={selectedClient} data={dashboardData} />
+        {selectedClient
+            && selectedClient.settings?.enableAiAssistant === true
+            && (userRole === 'client' || (userRole === 'ab_consultant' && simulatedUserEmail))
+            && (
+            <AIChatWidget client={selectedClient} data={data} />
         )}
       </Suspense>
 
@@ -640,13 +747,14 @@ const App: React.FC = () => {
                     clients={clients}
                     onSelectClient={(client) => setSelectedClient(client)}
                     onNavigateToMessages={() => setCurrentView(View.Messages)}
+                    onNavigateToPortfolio={() => setCurrentView(View.Clients)}
                 />
                 </div>
             )}
 
             {currentView === View.Entry && selectedClient && (
                 <div key="entry" className="animate-in fade-in duration-200">
-                <EntryForm clientId={selectedClient.id} initialData={editingRecord} existingRecords={data} profitCenters={selectedClient.profitCenters || []} showCommercialMargin={selectedClient.settings?.showCommercialMargin ?? true} showFuelTracking={selectedClient.settings?.showFuelTracking ?? false} onSave={handleSaveRecord} onCancel={() => { setEditingRecord(null); setCurrentView(View.History); }} userRole={userRole} defaultFuelObjectives={selectedClient.settings?.fuelObjectives} clientStatus={selectedClient.status} onImportExcel={() => setIsExcelImportOpen(true)} currentUserEmail={currentUserEmail}/>
+                <EntryForm clientId={selectedClient.id} initialData={editingRecord} existingRecords={data} profitCenters={selectedClient.profitCenters || []} showCommercialMargin={selectedClient.settings?.showCommercialMargin ?? true} showFuelTracking={selectedClient.settings?.showFuelTracking ?? false} onSave={handleSaveRecord} onCancel={() => { setEditingRecord(null); setCurrentView(View.History); }} userRole={userRole} defaultFuelObjectives={selectedClient.settings?.fuelObjectives} defaultRevenueObjective={selectedClient.settings?.revenueObjective} clientStatus={selectedClient.status} onImportExcel={() => setIsExcelImportOpen(true)} currentUserEmail={currentUserEmail}/>
                 </div>
             )}
 
@@ -662,13 +770,13 @@ const App: React.FC = () => {
                         console.error('Export CSV error:', err);
                         showNotification(err?.message || 'Erreur lors de l\'export CSV.', 'error');
                     }
-                }} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onValidate={toggleValidation} onPublish={togglePublication} onLockToggle={toggleClientLock} onBulkValidate={handleBulkValidate} onBulkPublish={handleBulkPublish} onBulkDelete={handleBulkDelete} onImportExcel={() => setIsExcelImportOpen(true)}/>
+                }} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onValidate={toggleValidation} onPublish={togglePublication} onLockToggle={unlockClientRecord} onBulkValidate={handleBulkValidate} onBulkPublish={handleBulkPublish} onBulkDelete={handleBulkDelete} onImportExcel={() => setIsExcelImportOpen(true)}/>
                 </div>
             )}
 
             {currentView === View.Settings && userRole === 'ab_consultant' && selectedClient && (
                 <div key="settings" className="animate-in fade-in duration-200">
-                <SettingsView client={selectedClient} onUpdateClientSettings={handleUpdateClientSettings} onUpdateProfitCenters={handleUpdateProfitCenters} onUpdateFuelObjectives={handleUpdateFuelObjectives} onUpdateClientStatus={(c, s) => { setStatusModal({isOpen: true, client: c}); }} onResetDatabase={handleResetDatabase} onToggleFuelModule={handleToggleFuelModule} onToggleCommercialMargin={handleToggleCommercialMargin} />
+                <SettingsView client={selectedClient} onUpdateClientSettings={handleUpdateClientSettings} onUpdateProfitCenters={handleUpdateProfitCenters} onUpdateFuelObjectives={handleUpdateFuelObjectives} onUpdateRevenueObjective={handleUpdateRevenueObjective} onUpdateClientStatus={(c, s) => { setStatusModal({isOpen: true, client: c}); }} onResetDatabase={handleResetDatabase} onToggleFuelModule={handleToggleFuelModule} onToggleCommercialMargin={handleToggleCommercialMargin} onToggleAiAssistant={handleToggleAiAssistant} />
                 </div>
             )}
             
@@ -735,6 +843,14 @@ const App: React.FC = () => {
                         await refreshClients();
                         showNotification(updated.settings?.showCommercialMargin ? "Module Marge activé." : "Module Marge désactivé.", 'info');
                     }}
+                    onToggleAiAssistant={async (client) => {
+                        const nextValue = !client.settings?.enableAiAssistant;
+                        const updated = { ...client, settings: { ...client.settings!, enableAiAssistant: nextValue }};
+                        await saveClient(updated);
+                        await logActivity(updated.id, 'config_updated', `Assistant IA ${nextValue ? 'activé' : 'désactivé'}`);
+                        await refreshClients();
+                        showNotification(nextValue ? "Assistant IA activé." : "Assistant IA désactivé.", 'info');
+                    }}
                     onUpdateClientStatus={handleUpdateClientStatus}
                 />
                 </div>
@@ -768,6 +884,13 @@ const App: React.FC = () => {
                 </div>
           </div>
       )}
+
+      <IdleWarningModal
+        isOpen={idle.isWarning}
+        remainingMs={idle.remainingMs}
+        onStayConnected={idle.extend}
+        onLogoutNow={handleLogout}
+      />
     </div>
   );
 };

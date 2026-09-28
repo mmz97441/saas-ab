@@ -1,4 +1,4 @@
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 
 if (!admin.apps.length) {
@@ -21,7 +21,7 @@ const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || 'nice.guillaume@gmail
  * Seul un admin peut appeler cette fonction pour un autre utilisateur.
  * Un utilisateur peut appeler cette fonction pour lui-même (refresh).
  */
-export const setUserRole = functions.https.onCall(async (data, context) => {
+export const setUserRole = functions.region('europe-west1').https.onCall(async (data, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'Authentification requise.');
   }
@@ -74,6 +74,21 @@ export const setUserRole = functions.https.onCall(async (data, context) => {
   if (!clientsSnap.empty) {
     const doc = clientsSnap.docs[0];
     await auth.setCustomUserClaims(targetUid, { role: 'client', clientId: doc.id });
+
+    // Track owner login
+    const now = new Date().toISOString();
+    const ownerData = doc.data().owner || {};
+    const currentCount = ownerData.loginCount || 0;
+    const currentHistory: any[] = ownerData.loginHistory || [];
+    const updatedHistory = [{ timestamp: now }, ...currentHistory].slice(0, 10);
+
+    await doc.ref.update({
+      'owner.registeredAt': ownerData.registeredAt || now,
+      'owner.lastLoginAt': now,
+      'owner.loginCount': currentCount + 1,
+      'owner.loginHistory': updatedHistory,
+    });
+
     return { role: 'client', clientId: doc.id };
   }
 
@@ -98,7 +113,14 @@ export const setUserRole = functions.https.onCall(async (data, context) => {
           ? { ...c, acceptedAt: c.acceptedAt || new Date().toISOString(), lastLoginAt: new Date().toISOString() }
           : c
       );
-      await clientDoc.ref.update({ collaborators: updatedCollaborators });
+      // Maintain denormalized collaboratorEmails for Firestore rules (required by audit fix).
+      const collaboratorEmails = updatedCollaborators
+        .filter((c: any) => c.status === 'active' && c.email)
+        .map((c: any) => c.email.toLowerCase().trim());
+      await clientDoc.ref.update({
+        collaborators: updatedCollaborators,
+        collaboratorEmails,
+      });
 
       return { role: 'client', clientId: clientDoc.id, collaboratorRole: match.role };
     }

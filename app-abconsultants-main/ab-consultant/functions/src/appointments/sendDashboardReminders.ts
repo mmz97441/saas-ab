@@ -1,4 +1,4 @@
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { sendMail } from '../email/emailService';
 
@@ -23,7 +23,7 @@ const MONTH_NAMES = [
  * - Envoie un rappel adapté selon le nombre de jours restants
  * - Arrête les rappels si saisie faite (isSubmitted)
  */
-export const sendDashboardReminders = functions.pubsub
+export const sendDashboardReminders = functions.region('europe-west1').pubsub
   .schedule('0 8 * * *')
   .timeZone('Indian/Reunion')
   .onRun(async () => {

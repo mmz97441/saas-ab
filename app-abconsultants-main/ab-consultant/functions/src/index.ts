@@ -12,8 +12,12 @@
 export { onUserCreated } from './auth/onUserCreated';
 export { setUserRole } from './auth/setUserRole';
 export { askFinancialAdvisor } from './api/geminiProxy';
+export { askFinancialAdvisorStream } from './api/geminiProxy';
 export { exportClientCSV } from './api/exportCSV';
 export { onRecordWrite } from './triggers/onRecordWrite';
+
+// --- INVITATIONS ---
+export { sendClientInvitation } from './email/sendClientInvitation';
 
 // --- APPOINTMENTS ---
 export { scheduleAppointment } from './appointments/scheduleAppointment';

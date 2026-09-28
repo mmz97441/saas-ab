@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import {
     Clock, Mail, MessageSquare, Calendar, CheckCircle, Settings,
-    FileText, Send, Power, UserPlus, Loader2, Activity, Eye
+    FileText, Send, Power, UserPlus, Loader2, Activity, Eye, LogIn, UserCheck, XCircle, Unlock
 } from 'lucide-react';
 import { ActivityEvent, ActivityEventType } from '../types';
 import { getClientActivities } from '../services/dataService';
@@ -23,7 +23,13 @@ const EVENT_CONFIG: Record<ActivityEventType, { icon: React.ReactNode; color: st
     message_received: { icon: <MessageSquare className="w-3.5 h-3.5" />, color: 'text-sky-600', bgColor: 'bg-sky-100' },
     config_updated: { icon: <Settings className="w-3.5 h-3.5" />, color: 'text-slate-600', bgColor: 'bg-slate-100' },
     status_changed: { icon: <Power className="w-3.5 h-3.5" />, color: 'text-amber-600', bgColor: 'bg-amber-100' },
-    invitation_sent: { icon: <Send className="w-3.5 h-3.5" />, color: 'text-brand-600', bgColor: 'bg-brand-100' }
+    invitation_sent: { icon: <Send className="w-3.5 h-3.5" />, color: 'text-brand-600', bgColor: 'bg-brand-100' },
+    collaborator_added: { icon: <UserPlus className="w-3.5 h-3.5" />, color: 'text-blue-600', bgColor: 'bg-blue-100' },
+    collaborator_revoked: { icon: <XCircle className="w-3.5 h-3.5" />, color: 'text-red-600', bgColor: 'bg-red-100' },
+    owner_first_login: { icon: <LogIn className="w-3.5 h-3.5" />, color: 'text-emerald-600', bgColor: 'bg-emerald-100' },
+    owner_login: { icon: <LogIn className="w-3.5 h-3.5" />, color: 'text-blue-600', bgColor: 'bg-blue-100' },
+    invitation_email_sent: { icon: <Mail className="w-3.5 h-3.5" />, color: 'text-brand-600', bgColor: 'bg-brand-100' },
+    record_unlocked: { icon: <Unlock className="w-3.5 h-3.5" />, color: 'text-amber-600', bgColor: 'bg-amber-100' },
 };
 
 const formatTimestamp = (ts: any): string => {
@@ -61,7 +67,7 @@ const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ clientId, clientNam
             <div className="flex items-center gap-2 mb-4">
                 <Activity className="w-4 h-4 text-brand-500" />
                 <h3 className="text-sm font-bold text-slate-700">Activité Récente</h3>
-                <span className="text-[11px] text-slate-400 font-medium">{clientName}</span>
+                <span className="text-xs text-slate-400 font-medium">{clientName}</span>
             </div>
 
             {isLoading ? (
@@ -73,7 +79,7 @@ const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ clientId, clientNam
                 <div className="text-center py-8 text-slate-400">
                     <Clock className="w-8 h-8 mx-auto mb-2 opacity-30" />
                     <p className="text-xs">Aucune activité enregistrée.</p>
-                    <p className="text-[11px] mt-1">Les prochaines actions seront tracées ici.</p>
+                    <p className="text-xs mt-1">Les prochaines actions seront tracées ici.</p>
                 </div>
             ) : (
                 <div className="relative">
@@ -93,7 +99,7 @@ const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ clientId, clientNam
                                     {/* Content */}
                                     <div className="flex-1 min-w-0 pt-0.5">
                                         <p className="text-xs text-slate-700 leading-relaxed">{event.description}</p>
-                                        <p className="text-[11px] text-slate-400 mt-0.5">
+                                        <p className="text-xs text-slate-400 mt-0.5">
                                             {formatTimestamp(event.timestamp)}
                                             {event.actorEmail && <span className="ml-1">· {event.actorEmail.split('@')[0]}</span>}
                                         </p>

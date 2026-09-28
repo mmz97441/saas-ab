@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Calendar, Clock, MapPin, Check, AlertTriangle, Loader2, CalendarPlus, RefreshCw } from 'lucide-react';
 import { Client, NextAppointment } from '../types';
 import { scheduleAppointment } from '../lib/cloudFunctions';
@@ -101,6 +101,29 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
     return Math.ceil((rdv.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
   };
 
+  // Libellé humain pour l'écart en jours
+  const formatDayDelta = (daysUntil: number): string => {
+    if (daysUntil === 0) return "Aujourd'hui";
+    if (daysUntil < 0) return `J+${Math.abs(daysUntil)}`;
+    return `J-${daysUntil}`;
+  };
+
+  // Détection de conflit : un autre client a-t-il déjà un RDV à cette date/heure ?
+  const conflict = useMemo(() => {
+    if (!formData.date || !formData.time) return null;
+    const others = allAppointments.filter(a =>
+      a.date === formData.date
+      && a.time === formData.time
+      // exclure le RDV du client courant (cas reprogrammation)
+      && a.clientName !== (client.owner?.name || client.managerName || client.companyName || 'Client')
+    );
+    if (others.length === 0) return null;
+    return { clientName: others[0].clientName, location: others[0].location };
+  }, [formData.date, formData.time, allAppointments, client.owner?.name, client.managerName, client.companyName]);
+
+  // Calendrier des relances automatiques (cf. sendDashboardReminders.ts)
+  const REMINDER_DAYS = [20, 14, 7, 3, 1];
+
   // Minimum date pour le formulaire = demain
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -111,7 +134,7 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
     <form onSubmit={handleSchedule} className="space-y-3">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
-          <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Date</label>
+          <label className="eyebrow block mb-1">Date</label>
           <DatePickerCalendar
             value={formData.date}
             onChange={(date) => setFormData({ ...formData, date })}
@@ -120,14 +143,39 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
           />
         </div>
         <div>
-          <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Heure</label>
+          <label className="eyebrow block mb-1">Heure</label>
           <input type="time" value={formData.time} onChange={(e) => setFormData({ ...formData, time: e.target.value })} required className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 outline-none" />
+          <div className="flex gap-1.5 flex-wrap mt-2">
+            {['09:00', '10:00', '14:00', '15:00'].map(t => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setFormData({ ...formData, time: t })}
+                className={`px-3 py-1 rounded-md text-xs font-semibold border transition ${
+                  formData.time === t
+                    ? 'bg-brand-600 text-white border-brand-600'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-brand-300 hover:bg-brand-50'
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
         </div>
         <div>
-          <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Lieu</label>
+          <label className="eyebrow block mb-1">Lieu</label>
           <input type="text" value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} placeholder="Sainte-Clotilde" className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 outline-none" />
         </div>
       </div>
+      {conflict && (
+        <div className="flex items-start gap-2 p-3 mt-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold">Conflit potentiel</p>
+            <p>{conflict.clientName} a déjà un RDV à cette date/heure{conflict.location ? ` (${conflict.location})` : ''}.</p>
+          </div>
+        </div>
+      )}
       <div className="flex gap-2">
         <button type="submit" disabled={isLoading} className="px-4 py-2 bg-brand-600 text-white rounded-lg text-xs font-bold hover:bg-brand-700 transition disabled:opacity-50 flex items-center gap-1">
           {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Calendar className="w-3 h-3" />}
@@ -150,16 +198,22 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
               <strong>{client.owner?.name || client.managerName}</strong> souhaite modifier le RDV.
             </p>
 
-            <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="bg-white/60 rounded-lg p-3">
-                <p className="text-[11px] font-bold text-amber-600 uppercase mb-1">Date actuelle</p>
-                <p className="text-sm font-bold text-slate-800">{formatDate(appointment.date)}</p>
-                <p className="text-xs text-slate-500">{appointment.time} — {appointment.location || 'Lieu non précisé'}</p>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="eyebrow text-amber-600">Date actuelle</p>
+                  <span className="text-xs text-slate-500 font-medium tabular-nums">{formatDayDelta(getDaysUntil(appointment.date))}</span>
+                </div>
+                <p className="font-display text-base font-semibold text-paper-900 tracking-tight">{formatDate(appointment.date)}</p>
+                <p className="text-xs text-slate-500 tabular-nums">{appointment.time} — {appointment.location || 'Lieu non précisé'}</p>
               </div>
               <div className="bg-white/60 rounded-lg p-3 border-2 border-amber-300">
-                <p className="text-[11px] font-bold text-amber-600 uppercase mb-1">Date proposée</p>
-                <p className="text-sm font-bold text-slate-800">{formatDate(appointment.proposedDate)}</p>
-                <p className="text-xs text-slate-500">{appointment.proposedTime}</p>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="eyebrow text-amber-700">Date proposée</p>
+                  <span className="text-xs text-amber-800 font-bold tabular-nums">{formatDayDelta(getDaysUntil(appointment.proposedDate))}</span>
+                </div>
+                <p className="font-display text-base font-semibold text-paper-900 tracking-tight">{formatDate(appointment.proposedDate)}</p>
+                <p className="text-xs text-slate-500 tabular-nums">{appointment.proposedTime}{appointment.location ? ` — ${appointment.location}` : ''}</p>
               </div>
             </div>
 
@@ -205,8 +259,8 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-slate-400 font-bold uppercase">Dernier RDV</p>
-              <p className="text-sm text-slate-600 mt-1">{formatDate(appointment.date)} à {appointment.time}</p>
+              <p className="eyebrow text-slate-400">Dernier RDV</p>
+              <p className="font-display text-base font-semibold text-paper-800 mt-1 tracking-tight">{formatDate(appointment.date)} <span className="text-slate-500 font-sans font-medium text-sm tabular-nums">à {appointment.time}</span></p>
             </div>
             <button
               onClick={() => setIsScheduling(true)}
@@ -228,38 +282,65 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
 
     // RDV à venir
     return (
-      <div className={`rounded-xl p-5 border ${isConfirmed ? 'bg-emerald-50 border-emerald-200' : 'bg-blue-50 border-blue-200'}`}>
+      <div className={`rounded-xl p-5 border ${isConfirmed ? 'bg-emerald-50 border-emerald-200' : 'bg-brand-50 border-brand-200'}`}>
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold uppercase ${
-                isConfirmed ? 'bg-emerald-200 text-emerald-800' : 'bg-blue-200 text-blue-800'
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold uppercase ${
+                isConfirmed ? 'bg-emerald-200 text-emerald-800' : 'bg-brand-200 text-brand-800'
               }`}>
-                {isConfirmed ? <><Check className="w-3 h-3" /> Confirmé</> : <><Clock className="w-3 h-3" /> En attente de confirmation</>}
+                {isConfirmed ? <><Check className="w-3 h-3" /> Confirmé</> : <><Clock className="w-3 h-3" /> En attente</>}
               </span>
-              <span className="text-xs text-slate-400 font-medium">
-                J-{daysUntil}
+              <span className="text-xs text-slate-400 font-medium tabular-nums">
+                {formatDayDelta(daysUntil)}
               </span>
             </div>
-            <p className="text-sm font-bold text-slate-800">{formatDate(appointment.date)}</p>
-            <div className="flex items-center gap-4 mt-1.5 text-xs text-slate-500">
+            <p className="font-display text-xl font-semibold text-paper-900 tracking-tight">{formatDate(appointment.date)}</p>
+            <div className="flex items-center gap-4 mt-1.5 text-xs text-slate-500 tabular-nums">
               <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{appointment.time}</span>
-              {appointment.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{appointment.location}</span>}
+              {appointment.location && <span className="flex items-center gap-1 [font-variant-numeric:normal]"><MapPin className="w-3 h-3" />{appointment.location}</span>}
             </div>
           </div>
 
           <button
             onClick={() => setIsScheduling(!isScheduling)}
-            className="p-2 text-slate-400 hover:text-brand-600 hover:bg-white rounded-lg transition"
-            title="Reprogrammer"
+            className="min-h-[44px] px-3 py-2 text-xs font-bold text-slate-600 hover:text-brand-700 bg-white/70 hover:bg-white border border-slate-200 hover:border-brand-300 rounded-lg transition flex items-center gap-1.5 shrink-0"
+            title="Modifier la date, l'heure ou le lieu"
+            aria-label="Reprogrammer le rendez-vous"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Reprogrammer</span>
           </button>
+        </div>
+
+        {/* Relances envoyées au client (J-20 / J-14 / J-7 / J-3 / J-1) */}
+        <div className="mt-3 flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-slate-500 font-medium">Relances :</span>
+          {REMINDER_DAYS.map((d) => {
+            const sent = (appointment.remindersSent || []).includes(d);
+            const upcoming = !sent && daysUntil >= d;
+            return (
+              <span
+                key={d}
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${
+                  sent
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : upcoming
+                    ? 'bg-slate-100 text-slate-500'
+                    : 'bg-amber-100 text-amber-700'
+                }`}
+                title={sent ? 'Email envoyé' : upcoming ? 'Programmée' : 'Non envoyée (échéance dépassée)'}
+              >
+                {sent && <Check className="w-3 h-3" />}
+                J-{d}
+              </span>
+            );
+          })}
         </div>
 
         {/* Formulaire de reprogrammation */}
         {isScheduling && (
-          <div className={`mt-4 pt-4 border-t animate-in fade-in slide-in-from-top-2 duration-200 ${isConfirmed ? 'border-emerald-200' : 'border-blue-200'}`}>
+          <div className={`mt-4 pt-4 border-t animate-in fade-in slide-in-from-top-2 duration-200 ${isConfirmed ? 'border-emerald-200' : 'border-brand-200'}`}>
             <p className="text-xs text-slate-500 font-medium mb-3">Reprogrammer le RDV (un nouvel email sera envoyé) :</p>
             {renderForm('Reprogrammer', () => setIsScheduling(false))}
           </div>
@@ -271,12 +352,19 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
   // --- ÉTAT : Aucun RDV programmé ---
   if (!isScheduling) {
     return (
-      <div className="bg-slate-50 border border-dashed border-slate-300 rounded-xl p-5 text-center">
-        <Calendar className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-        <p className="text-sm text-slate-500 mb-3">Aucun rendez-vous programmé</p>
+      <div className="bg-gradient-to-br from-brand-50 to-slate-50 border border-dashed border-brand-200 rounded-xl p-5 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center shrink-0">
+            <Calendar className="w-5 h-5 text-brand-600" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-display text-base font-semibold text-paper-900 tracking-tight">Aucun rendez-vous programmé</p>
+            <p className="text-xs text-slate-500 mt-0.5">Convoquez {client.owner?.name || client.managerName || client.companyName} pour le prochain point.</p>
+          </div>
+        </div>
         <button
           onClick={() => setIsScheduling(true)}
-          className="px-4 py-2 bg-brand-600 text-white rounded-lg text-xs font-bold hover:bg-brand-700 transition inline-flex items-center gap-1.5"
+          className="min-h-[44px] px-4 py-2 bg-brand-600 text-white rounded-lg text-xs font-bold hover:bg-brand-700 transition inline-flex items-center gap-1.5 shrink-0"
         >
           <CalendarPlus className="w-3.5 h-3.5" />
           Programmer un RDV
@@ -288,7 +376,7 @@ const AppointmentPanel: React.FC<AppointmentPanelProps> = ({ client, onAppointme
   // --- ÉTAT : Formulaire de programmation ---
   return (
     <div className="bg-white border border-brand-200 rounded-xl p-5">
-      <h3 className="text-sm font-bold text-brand-900 mb-3 flex items-center gap-2">
+      <h3 className="font-display text-lg font-semibold text-paper-900 tracking-tight mb-3 flex items-center gap-2">
         <CalendarPlus className="w-4 h-4 text-brand-600" />
         Programmer un rendez-vous
       </h3>

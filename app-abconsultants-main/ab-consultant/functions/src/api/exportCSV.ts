@@ -1,4 +1,4 @@
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 
 if (!admin.apps.length) {
@@ -19,7 +19,7 @@ const MONTH_ORDER = [
  * - Consultant peut exporter les données de n'importe quel client
  * - Client ne peut exporter que ses propres données publiées
  */
-export const exportClientCSV = functions.https.onCall(async (data, context) => {
+export const exportClientCSV = functions.region('europe-west1').https.onCall(async (data, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'Authentification requise.');
   }

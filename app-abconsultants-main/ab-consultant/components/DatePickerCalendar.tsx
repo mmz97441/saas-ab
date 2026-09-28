@@ -153,7 +153,7 @@ const DatePickerCalendar: React.FC<DatePickerCalendarProps> = ({ value, onChange
           {/* Jours de la semaine */}
           <div className="grid grid-cols-7 mb-1">
             {JOURS.map(j => (
-              <div key={j} className="text-center text-[11px] font-bold text-slate-400 uppercase py-1">
+              <div key={j} className="text-center text-xs font-bold text-slate-400 uppercase py-1">
                 {j}
               </div>
             ))}
@@ -202,11 +202,11 @@ const DatePickerCalendar: React.FC<DatePickerCalendarProps> = ({ value, onChange
           {/* Légende */}
           {appointments.length > 0 && (
             <div className="flex items-center gap-4 mt-3 pt-3 border-t border-slate-100">
-              <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+              <div className="flex items-center gap-1.5 text-xs text-slate-400">
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
                 Confirmé
               </div>
-              <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+              <div className="flex items-center gap-1.5 text-xs text-slate-400">
                 <span className="w-2 h-2 rounded-full bg-amber-500" />
                 En attente
               </div>
@@ -216,7 +216,7 @@ const DatePickerCalendar: React.FC<DatePickerCalendarProps> = ({ value, onChange
           {/* RDV du jour survolé / sélectionné */}
           {activeAppointments.length > 0 && (
             <div className="mt-3 pt-3 border-t border-slate-100">
-              <p className="text-[11px] font-bold text-slate-500 uppercase mb-2">
+              <p className="text-xs font-bold text-slate-500 uppercase mb-2">
                 RDV du {formatDisplayDate(activeDate!)}
               </p>
               <div className="space-y-1.5 max-h-32 overflow-y-auto">
@@ -235,7 +235,7 @@ const DatePickerCalendar: React.FC<DatePickerCalendarProps> = ({ value, onChange
                     {a.location && (
                       <>
                         <MapPin className="w-3 h-3 shrink-0 opacity-60 ml-auto" />
-                        <span className="text-[11px] truncate">{a.location}</span>
+                        <span className="text-xs truncate">{a.location}</span>
                       </>
                     )}
                   </div>

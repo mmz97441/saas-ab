@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { Settings, Building, Lock, ShoppingBag, Plus, Trash2, Save, Droplets, AlertTriangle, Power, MapPin, Phone, Percent, PieChart, ChevronDown, Calendar } from 'lucide-react';
+import { Settings, Building, Lock, ShoppingBag, Plus, Trash2, Save, Droplets, AlertTriangle, Power, MapPin, Phone, Percent, PieChart, ChevronDown, Calendar, Target, Sparkles } from 'lucide-react';
 import { Client, ProfitCenter } from '../types';
 import { useConfirmDialog } from '../contexts/ConfirmContext';
+import { ToggleSwitch } from './ui/ToggleSwitch';
 
 const LEGAL_FORMS = [
     '', 'SAS', 'SASU', 'SARL', 'EURL', 'SA', 'SNC', 'SCI', 'SCOP',
@@ -35,10 +36,12 @@ interface SettingsViewProps {
     onUpdateClientSettings: (fields: ClientAdminFields) => void;
     onUpdateProfitCenters: (pcs: ProfitCenter[]) => void;
     onUpdateFuelObjectives: (objectives: { gasoil: number, sansPlomb: number, gnr: number }) => void;
+    onUpdateRevenueObjective: (value: number) => void;
     onUpdateClientStatus: (client: Client, newStatus: 'active' | 'inactive') => void;
     onResetDatabase: () => void;
     onToggleFuelModule: () => void;
     onToggleCommercialMargin: () => void;
+    onToggleAiAssistant: () => void;
 }
 
 const SettingsView: React.FC<SettingsViewProps> = ({
@@ -46,15 +49,18 @@ const SettingsView: React.FC<SettingsViewProps> = ({
     onUpdateClientSettings,
     onUpdateProfitCenters,
     onUpdateFuelObjectives,
+    onUpdateRevenueObjective,
     onUpdateClientStatus,
     onResetDatabase,
     onToggleFuelModule,
-    onToggleCommercialMargin
+    onToggleCommercialMargin,
+    onToggleAiAssistant
 }) => {
     const confirm = useConfirmDialog();
     const [isEditingSettings, setIsEditingSettings] = useState(false);
     const [settingsProfitCenters, setSettingsProfitCenters] = useState<ProfitCenter[]>(client.profitCenters || []);
     const [settingsFuelObjectives, setSettingsFuelObjectives] = useState(client.settings?.fuelObjectives || { gasoil: 0, sansPlomb: 0, gnr: 0 });
+    const [settingsRevenueObjective, setSettingsRevenueObjective] = useState(client.settings?.revenueObjective || 0);
 
     // Controlled form state for admin fields
     const buildFormValues = (c: Client): ClientAdminFields => ({
@@ -74,11 +80,13 @@ const SettingsView: React.FC<SettingsViewProps> = ({
     // Track dirty state for unsaved changes warning
     const isProfitCentersDirty = JSON.stringify(settingsProfitCenters) !== JSON.stringify(client.profitCenters || []);
     const isFuelObjectivesDirty = JSON.stringify(settingsFuelObjectives) !== JSON.stringify(client.settings?.fuelObjectives || { gasoil: 0, sansPlomb: 0, gnr: 0 });
+    const isRevenueObjectiveDirty = settingsRevenueObjective !== (client.settings?.revenueObjective || 0);
 
     // Sync ALL local state when client changes (navigation or after save)
     useEffect(() => {
         setSettingsProfitCenters(client.profitCenters || []);
         setSettingsFuelObjectives(client.settings?.fuelObjectives || { gasoil: 0, sansPlomb: 0, gnr: 0 });
+        setSettingsRevenueObjective(client.settings?.revenueObjective || 0);
         setFormValues(buildFormValues(client));
         setIsEditingSettings(false);
     }, [client]);
@@ -117,23 +125,24 @@ const SettingsView: React.FC<SettingsViewProps> = ({
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                    <p className="eyebrow mb-2">Dossier</p>
+                    <h2 className="font-display text-3xl font-semibold text-paper-900 tracking-tight flex items-center gap-2">
                         <Settings className="w-6 h-6 text-brand-500" />
-                        Configuration Dossier
+                        Paramétrage Dossier
                     </h2>
-                    <p className="text-slate-500">Paramètres administratifs et analytiques de {client.companyName}</p>
+                    <p className="text-paper-500 mt-1">Paramètres administratifs et analytiques de {client.companyName}</p>
                 </div>
             </div>
 
             {/* 1. FICHE ADMINISTRATIVE */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                    <h3 className="font-bold text-slate-700 flex items-center gap-2">
+            <div className="bg-white rounded-xl shadow-paper border border-paper-200 overflow-hidden">
+                <div className="p-4 bg-paper-50 border-b border-paper-200 flex justify-between items-center">
+                    <h3 className="font-display text-lg font-semibold text-paper-900 tracking-tight flex items-center gap-2">
                         <Building className="w-4 h-4" /> Identité & Coordonnées
                     </h3>
                     <button
                         onClick={() => setIsEditingSettings(!isEditingSettings)}
-                        className={`text-xs font-bold px-3 py-1.5 rounded-lg transition ${isEditingSettings ? 'bg-slate-200 text-slate-600' : 'bg-brand-100 text-brand-700'}`}
+                        className={`text-xs font-bold px-3 py-1.5 rounded-lg transition ${isEditingSettings ? 'bg-paper-200 text-paper-700' : 'bg-brand-100 text-brand-700'}`}
                     >
                         {isEditingSettings ? 'Annuler' : 'Modifier'}
                     </button>
@@ -144,31 +153,31 @@ const SettingsView: React.FC<SettingsViewProps> = ({
 
                             {/* Company Info */}
                             <div className="space-y-4">
-                                <h4 className="text-xs font-bold text-slate-400 uppercase border-b pb-1">Société</h4>
+                                <h4 className="eyebrow border-b border-paper-200 pb-1">Société</h4>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Raison Sociale</label>
-                                    <input value={formValues.companyName} onChange={(e) => handleFieldChange('companyName', e.target.value)} disabled={!isEditingSettings} className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
+                                    <label className="eyebrow block mb-1">Raison Sociale</label>
+                                    <input value={formValues.companyName} onChange={(e) => handleFieldChange('companyName', e.target.value)} disabled={!isEditingSettings} className="w-full p-2 border border-paper-300 rounded-lg bg-paper-50 text-paper-800 disabled:text-paper-500" />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">SIRET</label>
-                                    <input value={formValues.siret} onChange={(e) => handleFieldChange('siret', e.target.value)} disabled={!isEditingSettings} className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
+                                    <label className="eyebrow block mb-1">SIRET</label>
+                                    <input value={formValues.siret} onChange={(e) => handleFieldChange('siret', e.target.value)} disabled={!isEditingSettings} className="w-full p-2 border border-paper-300 rounded-lg bg-paper-50 text-paper-800 disabled:text-paper-500" />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Téléphone Standard</label>
+                                    <label className="eyebrow block mb-1">Téléphone Standard</label>
                                     <div className="relative">
                                         <Phone className="absolute left-2 top-2 w-4 h-4 text-slate-400" />
-                                        <input value={formValues.companyPhone} onChange={(e) => handleFieldChange('companyPhone', e.target.value)} disabled={!isEditingSettings} className="w-full pl-8 p-2 border rounded bg-slate-50 disabled:text-slate-500" />
+                                        <input value={formValues.companyPhone} onChange={(e) => handleFieldChange('companyPhone', e.target.value)} disabled={!isEditingSettings} className="w-full pl-8 p-2 border border-paper-300 rounded-lg bg-paper-50 text-paper-800 disabled:text-paper-500" />
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Forme Juridique</label>
+                                        <label className="eyebrow block mb-1">Forme Juridique</label>
                                         <div className="relative">
                                             <select
                                                 value={formValues.legalForm}
                                                 onChange={(e) => handleFieldChange('legalForm', e.target.value)}
                                                 disabled={!isEditingSettings}
-                                                className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500 appearance-none pr-8"
+                                                className="w-full p-2 border border-paper-300 rounded-lg bg-paper-50 text-paper-800 disabled:text-paper-500 appearance-none pr-8"
                                             >
                                                 <option value="">-- Choisir --</option>
                                                 {LEGAL_FORMS.filter(f => f !== '').map(f => (
@@ -179,7 +188,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Clôture Exercice</label>
+                                        <label className="eyebrow block mb-1">Clôture Exercice</label>
                                         <div className="flex gap-2">
                                             <div className="relative flex-1">
                                                 <select
@@ -189,7 +198,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                                                         handleFieldChange('fiscalYearEnd', e.target.value && month ? `${e.target.value}/${month}` : e.target.value ? `${e.target.value}/` : '');
                                                     }}
                                                     disabled={!isEditingSettings}
-                                                    className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500 appearance-none pr-8"
+                                                    className="w-full p-2 border border-paper-300 rounded-lg bg-paper-50 text-paper-800 disabled:text-paper-500 appearance-none pr-8"
                                                 >
                                                     <option value="">Jour</option>
                                                     {DAYS.map(d => (
@@ -206,7 +215,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                                                         handleFieldChange('fiscalYearEnd', day && e.target.value ? `${day}/${e.target.value}` : e.target.value ? `/${e.target.value}` : day ? `${day}/` : '');
                                                     }}
                                                     disabled={!isEditingSettings}
-                                                    className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500 appearance-none pr-8"
+                                                    className="w-full p-2 border border-paper-300 rounded-lg bg-paper-50 text-paper-800 disabled:text-paper-500 appearance-none pr-8"
                                                 >
                                                     <option value="">Mois</option>
                                                     {MONTHS.map(m => (
@@ -222,36 +231,36 @@ const SettingsView: React.FC<SettingsViewProps> = ({
 
                             {/* Contact Info & Address */}
                             <div className="space-y-4">
-                                <h4 className="text-xs font-bold text-slate-400 uppercase border-b pb-1">Coordonnées</h4>
+                                <h4 className="eyebrow border-b border-paper-200 pb-1">Coordonnées</h4>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Adresse Complète</label>
+                                    <label className="eyebrow block mb-1">Adresse Complète</label>
                                     <div className="relative">
                                         <MapPin className="absolute left-2 top-2 w-4 h-4 text-slate-400" />
-                                        <input value={formValues.address} onChange={(e) => handleFieldChange('address', e.target.value)} disabled={!isEditingSettings} placeholder="Rue, ZI..." className="w-full pl-8 p-2 border rounded bg-slate-50 disabled:text-slate-500" />
+                                        <input value={formValues.address} onChange={(e) => handleFieldChange('address', e.target.value)} disabled={!isEditingSettings} placeholder="Rue, ZI..." className="w-full pl-8 p-2 border border-paper-300 rounded-lg bg-paper-50 text-paper-800 disabled:text-paper-500" />
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-3 gap-2">
                                     <div className="col-span-1">
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Code Postal</label>
-                                        <input value={formValues.zipCode} onChange={(e) => handleFieldChange('zipCode', e.target.value)} disabled={!isEditingSettings} className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
+                                        <label className="eyebrow block mb-1">Code Postal</label>
+                                        <input value={formValues.zipCode} onChange={(e) => handleFieldChange('zipCode', e.target.value)} disabled={!isEditingSettings} className="w-full p-2 border border-paper-300 rounded-lg bg-paper-50 text-paper-800 disabled:text-paper-500" />
                                     </div>
                                     <div className="col-span-2">
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Ville</label>
-                                        <input value={formValues.city} onChange={(e) => handleFieldChange('city', e.target.value)} disabled={!isEditingSettings} className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
+                                        <label className="eyebrow block mb-1">Ville</label>
+                                        <input value={formValues.city} onChange={(e) => handleFieldChange('city', e.target.value)} disabled={!isEditingSettings} className="w-full p-2 border border-paper-300 rounded-lg bg-paper-50 text-paper-800 disabled:text-paper-500" />
                                     </div>
                                 </div>
 
                                 <div className="pt-2"></div>
-                                <h4 className="text-xs font-bold text-slate-400 uppercase border-b pb-1">Dirigeant</h4>
+                                <h4 className="eyebrow border-b border-paper-200 pb-1">Dirigeant</h4>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nom Dirigeant</label>
-                                    <input value={formValues.managerName} onChange={(e) => handleFieldChange('managerName', e.target.value)} disabled={!isEditingSettings} className="w-full p-2 border rounded bg-slate-50 disabled:text-slate-500" />
+                                    <label className="eyebrow block mb-1">Nom Dirigeant</label>
+                                    <input value={formValues.managerName} onChange={(e) => handleFieldChange('managerName', e.target.value)} disabled={!isEditingSettings} className="w-full p-2 border border-paper-300 rounded-lg bg-paper-50 text-paper-800 disabled:text-paper-500" />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Mobile</label>
+                                    <label className="eyebrow block mb-1">Mobile</label>
                                     <div className="relative">
                                         <Phone className="absolute left-2 top-2 w-4 h-4 text-slate-400" />
-                                        <input value={formValues.managerPhone} onChange={(e) => handleFieldChange('managerPhone', e.target.value)} disabled={!isEditingSettings} className="w-full pl-8 p-2 border rounded bg-slate-50 disabled:text-slate-500" />
+                                        <input value={formValues.managerPhone} onChange={(e) => handleFieldChange('managerPhone', e.target.value)} disabled={!isEditingSettings} className="w-full pl-8 p-2 border border-paper-300 rounded-lg bg-paper-50 text-paper-800 disabled:text-paper-500" />
                                     </div>
                                 </div>
                             </div>
@@ -268,39 +277,121 @@ const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
 
             {/* 2.5 MODULE MARGE CONFIG */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="bg-white rounded-xl shadow-paper border border-paper-200 overflow-hidden">
                 <div className="p-4 bg-purple-50 border-b border-purple-100 flex justify-between items-center">
-                    <h3 className="font-bold text-purple-900 flex items-center gap-2">
+                    <h3 className="font-display text-lg font-semibold text-purple-900 tracking-tight flex items-center gap-2">
                         <PieChart className="w-4 h-4" /> Suivi Marge Commerciale
                     </h3>
-                    <button
-                        onClick={async () => {
+                    <ToggleSwitch
+                        enabled={!!client.settings?.showCommercialMargin}
+                        onChange={async () => {
                             const ok = await confirm({ title: client.settings?.showCommercialMargin ? 'Désactiver la marge ?' : 'Activer la marge ?', message: client.settings?.showCommercialMargin ? 'Le suivi de la marge commerciale sera désactivé.' : 'La marge commerciale sera calculée et analysée dans les rapports.', variant: 'info', confirmLabel: client.settings?.showCommercialMargin ? 'Désactiver' : 'Activer' });
                             if (ok) onToggleCommercialMargin();
                         }}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${client.settings?.showCommercialMargin ? 'bg-purple-600' : 'bg-slate-200'}`}
-                    >
-                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${client.settings?.showCommercialMargin ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
+                        ariaLabel={client.settings?.showCommercialMargin ? 'Désactiver la marge commerciale' : 'Activer la marge commerciale'}
+                        onColorClass="bg-purple-600"
+                    />
                 </div>
                 {client.settings?.showCommercialMargin && (
-                    <div className="p-6 text-sm text-slate-500">
+                    <div className="p-6 text-sm text-paper-600">
                          Ce module est actif. La marge commerciale sera calculée (CA - Achats) et analysée dans les rapports.
                     </div>
                 )}
                  {!client.settings?.showCommercialMargin && (
-                    <div className="p-6 text-sm text-slate-400 italic">
+                    <div className="p-6 text-sm text-paper-400 italic">
                          Module désactivé. Seul le Chiffre d'Affaires sera suivi.
                     </div>
                 )}
             </div>
 
+            {/* 2.55 ASSISTANT IA (OPTION PREMIUM) */}
+            <div className="bg-white rounded-xl shadow-paper border border-paper-200 overflow-hidden">
+                <div className="p-4 bg-gradient-to-r from-brand-50 to-paper-100 border-b border-paper-200 flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-700 to-brand-900 flex items-center justify-center shadow-sm">
+                            <Sparkles className="w-5 h-5 text-accent-500" />
+                        </div>
+                        <div>
+                            <h3 className="font-display text-lg font-semibold text-paper-900 tracking-tight flex items-center gap-2">
+                                Assistant IA
+                            </h3>
+                            <p className="text-xs text-paper-500 mt-0.5">Conseiller virtuel propulsé par Gemini AI</p>
+                        </div>
+                    </div>
+                    <ToggleSwitch
+                        enabled={!!client.settings?.enableAiAssistant}
+                        onChange={async () => {
+                            const isCurrentlyOn = !!client.settings?.enableAiAssistant;
+                            const ok = await confirm({
+                                title: isCurrentlyOn ? 'Désactiver l\'Assistant IA ?' : 'Activer l\'Assistant IA ?',
+                                message: isCurrentlyOn
+                                    ? `Le client ${client.companyName} n'aura plus accès au chat IA. Les conversations passées sont conservées en base.`
+                                    : `Le client ${client.companyName} pourra accéder à un assistant IA dans son tableau de bord pour poser des questions sur sa gestion financière, RH ou fiscale.\n\nIl s'agit d'une option premium incluant : analyses contextuelles, streaming temps réel, upload de PDF/factures (Vision), escalade vers consultant.`,
+                                variant: 'info',
+                                confirmLabel: isCurrentlyOn ? 'Désactiver' : 'Activer'
+                            });
+                            if (ok) onToggleAiAssistant();
+                        }}
+                        ariaLabel={client.settings?.enableAiAssistant ? "Désactiver l'Assistant IA" : "Activer l'Assistant IA"}
+                        onColorClass="bg-brand-700"
+                        premium
+                    />
+                </div>
+                {client.settings?.enableAiAssistant ? (
+                    <div className="p-6 text-sm text-paper-600 space-y-2">
+                        <p className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            <span><strong className="text-paper-800">Module actif.</strong> Le client voit le bouton flottant « Assistant IA » dans son tableau de bord.</span>
+                        </p>
+                        <p className="text-xs text-paper-500 ml-4">Limite : 30 requêtes / heure / utilisateur. Les conversations sont enregistrées et visibles dans la Messagerie.</p>
+                    </div>
+                ) : (
+                    <div className="p-6 text-sm text-paper-400 italic">
+                        Module désactivé. Le client n'a pas accès à l'assistant IA depuis son tableau de bord.
+                    </div>
+                )}
+            </div>
+
+            {/* 2.6 OBJECTIF CA MENSUEL */}
+            <div className="bg-white rounded-xl shadow-paper border border-paper-200 overflow-hidden">
+                <div className="p-4 bg-emerald-50 border-b border-emerald-100 flex justify-between items-center">
+                    <h3 className="font-display text-lg font-semibold text-emerald-900 tracking-tight flex items-center gap-2">
+                        <Target className="w-4 h-4" /> Objectif CA Mensuel
+                        {isRevenueObjectiveDirty && <span className="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full animate-pulse">Non sauvegardé</span>}
+                    </h3>
+                </div>
+                <div className="p-6">
+                    <p className="text-sm text-paper-600 mb-4">
+                        Définissez l'objectif de chiffre d'affaires mensuel pour ce client. Cette valeur sera appliquée automatiquement à chaque mois.
+                        Le client ne peut pas modifier cet objectif.
+                    </p>
+                    <div className="max-w-xs">
+                        <label className="eyebrow block mb-1">Objectif CA / mois (€)</label>
+                        <input
+                            type="number"
+                            value={settingsRevenueObjective || ''}
+                            onChange={(e) => setSettingsRevenueObjective(parseFloat(e.target.value) || 0)}
+                            placeholder="Ex: 50000"
+                            className="w-full p-2 border border-paper-300 rounded-lg font-mono tabular-nums font-semibold text-emerald-900 text-lg"
+                        />
+                    </div>
+                    <div className="mt-4 flex justify-end">
+                        <button
+                            onClick={() => onUpdateRevenueObjective(settingsRevenueObjective)}
+                            className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 font-bold shadow-sm transition flex items-center gap-2"
+                        >
+                            <Save className="w-4 h-4" /> Enregistrer l'objectif
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             {/* 2. CENTRES DE PROFIT CONFIG */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="bg-white rounded-xl shadow-paper border border-paper-200 overflow-hidden">
                 <div className="p-4 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center">
-                    <h3 className="font-bold text-indigo-900 flex items-center gap-2">
+                    <h3 className="font-display text-lg font-semibold text-indigo-900 tracking-tight flex items-center gap-2">
                         <ShoppingBag className="w-4 h-4" /> Ventilation Analytique
-                        {isProfitCentersDirty && <span className="text-[11px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full animate-pulse">Non sauvegardé</span>}
+                        {isProfitCentersDirty && <span className="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full animate-pulse">Non sauvegardé</span>}
                     </h3>
                     <button
                         onClick={handleAddProfitCenter}
@@ -310,35 +401,37 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                     </button>
                 </div>
                 <div className="p-6">
-                    <p className="text-sm text-slate-500 mb-4">
+                    <p className="text-sm text-paper-600 mb-4">
                         Définissez les familles (centres de profit) pour ventiler le Chiffre d'Affaires
                         {client.settings?.showCommercialMargin && " et la Marge"}.
                     </p>
 
                     <div className="space-y-3">
-                        <div className="grid grid-cols-12 gap-2 text-[11px] uppercase font-bold text-slate-400 px-2">
-                            <div className="col-span-5">Nom de l'Activité</div>
-                            <div className="col-span-3">Type</div>
-                            <div className="col-span-3">Marge Théorique (%)</div>
-                            <div className="col-span-1">Action</div>
-                        </div>
+                        {settingsProfitCenters.length > 0 && (
+                            <div className="grid grid-cols-12 gap-2 px-2">
+                                <div className="col-span-5"><span className="eyebrow">Nom de l'Activité</span></div>
+                                <div className="col-span-3"><span className="eyebrow">Type</span></div>
+                                <div className="col-span-3"><span className="eyebrow">Marge Théorique (%)</span></div>
+                                <div className="col-span-1"><span className="eyebrow">Action</span></div>
+                            </div>
+                        )}
 
                         {settingsProfitCenters.length > 0 ? (
                             settingsProfitCenters.map((pc) => (
-                                <div key={pc.id} className="grid grid-cols-12 gap-3 items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                <div key={pc.id} className="grid grid-cols-12 gap-3 items-center bg-paper-50 p-3 rounded-lg border border-paper-200">
                                     <div className="col-span-5">
                                         <input
                                             value={pc.name}
                                             onChange={(e) => handleUpdateProfitCenter(pc.id, 'name', e.target.value)}
                                             placeholder="Ex: Transport Frigo"
-                                            className="w-full bg-white border border-slate-300 rounded px-2 py-1.5 text-sm font-bold text-slate-700"
+                                            className="w-full bg-white border border-paper-300 rounded-lg px-2 py-1.5 text-sm font-bold text-paper-800"
                                         />
                                     </div>
                                     <div className="col-span-3">
                                         <select
                                             value={pc.type}
                                             onChange={(e) => handleUpdateProfitCenter(pc.id, 'type', e.target.value)}
-                                            className="w-full bg-white border border-slate-300 rounded px-2 py-1.5 text-sm text-slate-700"
+                                            className="w-full bg-white border border-paper-300 rounded-lg px-2 py-1.5 text-sm text-paper-700"
                                         >
                                             <option value="goods">Marchandise</option>
                                             <option value="services">Service</option>
@@ -351,15 +444,15 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                                             onChange={(e) => handleUpdateProfitCenter(pc.id, 'defaultMargin', parseFloat(e.target.value))}
                                             placeholder="0"
                                             disabled={!client.settings?.showCommercialMargin}
-                                            className="w-full bg-white border border-slate-300 rounded pl-2 pr-6 py-1.5 text-sm font-bold text-purple-700 disabled:text-slate-400 disabled:bg-slate-100"
+                                            className="w-full bg-white border border-paper-300 rounded-lg pl-2 pr-6 py-1.5 text-sm font-mono tabular-nums font-bold text-purple-700 disabled:text-paper-400 disabled:bg-paper-100"
                                         />
-                                        <Percent className="w-3 h-3 text-slate-400 absolute right-2 top-2.5" />
+                                        <Percent className="w-3 h-3 text-paper-400 absolute right-2 top-2.5" />
                                     </div>
                                     <div className="col-span-1 text-center">
                                         <button
                                             onClick={() => handleRemoveProfitCenter(pc.id)}
-                                            className="p-1.5 text-slate-400 hover:text-red-500 transition hover:bg-red-50 rounded"
-                                            title="Supprimer cette activité"
+                                            aria-label="Supprimer cette activité"
+                                            className="p-1.5 text-paper-400 hover:text-red-500 transition hover:bg-red-50 rounded"
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </button>
@@ -367,8 +460,14 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                                 </div>
                             ))
                         ) : (
-                            <div className="text-center p-8 border-2 border-dashed border-slate-200 rounded-lg text-slate-400 text-sm">
-                                Aucune activité configurée. Le CA sera saisi globalement sans ventilation.
+                            <div className="text-center p-10 border-2 border-dashed border-paper-200 rounded-lg">
+                                <div className="w-14 h-14 mx-auto rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center mb-4">
+                                    <ShoppingBag className="w-6 h-6 text-indigo-500" />
+                                </div>
+                                <p className="font-semibold text-paper-700 mb-1">Aucune activité configurée</p>
+                                <p className="text-sm text-paper-500 leading-relaxed">
+                                    Le CA sera saisi globalement, sans ventilation analytique.
+                                </p>
                             </div>
                         )}
                     </div>
@@ -385,62 +484,62 @@ const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
 
             {/* 3. MODULE CARBURANT CONFIG */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="bg-white rounded-xl shadow-paper border border-paper-200 overflow-hidden">
                 <div className="p-4 bg-blue-50 border-b border-blue-100 flex justify-between items-center">
-                    <h3 className="font-bold text-blue-900 flex items-center gap-2">
+                    <h3 className="font-display text-lg font-semibold text-blue-900 tracking-tight flex items-center gap-2">
                         <Droplets className="w-4 h-4" /> Suivi Carburant
-                        {isFuelObjectivesDirty && <span className="text-[11px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full animate-pulse">Non sauvegardé</span>}
+                        {isFuelObjectivesDirty && <span className="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full animate-pulse">Non sauvegardé</span>}
                     </h3>
-                    <button
-                        onClick={async () => {
+                    <ToggleSwitch
+                        enabled={!!client.settings?.showFuelTracking}
+                        onChange={async () => {
                             const ok = await confirm({ title: client.settings?.showFuelTracking ? 'Désactiver le carburant ?' : 'Activer le carburant ?', message: client.settings?.showFuelTracking ? 'Le module de suivi carburant sera désactivé.' : 'Le suivi de consommation carburant sera activé pour ce dossier.', variant: 'info', confirmLabel: client.settings?.showFuelTracking ? 'Désactiver' : 'Activer' });
                             if (ok) onToggleFuelModule();
                         }}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${client.settings?.showFuelTracking ? 'bg-blue-600' : 'bg-slate-200'}`}
-                    >
-                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${client.settings?.showFuelTracking ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
+                        ariaLabel={client.settings?.showFuelTracking ? 'Désactiver le suivi carburant' : 'Activer le suivi carburant'}
+                        onColorClass="bg-blue-600"
+                    />
                 </div>
                 {client.settings?.showFuelTracking && (
                     <div className="p-6">
-                        <p className="text-sm text-slate-500 mb-4">
+                        <p className="text-sm text-paper-600 mb-4">
                             Définissez les objectifs mensuels de consommation (en Litres) pour ce client.
                         </p>
                         <div className="grid grid-cols-3 gap-4">
                             <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase mb-1">Obj. Gasoil (L)</label>
+                                <label className="eyebrow block mb-1">Obj. Gasoil (L)</label>
                                 <input
                                     type="number"
                                     value={settingsFuelObjectives.gasoil}
                                     onChange={(e) => setSettingsFuelObjectives({ ...settingsFuelObjectives, gasoil: parseFloat(e.target.value) || 0 })}
-                                    className="w-full p-2 border border-slate-300 rounded font-bold text-blue-900"
+                                    className="w-full p-2 border border-paper-300 rounded-lg font-mono tabular-nums font-semibold text-blue-900 text-lg"
                                 />
                             </div>
                             <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase mb-1">Obj. SP (L)</label>
+                                <label className="eyebrow block mb-1">Obj. SP (L)</label>
                                 <input
                                     type="number"
                                     value={settingsFuelObjectives.sansPlomb}
                                     onChange={(e) => setSettingsFuelObjectives({ ...settingsFuelObjectives, sansPlomb: parseFloat(e.target.value) || 0 })}
-                                    className="w-full p-2 border border-slate-300 rounded font-bold text-blue-900"
+                                    className="w-full p-2 border border-paper-300 rounded-lg font-mono tabular-nums font-semibold text-blue-900 text-lg"
                                 />
                             </div>
                             <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase mb-1">Obj. GNR (L)</label>
+                                <label className="eyebrow block mb-1">Obj. GNR (L)</label>
                                 <input
                                     type="number"
                                     value={settingsFuelObjectives.gnr}
                                     onChange={(e) => setSettingsFuelObjectives({ ...settingsFuelObjectives, gnr: parseFloat(e.target.value) || 0 })}
-                                    className="w-full p-2 border border-slate-300 rounded font-bold text-blue-900"
+                                    className="w-full p-2 border border-paper-300 rounded-lg font-mono tabular-nums font-semibold text-blue-900 text-lg"
                                 />
                             </div>
                         </div>
                         <div className="mt-4 flex justify-end">
                             <button
                                 onClick={() => onUpdateFuelObjectives(settingsFuelObjectives)}
-                                className="text-xs font-bold text-blue-700 hover:bg-blue-50 px-3 py-2 rounded transition border border-transparent hover:border-blue-100"
+                                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-bold shadow-sm transition flex items-center gap-2"
                             >
-                                Mettre à jour les objectifs
+                                <Save className="w-4 h-4" /> Enregistrer les objectifs
                             </button>
                         </div>
                     </div>
@@ -448,8 +547,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
 
             {/* DANGER ZONE - Client status only */}
-            <div className="pt-8 mt-8 border-t border-slate-200">
-                <h4 className="text-sm font-bold text-slate-500 mb-4 uppercase tracking-wider flex items-center gap-2">
+            <div className="pt-8 mt-8 border-t border-paper-200">
+                <h4 className="eyebrow mb-4 flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4" /> Statut du dossier
                 </h4>
 

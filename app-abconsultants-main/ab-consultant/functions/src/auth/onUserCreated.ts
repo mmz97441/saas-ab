@@ -1,4 +1,4 @@
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 
 // Initialize admin SDK (only once)
@@ -21,7 +21,7 @@ const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || 'nice.guillaume@gmail
  *    → Custom Claim: { role: 'client', clientId: '...' }
  * 3. Sinon → Supprimer le compte (non autorisé)
  */
-export const onUserCreated = functions.auth.user().onCreate(async (user) => {
+export const onUserCreated = functions.region('europe-west1').auth.user().onCreate(async (user) => {
   const email = user.email?.toLowerCase().trim();
   if (!email) {
     functions.logger.warn('User created without email, deleting.', { uid: user.uid });
@@ -71,6 +71,26 @@ export const onUserCreated = functions.auth.user().onCreate(async (user) => {
         clientId: clientDoc.id,
       });
 
+      // Track owner first login
+      const now = new Date().toISOString();
+      const ownerData = clientDoc.data().owner || {};
+      await clientDoc.ref.update({
+        'owner.registeredAt': ownerData.registeredAt || now,
+        'owner.lastLoginAt': now,
+        'owner.loginCount': 1,
+        'owner.loginHistory': [{ timestamp: now, userAgent: 'signup' }],
+      });
+
+      // Log activity
+      await db.collection('activities').add({
+        clientId: clientDoc.id,
+        type: 'owner_first_login',
+        description: `${ownerData.name || email} s'est connecté pour la première fois.`,
+        actorEmail: email,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        metadata: {},
+      });
+
       functions.logger.info('Custom claims set: client (owner)', { email, clientId: clientDoc.id });
       return;
     }
@@ -104,7 +124,14 @@ export const onUserCreated = functions.auth.user().onCreate(async (user) => {
             ? { ...c, acceptedAt: c.acceptedAt || new Date().toISOString(), lastLoginAt: new Date().toISOString() }
             : c
         );
-        await clientDoc.ref.update({ collaborators: updatedCollaborators });
+        // Maintain denormalized collaboratorEmails for Firestore rules (required by audit fix).
+        const collaboratorEmails = updatedCollaborators
+          .filter((c: any) => c.status === 'active' && c.email)
+          .map((c: any) => c.email.toLowerCase().trim());
+        await clientDoc.ref.update({
+          collaborators: updatedCollaborators,
+          collaboratorEmails,
+        });
 
         functions.logger.info('Custom claims set: client (collaborator)', {
           email,

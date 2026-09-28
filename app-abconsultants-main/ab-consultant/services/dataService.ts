@@ -10,10 +10,11 @@ import {
   addDoc,
   deleteDoc, 
   updateDoc, 
-  query, 
-  where, 
+  query,
+  where,
   writeBatch,
   orderBy,
+  limit,
   onSnapshot,
   serverTimestamp,
   Timestamp,
@@ -107,9 +108,14 @@ export const sendMessage = async (
         batch.set(conversationRef, conversationUpdate, { merge: true });
 
         if (!isSystemSummary) {
-             batch.update(clientRef, { 
+             // Preview shown in consultant's inbox list (denormalized to avoid N+1 reads).
+             // 80 chars matches typical 1-line truncation in the conversation list row.
+             const preview = text.slice(0, 80).replace(/\n/g, ' ');
+             batch.update(clientRef, {
                  hasUnreadMessages: sender === 'user' || isExpertHandoff,
-                 lastMessageTime: timestamp
+                 lastMessageTime: timestamp,
+                 lastMessagePreview: preview,
+                 lastMessageSender: sender,
              });
         }
 
@@ -237,6 +243,13 @@ export const updateConsultant = async (id: string, newName: string): Promise<voi
     await updateDoc(doc(db, COLL_CONSULTANTS, id), { name: newName });
 };
 
+export const updateConsultantRole = async (
+    consultantId: string,
+    newRole: 'admin' | 'consultant'
+): Promise<void> => {
+    await updateDoc(doc(db, COLL_CONSULTANTS, consultantId), { role: newRole });
+};
+
 export const deleteConsultant = async (id: string): Promise<void> => {
     await deleteDoc(doc(db, COLL_CONSULTANTS, id));
 };
@@ -288,22 +301,30 @@ export const getClients = async (filterByEmail?: string | null): Promise<Client[
 
         const emailLower = filterByEmail.toLowerCase();
 
-        // Owner query
+        // Owner query — rule allows via owner.email == myEmail() per-doc
         const ownerSnap = await getDocs(query(collection(db, COLL_CLIENTS), where("owner.email", "==", emailLower)));
         const ownerClients = ownerSnap.docs.map(mapDocToClient);
 
-        // Collaborator scan (Firestore can't query nested array objects directly)
-        const allSnap = await getDocs(query(collection(db, COLL_CLIENTS)));
-        const collabClients: Client[] = [];
+        // Collaborator query — leverages denormalized collaboratorEmails array
+        // (maintained by setUserRole and saveClient). Rule allows via
+        // myEmail() in resource.data.collaboratorEmails per-doc.
+        // The previous unfiltered scan triggered permission-denied for clients
+        // under the post-557cbd6 rules (cross-tenant leak fix).
         const ownerIds = new Set(ownerClients.map(c => c.id));
-
-        for (const doc of allSnap.docs) {
-            if (ownerIds.has(doc.id)) continue; // Already in owner list
-            const data = doc.data();
-            const collaborators: any[] = data.collaborators || [];
-            if (collaborators.some((c: any) => c.email?.toLowerCase() === emailLower && c.status === 'active')) {
+        const collabClients: Client[] = [];
+        try {
+            const collabSnap = await getDocs(query(
+                collection(db, COLL_CLIENTS),
+                where("collaboratorEmails", "array-contains", emailLower)
+            ));
+            for (const doc of collabSnap.docs) {
+                if (ownerIds.has(doc.id)) continue;
                 collabClients.push(mapDocToClient(doc));
             }
+        } catch (collabErr) {
+            // Non-fatal: owner clients still returned. Older docs without
+            // the denormalized field will be missed until they're re-saved.
+            console.warn("Lecture collaborateurs indisponible:", collabErr);
         }
 
         return [...ownerClients, ...collabClients];
@@ -315,7 +336,14 @@ export const getClients = async (filterByEmail?: string | null): Promise<Client[
 
 export const saveClient = async (client: Client): Promise<void> => {
     try {
-        await setDoc(doc(db, COLL_CLIENTS, client.id), client);
+        // Dénormalise la liste des emails des collaborateurs actifs pour permettre
+        // aux règles Firestore de les vérifier (un in sur un tableau de strings).
+        const collaboratorEmails = (client.collaborators || [])
+            .filter(c => c.status === 'active' && !!c.email)
+            .map(c => c.email.toLowerCase().trim());
+
+        const payload = stripUndefined({ ...client, collaboratorEmails });
+        await setDoc(doc(db, COLL_CLIENTS, client.id), payload);
     } catch (error: any) {
         console.error("Erreur sauvegarde client", error);
         throw new Error(error?.code === 'permission-denied' ? 'Permission refusée. Vérifiez vos droits.' : 'Impossible de sauvegarder le dossier. Vérifiez votre connexion.');
@@ -440,9 +468,22 @@ export const getRecordsByClient = async (clientId: string): Promise<FinancialRec
     }
 };
 
+const stripUndefined = (value: any): any => {
+    if (value === null || value === undefined) return value;
+    if (Array.isArray(value)) return value.map(stripUndefined);
+    if (typeof value === 'object') {
+        const cleaned: any = {};
+        for (const [key, v] of Object.entries(value)) {
+            if (v !== undefined) cleaned[key] = stripUndefined(v);
+        }
+        return cleaned;
+    }
+    return value;
+};
+
 export const saveRecord = async (record: FinancialRecord): Promise<void> => {
     try {
-        await setDoc(doc(db, COLL_RECORDS, record.id), record);
+        await setDoc(doc(db, COLL_RECORDS, record.id), stripUndefined(record));
     } catch (error: any) {
         console.error("Erreur sauvegarde record", error);
         throw new Error(error?.code === 'permission-denied' ? 'Permission refusée. Vérifiez vos droits.' : 'Impossible de sauvegarder les données. Vérifiez votre connexion.');
@@ -557,3 +598,117 @@ export const subscribeToClientActivities = (
         console.error("Erreur subscription activités:", error);
     });
 };
+
+// =============================================
+// CONSULTANT ALERTS
+// =============================================
+export interface ConsultantAlert {
+  id: string;
+  clientId: string;
+  clientName: string;
+  type: 'chat_handoff' | 'urgent_treasury' | 'compliance' | 'manual';
+  message: string;
+  metadata?: Record<string, any>;
+  createdAt: any;
+  resolved: boolean;
+  resolvedAt?: any;
+  resolvedBy?: string;
+}
+
+const COLL_ALERTS = 'consultantAlerts';
+
+export async function createConsultantAlert(
+  client: Client,
+  type: ConsultantAlert['type'],
+  message: string,
+  metadata?: Record<string, any>
+): Promise<void> {
+  await addDoc(collection(db, COLL_ALERTS), {
+    clientId: client.id,
+    clientName: client.companyName || '',
+    type,
+    message: message.slice(0, 1000),  // cap at 1k chars
+    metadata: metadata || {},
+    createdAt: serverTimestamp(),
+    resolved: false,
+  });
+}
+
+export function subscribeToConsultantAlerts(
+  callback: (alerts: ConsultantAlert[]) => void
+): () => void {
+  const q = query(
+    collection(db, COLL_ALERTS),
+    where('resolved', '==', false),
+    orderBy('createdAt', 'desc'),
+    limit(50)
+  );
+  return onSnapshot(q, (snap) => {
+    const alerts: ConsultantAlert[] = snap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+    } as ConsultantAlert));
+    callback(alerts);
+  });
+}
+
+export async function markAlertResolved(alertId: string, consultantEmail: string): Promise<void> {
+  await updateDoc(doc(db, COLL_ALERTS, alertId), {
+    resolved: true,
+    resolvedAt: serverTimestamp(),
+    resolvedBy: consultantEmail,
+  });
+}
+
+// =============================================
+// AI FEEDBACK
+// =============================================
+export interface AiFeedback {
+  id: string;
+  clientId: string;       // which client dossier the conversation belonged to
+  messageId: string;      // ID of the AI message being rated
+  rating: 'up' | 'down';
+  comment?: string;       // optional, future-proof
+  userId: string;         // the rater's UID (could be client owner or collaborator)
+  userEmail: string;
+  createdAt: any;
+}
+
+const COLL_AI_FEEDBACK = 'aiFeedback';
+
+/**
+ * Submit user feedback on an AI message.
+ * Best-effort — failures should not block the chat experience.
+ */
+export async function submitAiFeedback(
+  clientId: string,
+  messageId: string,
+  rating: 'up' | 'down',
+  comment?: string
+): Promise<void> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Non authentifié');
+
+  await addDoc(collection(db, COLL_AI_FEEDBACK), {
+    clientId,
+    messageId,
+    rating,
+    comment: comment?.slice(0, 1000) || null,
+    userId: user.uid,
+    userEmail: user.email || '',
+    createdAt: serverTimestamp(),
+  });
+}
+
+export function subscribeToAiFeedback(
+  callback: (feedback: AiFeedback[]) => void
+): () => void {
+  const q = query(
+    collection(db, COLL_AI_FEEDBACK),
+    orderBy('createdAt', 'desc'),
+    limit(100),
+  );
+  return onSnapshot(q, (snap) => {
+    callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as AiFeedback)));
+  });
+}

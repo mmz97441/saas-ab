@@ -71,8 +71,23 @@ export interface Client {
   companyPhone?: string;
   owner: {
     name: string;
-    email: string; 
+    email: string;
     phone?: string;
+    registeredAt?: string;
+    lastLoginAt?: string;
+    loginCount?: number;
+    loginHistory?: Array<{
+      timestamp: string;
+      userAgent?: string;
+    }>;
+  };
+
+  // INVITATION TRACKING
+  invitationStatus?: {
+    lastSentAt?: string;
+    sentCount: number;
+    sentBy?: string;
+    method?: 'email' | 'manual';
   };
   assignedConsultantEmail?: string; 
   status: 'active' | 'inactive';
@@ -81,7 +96,9 @@ export interface Client {
   settings?: {
     showCommercialMargin: boolean;
     showFuelTracking?: boolean;
-    fuelObjectives?: { 
+    enableAiAssistant?: boolean;   // Option premium — activable par le consultant. Default OFF.
+    revenueObjective?: number;
+    fuelObjectives?: {
         gasoil: number;
         sansPlomb: number;
         gnr: number;
@@ -95,6 +112,8 @@ export interface Client {
   // CHAT META DATA
   hasUnreadMessages?: boolean;
   lastMessageTime?: any;
+  lastMessagePreview?: string;        // first 80 chars of text
+  lastMessageSender?: 'user' | 'ai' | 'consultant';
 
   // RENDEZ-VOUS
   nextAppointment?: NextAppointment;
@@ -139,7 +158,11 @@ export type ActivityEventType =
   | 'status_changed'
   | 'invitation_sent'
   | 'collaborator_added'
-  | 'collaborator_revoked';
+  | 'collaborator_revoked'
+  | 'owner_first_login'
+  | 'owner_login'
+  | 'invitation_email_sent'
+  | 'record_unlocked';
 
 export interface ActivityEvent {
   id: string;

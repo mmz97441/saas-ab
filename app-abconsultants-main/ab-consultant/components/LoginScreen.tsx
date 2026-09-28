@@ -3,21 +3,50 @@ import React, { useState } from 'react';
 import { ShieldCheck, UserCircle, ArrowRight, Loader2, AlertCircle, Building, Mail, Lock, UserPlus, KeyRound } from 'lucide-react';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, deleteUser, sendPasswordResetEmail, signOut } from 'firebase/auth';
 import { auth } from '../firebase';
-import { checkClientEmailExists, checkConsultantEmailExists } from '../services/dataService';
+import { refreshUserRole } from '../lib/cloudFunctions';
 import { APP_VERSION } from '../types';
 
 interface LoginScreenProps {
   onLogin: (role: 'ab_consultant' | 'client', email?: string) => void;
 }
 
+const LAST_TAB_STORAGE_KEY = 'ab.login.lastTab';
+
+const resolveInitialTab = (): 'client' | 'expert' => {
+  if (typeof window === 'undefined') return 'client';
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const urlTab = params.get('tab');
+    if (urlTab === 'expert' || urlTab === 'consultant' || urlTab === 'admin') return 'expert';
+    if (urlTab === 'client') return 'client';
+    const stored = localStorage.getItem(LAST_TAB_STORAGE_KEY);
+    if (stored === 'expert' || stored === 'client') return stored;
+  } catch {/* localStorage may be blocked */}
+  return 'client';
+};
+
+const resolveInitialSignUp = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('signup') === '1' || params.get('mode') === 'signup';
+  } catch { return false; }
+};
+
 const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
-  const [activeTab, setActiveTab] = useState<'client' | 'expert'>('client');
-  const [isSignUp, setIsSignUp] = useState(false); // Mode Inscription vs Connexion
+  const [activeTab, setActiveTab] = useState<'client' | 'expert'>(() => resolveInitialTab());
+  const [isSignUp, setIsSignUp] = useState(() => resolveInitialSignUp()); // Mode Inscription vs Connexion
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
+
+  // Persist last-used tab so returning users land on it without thinking.
+  // URL param ?tab=... always wins on first render via resolveInitialTab.
+  React.useEffect(() => {
+    try { localStorage.setItem(LAST_TAB_STORAGE_KEY, activeTab); } catch {/* blocked */}
+  }, [activeTab]);
 
   // Email de l'expert (Super Admin) - doit correspondre à AuthContext.tsx
   const EXPERT_EMAIL = "nice.guillaume@gmail.com";
@@ -52,50 +81,44 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
       }
 
       // À ce stade, l'utilisateur est techniquement connecté.
-      // MAINTENANT, on vérifie s'il a le droit d'entrer dans l'application métier.
-      
+      // MAINTENANT, on vérifie s'il a le droit d'entrer via la Cloud Function setUserRole
+      // qui utilise l'Admin SDK (bypass les règles Firestore) et set les custom claims.
+
       try {
+          const roleResult = await refreshUserRole();
+
           if (activeTab === 'expert') {
-              // --- VÉRIFICATION CONSULTANT ---
-              let isWhitelisted = false;
-              
-              if (cleanEmail === EXPERT_EMAIL) {
-                  isWhitelisted = true;
-              } else {
-                  // Cette requête réussira car auth != null
-                  isWhitelisted = await checkConsultantEmailExists(cleanEmail);
-              }
-              
-              if (!isWhitelisted) {
+              if (roleResult.role !== 'consultant') {
                   throw new Error("CONSULTANT_NOT_AUTHORIZED");
               }
           } else {
-              // --- VÉRIFICATION CLIENT ---
-              // Cette requête réussira car auth != null
-              const isClientWhitelisted = await checkClientEmailExists(cleanEmail);
-              
-              if (!isClientWhitelisted) {
-                  // On vérifie si ce n'est pas un consultant qui se trompe de porte
-                  const isActuallyConsultant = await checkConsultantEmailExists(cleanEmail);
-                  if (isActuallyConsultant || cleanEmail === EXPERT_EMAIL) {
-                      throw new Error("WRONG_PORTAL_CONSULTANT");
-                  }
+              if (roleResult.role === 'consultant') {
+                  throw new Error("WRONG_PORTAL_CONSULTANT");
+              }
+              if (roleResult.role !== 'client') {
                   throw new Error("CLIENT_NOT_FOUND");
               }
           }
+
+          // Force le refresh du token pour que AuthContext récupère les claims
+          await auth.currentUser?.getIdToken(true);
       } catch (validationError: any) {
           // ÉCHEC DE VALIDATION MÉTIER
           // L'utilisateur est connecté mais n'est pas dans notre base de données.
           // SÉCURITÉ : On détruit sa session immédiatement.
-          
+
           if (isSignUp && auth.currentUser) {
-              // Si c'était une inscription, on supprime le compte créé "pour rien"
               await deleteUser(auth.currentUser);
           } else {
-              // Si c'était une connexion, on déconnecte juste
               await signOut(auth);
           }
-          throw validationError; // On renvoie l'erreur pour l'affichage
+
+          // Traduire l'erreur Cloud Function en erreur métier
+          if (validationError?.code === 'functions/permission-denied') {
+              if (activeTab === 'expert') throw new Error("CONSULTANT_NOT_AUTHORIZED");
+              throw new Error("CLIENT_NOT_FOUND");
+          }
+          throw validationError;
       }
 
       // Si on arrive ici, tout est OK : Auth valide + Whitelist validée.
@@ -154,7 +177,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-brand-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-paper-50 p-4">
       <div className="max-w-4xl w-full bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[500px] animate-in fade-in zoom-in-95 duration-500">
         
         {/* Left Side: Visuals */}
@@ -168,15 +191,15 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                     {activeTab === 'expert' ? 'AB CONSULTANTS' : 'AB CONSULTANTS'}
                 </span>
             </div>
-            <p className="text-brand-200 text-sm font-medium tracking-wide uppercase">
+            <p className="eyebrow text-brand-200">
                 {activeTab === 'expert' ? 'Suite de pilotage financier' : 'Espace Client Sécurisé'}
             </p>
           </div>
 
           <div className="space-y-6">
-             <h2 className="text-3xl font-bold leading-tight text-white">
-                {activeTab === 'expert' 
-                    ? "Expertise et Stratégie." 
+             <h2 className="font-display text-3xl md:text-4xl font-semibold tracking-tight leading-tight text-white [text-wrap:balance]">
+                {activeTab === 'expert'
+                    ? "Expertise et Stratégie."
                     : "Votre performance financière en temps réel."}
              </h2>
              <p className="text-brand-100 leading-relaxed font-light">
@@ -184,11 +207,28 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                     ? "Pilotage global du portefeuille, validation des comptes et analyses stratégiques pour vos clients transport & logistique."
                     : "Accédez à vos tableaux de bord, saisissez vos données d'exploitation et consultez les analyses de votre consultant."}
              </p>
+
+             <ul className="space-y-2.5 pt-2">
+                {(activeTab === 'expert'
+                    ? ["Pilotage temps réel du portefeuille", "Validation experte des saisies clients", "Analyses stratégiques mensuelles"]
+                    : ["Saisie guidée mois par mois", "Tableaux de bord temps réel", "Échanges directs avec votre consultant"]
+                ).map((item) => (
+                    <li key={item} className="flex items-center gap-3 text-sm text-brand-100/85 font-light">
+                        <span className="w-1 h-1 rounded-full bg-accent-400 shrink-0" aria-hidden="true" />
+                        {item}
+                    </li>
+                ))}
+             </ul>
           </div>
 
-          <div className="text-xs text-brand-300/60 pt-6 border-t border-white/10 flex justify-between items-center">
-             <span>© {new Date().getFullYear()} AB Consultants <span className="opacity-50 ml-1 font-mono">v{APP_VERSION}</span></span>
-             <span className="text-accent-500 font-bold">SÉCURISÉ PAR FIREBASE</span>
+          <div className="text-xs text-brand-200 pt-6 border-t border-white/10 flex justify-between items-center">
+             <span>© {new Date().getFullYear()} AB Consultants</span>
+             <span className="text-accent-400 font-semibold tracking-[0.12em] uppercase text-[10px]">
+                Connexion sécurisée
+             </span>
+             {import.meta.env.DEV && (
+                <span className="font-mono text-brand-300 absolute bottom-2 right-2 opacity-50" aria-hidden="true">v{APP_VERSION}</span>
+             )}
           </div>
         </div>
 
@@ -196,23 +236,27 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         <div className="md:w-1/2 p-10 flex flex-col justify-center bg-white relative">
             
             {/* Tabs */}
-            <div className="flex p-1 bg-brand-50 rounded-lg mb-8">
-                <button 
+            <div className="flex p-1 bg-brand-50 rounded-lg mb-8" role="tablist" aria-label="Type de compte">
+                <button
+                    role="tab"
+                    aria-selected={activeTab === 'client'}
                     onClick={() => { setActiveTab('client'); setError(''); setIsSignUp(false); setInfoMessage(''); }}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-md transition-all ${activeTab === 'client' ? 'bg-white text-brand-900 shadow-sm ring-1 ring-black/5' : 'text-brand-400 hover:text-brand-600'}`}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold rounded-md transition-all ${activeTab === 'client' ? 'bg-white text-brand-900 shadow-sm ring-1 ring-black/5' : 'text-brand-400 hover:text-brand-600'}`}
                 >
                     <UserCircle className="w-4 h-4" /> Espace Client
                 </button>
-                <button 
+                <button
+                    role="tab"
+                    aria-selected={activeTab === 'expert'}
                     onClick={() => { setActiveTab('expert'); setError(''); setIsSignUp(false); setInfoMessage(''); }}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-md transition-all ${activeTab === 'expert' ? 'bg-white text-brand-900 shadow-sm ring-1 ring-black/5' : 'text-brand-400 hover:text-brand-600'}`}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold rounded-md transition-all ${activeTab === 'expert' ? 'bg-white text-brand-900 shadow-sm ring-1 ring-black/5' : 'text-brand-400 hover:text-brand-600'}`}
                 >
                     <ShieldCheck className="w-4 h-4" /> Espace Consultant
                 </button>
             </div>
 
             <div className="mb-6">
-                <h3 className="text-2xl font-bold text-brand-900 mb-1">
+                <h3 className="font-display text-2xl font-semibold text-brand-900 tracking-tight mb-1">
                     {activeTab === 'expert' ? (isSignUp ? 'Activer mon accès' : 'Connexion Admin') : (isSignUp ? 'Activer mon accès' : 'Connexion')}
                 </h3>
                 <p className="text-brand-500 text-sm">
@@ -224,7 +268,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
 
             <form onSubmit={handleAuthAction} className="space-y-4">
                 <div>
-                    <label className="block text-xs font-bold text-brand-700 uppercase mb-1">Email</label>
+                    <label className="eyebrow text-brand-700 block mb-1">Email</label>
                     <div className="relative">
                         <Mail className="absolute left-3 top-3 w-4 h-4 text-brand-400" />
                         <input 
@@ -233,16 +277,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder={activeTab === 'client' ? "email@societe.com" : "consultant@ab-consultants.fr"}
-                            className="w-full pl-10 pr-4 py-3 rounded-lg border border-brand-200 bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all placeholder-brand-300 text-brand-900"
+                            className="w-full pl-10 pr-4 py-3 rounded-lg border border-brand-200 bg-white focus:border-brand-400 focus:bg-paper-50/40 transition-colors placeholder-brand-300 text-brand-900"
                         />
                     </div>
                 </div>
                 <div>
                     <div className="flex justify-between items-center mb-1">
-                        <label className="block text-xs font-bold text-brand-700 uppercase">Mot de passe</label>
+                        <label className="eyebrow text-brand-700 block">Mot de passe</label>
                         {!isSignUp && (
-                            <button type="button" onClick={handleResetPassword} className="text-[11px] font-bold text-brand-500 hover:text-brand-700 flex items-center gap-1">
-                                <KeyRound className="w-3 h-3" /> Oublié ?
+                            <button type="button" onClick={handleResetPassword} className="text-xs font-bold text-brand-600 hover:text-brand-800 flex items-center gap-1 py-1 px-2 -my-1 -mr-2 rounded hover:bg-brand-50 transition">
+                                <KeyRound className="w-3 h-3" /> Mot de passe oublié ?
                             </button>
                         )}
                     </div>
@@ -254,7 +298,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="••••••••"
-                            className="w-full pl-10 pr-4 py-3 rounded-lg border border-brand-200 bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all placeholder-brand-300 text-brand-900"
+                            className="w-full pl-10 pr-4 py-3 rounded-lg border border-brand-200 bg-white focus:border-brand-400 focus:bg-paper-50/40 transition-colors placeholder-brand-300 text-brand-900"
                         />
                     </div>
                 </div>
@@ -284,16 +328,23 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             </form>
             
             {/* TOGGLE MODE LINK */}
-            <div className="mt-6 text-center border-t border-brand-50 pt-4">
-                <button 
-                    onClick={toggleMode}
-                    className="text-xs text-brand-500 hover:text-brand-800 font-medium transition-colors"
-                >
-                    {isSignUp 
-                        ? "J'ai déjà un mot de passe. Me connecter." 
-                        : (activeTab === 'expert' ? "Invité par l'admin ? Activer mon accès." : "Première connexion ? Créer mon accès.")
-                    }
-                </button>
+            <div className="mt-7" aria-hidden={false}>
+                <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.18em] text-brand-300 font-semibold">
+                    <span className="flex-1 h-px bg-brand-100" />
+                    <span>ou</span>
+                    <span className="flex-1 h-px bg-brand-100" />
+                </div>
+                <div className="mt-3 text-center">
+                    <button
+                        onClick={toggleMode}
+                        className="text-sm text-brand-700 hover:text-brand-900 font-semibold transition-colors py-1.5 px-3 rounded-md hover:bg-brand-50 underline-offset-4 decoration-accent-400 decoration-2 hover:underline"
+                    >
+                        {isSignUp
+                            ? "J'ai déjà un mot de passe. Me connecter."
+                            : (activeTab === 'expert' ? "Invité par l'admin ? Activer mon accès." : "Première connexion ? Créer mon accès.")
+                        }
+                    </button>
+                </div>
             </div>
         </div>
       </div>
